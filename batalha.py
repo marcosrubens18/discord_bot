@@ -5,7 +5,6 @@ import discord
 from discord import app_commands
 import aiosqlite, asyncio, random, os
 
-DB_PATH = "rpg.db"
 
 # ─── ARENAS ──────────────────────────────────────────────────────
 ARENAS = [
@@ -234,48 +233,45 @@ EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino"
 # ─── DB ──────────────────────────────────────────────────────────
 
 async def get_p(user_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM personagens WHERE user_id=?", (user_id,)) as c:
-            return await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        return await db.fetchrow("SELECT * FROM personagens WHERE user_id=$1", (user_id,))
 
 async def get_skills_eq(user_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT skill_id FROM skills_equipadas WHERE user_id=? ORDER BY slot", (user_id,)) as c:
-            return [r["skill_id"] for r in await c.fetchall()]
-
+    pool = await get_pool()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        rows = await db.fetch("SELECT skill_id FROM skills_equipadas WHERE user_id=$1 ORDER BY slot", user_id)
+        return [r["skill_id"] for r in rows]
 async def get_skills_desbloq(user_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT skill_id FROM skills_desbloqueadas WHERE user_id=?", (user_id,)) as c:
-            return [r["skill_id"] for r in await c.fetchall()]
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        rows = await db.fetch("SELECT skill_id FROM skills_desbloqueadas WHERE user_id=$1", user_id)
+        return [r["skill_id"] for r in rows]
 
-async def get_pocoes_inv(user_id):
-    """Busca pocoes do inventario corretamente."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            """SELECT * FROM inventario
-               WHERE user_id=?
-               AND (item_id LIKE 'pocao%' OR item_id='elixir')""",
-            (user_id,)
-        ) as c:
-            return await c.fetchall()
+
+
+
+
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        return await db.fetch(
+            "SELECT * FROM inventario WHERE user_id=$1 AND (item_id LIKE 'pocao%' OR item_id='elixir')",
+            user_id
+        )
 
 async def remover_pocao(user_id, item_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT id, quantidade FROM inventario WHERE user_id=? AND item_id=?",
-            (user_id, item_id)
-        ) as c:
-            row = await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        row = await db.fetchrow(
+            "SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2",
+            user_id, item_id
+        )
         if row:
-            if row[1] > 1:
-                await db.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=?", (row[0],))
+            if row["quantidade"] > 1:
+                await db.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=$1", row["id"])
             else:
-                await db.execute("DELETE FROM inventario WHERE id=?", (row[0],))
-        await db.commit()
+                await db.execute("DELETE FROM inventario WHERE id=$1", row["id"])
 
 async def equipar_skills_iniciais(user_id, classe_id):
     """Equipa as 4 primeiras skills desbloqueadas automaticamente."""
@@ -284,20 +280,19 @@ async def equipar_skills_iniciais(user_id, classe_id):
     para_equipar = [s["id"] for s in skills_classe if s["id"] in skills_desbloq][:4]
     if not para_equipar and skills_classe:
         para_equipar = [skills_classe[0]["id"]]
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM skills_equipadas WHERE user_id=?", (user_id,))
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        await db.execute("DELETE FROM skills_equipadas WHERE user_id=$1", (user_id,))
         for slot, sid in enumerate(para_equipar):
             await db.execute(
                 "INSERT OR REPLACE INTO skills_equipadas(user_id,skill_id,slot) VALUES(?,?,?)",
                 (user_id, sid, slot)
             )
-        await db.commit()
 
 async def salvar_resultado(user_id, hp, xp, moedas, vitoria, classe_id, nivel_atual):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT xp,nivel,hp_max,ataque,defesa FROM personagens WHERE user_id=?", (user_id,)) as c:
-            p = await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        p = await db.fetchrow("SELECT xp,nivel,hp_max,ataque,defesa FROM personagens WHERE user_id=$1", (user_id,))
         if not p: return 0
         novo_xp = p["xp"] + xp
         nv = p["nivel"]
@@ -313,44 +308,42 @@ async def salvar_resultado(user_id, hp, xp, moedas, vitoria, classe_id, nivel_at
         dfs = p["defesa"] + levelups*1
         hp_final = max(1, min(hp, hp_max))
         await db.execute("""
-            UPDATE personagens SET hp_atual=?,hp_max=?,xp=?,nivel=?,ataque=?,defesa=?,
-            moedas=moedas+?,vitorias=vitorias+?,derrotas=derrotas+? WHERE user_id=?
+            UPDATE personagens SET hp_atual=$1,hp_max=$2,xp=$3,nivel=$4,ataque=$5,defesa=$6,
+            moedas=moedas+$7,vitorias=vitorias+$8,derrotas=derrotas+$9 WHERE user_id=$10
         """, (hp_final,hp_max,novo_xp,nv,atk,dfs,moedas,
               1 if vitoria else 0, 0 if vitoria else 1, user_id))
         for s in SKILLS_POR_CLASSE.get(classe_id, []):
             if s["nivel"] <= nv:
                 await db.execute(
-                    "INSERT OR IGNORE INTO skills_desbloqueadas(user_id,skill_id) VALUES(?,?)",
+                    "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES(?,?)",
                     (user_id, s["id"])
                 )
-        await db.commit()
         return levelups
 
 async def add_loot(user_id, loot):
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_pool()
+    async with pool.acquire() as db:
         for it in loot:
             iid,nome,tipo,rar,emoji,desc = it
-            async with db.execute("SELECT id,quantidade FROM inventario WHERE user_id=? AND item_id=?", (user_id,iid)) as c:
-                ex = await c.fetchone()
+            ex = await db.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", (user_id,iid))
             if ex:
-                await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=?", (ex[0],))
+                await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", (ex[0],))
             else:
-                await db.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES(?,?,?,?,?,?,?)",
+                await db.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
                                  (user_id,iid,nome,tipo,rar,emoji,desc))
-        await db.commit()
 
 async def init_db_batalha():
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""CREATE TABLE IF NOT EXISTS skills_equipadas(
-            user_id INTEGER, skill_id TEXT, slot INTEGER DEFAULT 0,
-            PRIMARY KEY(user_id,skill_id))""")
-        try:
-            await db.execute("ALTER TABLE personagens ADD COLUMN mana_max INTEGER DEFAULT 100")
-            await db.execute("ALTER TABLE personagens ADD COLUMN mana_atual INTEGER DEFAULT 100")
-        except Exception:
-            pass
-        await db.commit()
-    print("DB batalha OK")
+    pass  # tabelas criadas no db.py
+
+
+
+
+
+
+
+
+
+
 
 # ─── HELPERS ─────────────────────────────────────────────────────
 
@@ -389,24 +382,22 @@ def get_skill(classe_id, skill_id):
     return None
 
 async def get_arma_equipada(user_id):
-    """Retorna a arma equipada e o bonus de afinidade"""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM inventario WHERE user_id=? AND tipo='arma' AND equipado=1 LIMIT 1",
-            (user_id,)
-        ) as c:
-            return await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        return await db.fetchrow(
+            "SELECT * FROM inventario WHERE user_id=$1 AND tipo='arma' AND equipado=1 LIMIT 1",
+            user_id
+        )
 
 async def get_armadura_equipada(user_id):
-    """Retorna a armadura equipada"""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM inventario WHERE user_id=? AND tipo='armadura' AND equipado=1 LIMIT 1",
-            (user_id,)
-        ) as c:
-            return await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        return await db.fetchrow(
+            "SELECT * FROM inventario WHERE user_id=$1 AND tipo='armadura' AND equipado=1 LIMIT 1",
+            user_id
+        )
+
+
 
 # Afinidade arma por classe
 AFINIDADE_ARMA = {
@@ -774,14 +765,15 @@ class GerenciarSkillsView(discord.ui.View):
             await inter.response.send_message("Nao sao suas skills!", ephemeral=True)
             return
         selecionadas = inter.data["values"][:4]
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("DELETE FROM skills_equipadas WHERE user_id=?", (self.user_id,))
+        selecionadas = inter.data["values"][:4]
+        pool = await get_pool()
+        async with pool.acquire() as db:
+            await db.execute("DELETE FROM skills_equipadas WHERE user_id=$1", self.user_id)
             for slot, sid in enumerate(selecionadas):
                 await db.execute(
-                    "INSERT OR REPLACE INTO skills_equipadas(user_id,skill_id,slot) VALUES(?,?,?)",
-                    (self.user_id, sid, slot)
+                    "INSERT INTO skills_equipadas(user_id,skill_id,slot) VALUES($1,$2,$3) ON CONFLICT(user_id,slot) DO UPDATE SET skill_id=EXCLUDED.skill_id",
+                    self.user_id, sid, slot
                 )
-            await db.commit()
         nomes = [s["nome"] for s in self.skills if s["id"] in selecionadas]
         await inter.response.edit_message(
             embed=discord.Embed(
@@ -791,7 +783,6 @@ class GerenciarSkillsView(discord.ui.View):
             ),
             view=None
         )
-
 # ─── ENGINE TREINO ───────────────────────────────────────────────
 
 async def rodar_treino(interaction, p, monstro, arena):
