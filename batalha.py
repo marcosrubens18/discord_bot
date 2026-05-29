@@ -236,7 +236,7 @@ EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino"
 async def get_p(user_id):
     pool = await get_pool()
     async with pool.acquire() as db:
-        return await db.fetchrow("SELECT * FROM personagens WHERE user_id=$1", (user_id,))
+        return await db.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
 async def get_skills_eq(user_id):
     pool = await get_pool()
@@ -293,7 +293,7 @@ async def equipar_skills_iniciais(user_id, classe_id):
         para_equipar = [skills_classe[0]["id"]]
     pool = await get_pool()
     async with pool.acquire() as db:
-        await db.execute("DELETE FROM skills_equipadas WHERE user_id=$1", (user_id,))
+        await db.execute("DELETE FROM skills_equipadas WHERE user_id=$1", user_id)
         for slot, sid in enumerate(para_equipar):
             await db.execute(
                 "INSERT OR REPLACE INTO skills_equipadas(user_id,skill_id,slot) VALUES(?,?,?)",
@@ -303,7 +303,7 @@ async def equipar_skills_iniciais(user_id, classe_id):
 async def salvar_resultado(user_id, hp, xp, moedas, vitoria, classe_id, nivel_atual):
     pool = await get_pool()
     async with pool.acquire() as db:
-        p = await db.fetchrow("SELECT xp,nivel,hp_max,ataque,defesa FROM personagens WHERE user_id=$1", (user_id,))
+        p = await db.fetchrow("SELECT xp,nivel,hp_max,ataque,defesa FROM personagens WHERE user_id=$1", user_id)
         if not p: return 0
         novo_xp = p["xp"] + xp
         nv = p["nivel"]
@@ -338,7 +338,7 @@ async def add_loot(user_id, loot):
             iid,nome,tipo,rar,emoji,desc = it
             ex = await db.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", (user_id,iid))
             if ex:
-                await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", (ex[0],))
+                await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
             else:
                 await db.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
                                  (user_id,iid,nome,tipo,rar,emoji,desc))
