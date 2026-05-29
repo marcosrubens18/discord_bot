@@ -1,19 +1,15 @@
-# hospital.py
+# hospital.py — PostgreSQL version
 import discord
-import aiosqlite
 import asyncio
 import random
+from db import get_pool
 
-DB_PATH = "rpg.db"
-
-# ─── PLANOS DO HOSPITAL ──────────────────────────────────────────
 PLANOS = [
     {"id":"basico",   "nome":"Atendimento Basico",  "emoji":"🩹","preco":10, "hp_pct":0.5,"mana_pct":0.5,"desc":"Restaura 50% do HP e Mana",                        "cor":0x1D9E75},
     {"id":"completo", "nome":"Tratamento Completo", "emoji":"🏥","preco":30, "hp_pct":1.0,"mana_pct":1.0,"desc":"Restaura 100% do HP e Mana",                       "cor":0x378ADD},
     {"id":"premium",  "nome":"Suite Premium",       "emoji":"✨","preco":60, "hp_pct":1.0,"mana_pct":1.0,"desc":"HP + Mana full + remove todos os efeitos negativos","cor":0x7F77DD},
 ]
 
-# ─── POOL DE CADA ROLETA COM RARIDADES ───────────────────────────
 ROLETAS = {
     "classe": {
         "nome": "Classe", "emoji": "🎭",
@@ -37,7 +33,7 @@ ROLETAS = {
             {"id":"drenar_vida",   "nome":"Drenar Vida",   "emoji":"🌑","raridade":"Comum",   "desc":"Absorve a forca vital do inimigo. Metade do dano vira HP para voce."},
             {"id":"baforada",      "nome":"Baforada",       "emoji":"🔥","raridade":"Comum",   "desc":"Chamas draconicas que causam dano e queimadura por 2 turnos."},
             {"id":"faisca",        "nome":"Faisca Arcana",  "emoji":"✨","raridade":"Comum",   "desc":"Descarga de energia arcana pura que ignora resistencias elementais."},
-            {"id":"golpe_brutal",  "nome":"Golpe Brutal",  "emoji":"💥","raridade":"Incomum", "desc":"Concentra toda a forca em um golpe devastador. Dano dobrado."},
+            {"id":"golpe_brutal",  "nome":"Golpe Brutal",  "emoji":"💥","raridade":"Incomum", "desc":"Concentra toda a forca em um golpe devastador. Dano x2.2."},
             {"id":"esquiva",       "nome":"Esquiva",         "emoji":"💨","raridade":"Incomum", "desc":"Rola para o lado evitando completamente o proximo ataque recebido."},
             {"id":"escudo_arcano", "nome":"Escudo Arcano", "emoji":"💜","raridade":"Incomum", "desc":"Barreira magica que absorve completamente o proximo ataque."},
             {"id":"cura",          "nome":"Cura",            "emoji":"💚","raridade":"Incomum", "desc":"Canaliza energia sagrada. Restaura 35% do HP maximo."},
@@ -89,7 +85,7 @@ ROLETAS = {
         "pool": [
             {"id":"fraquinho","nome":"Fraquinho",     "emoji":"💀","valor":10,"raridade":"Comum",   "desc":"Stats muito baixos. Vai precisar batalhar muito para crescer."},
             {"id":"mediano",  "nome":"Mediano",       "emoji":"⚖️","valor":18,"raridade":"Comum",   "desc":"Stats equilibrados. Um comeco honesto para qualquer aventureiro."},
-            {"id":"acima",    "nome":"Acima da media","emoji":"📈","valor":26,"raridade":"Incomum", "desc":"Stats acima da media. Born começo! Voce ja intimida."},
+            {"id":"acima",    "nome":"Acima da media","emoji":"📈","valor":26,"raridade":"Incomum", "desc":"Stats acima da media. Bom comeco! Voce ja intimida."},
             {"id":"forte",    "nome":"Forte",         "emoji":"💪","valor":35,"raridade":"Raro",    "desc":"Stats solidos. Poucos chegam assim na criacao. Impressionante."},
             {"id":"epico",    "nome":"Epico",         "emoji":"⚡","valor":48,"raridade":"Epico",   "desc":"Stats epicos! Um dos mais fortes ja vistos na cidade."},
             {"id":"absurdo",  "nome":"Absurdo",       "emoji":"🔥","valor":65,"raridade":"Lendario","desc":"ABSURDO! Praticamente impossivel de sortear. Voce e uma lenda."},
@@ -97,46 +93,25 @@ ROLETAS = {
     },
 }
 
-# Raridades em ordem crescente
 RARIDADES = ["Comum", "Incomum", "Raro", "Epico", "Lendario"]
-COR_RAR = {
-    "Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,
-    "Epico":0x7F77DD,"Lendario":0xD85A30
-}
-EMOJI_FICHA = {
-    "Comum":"🟫","Incomum":"🟩","Raro":"🟦","Epico":"🟪","Lendario":"🟧"
-}
-
-# ─── DB ──────────────────────────────────────────────────────────
+COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
+EMOJI_FICHA = {"Comum":"🟫","Incomum":"🟩","Raro":"🟦","Epico":"🟪","Lendario":"🟧"}
 
 async def init_db_hospital():
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS giros (
-                user_id    INTEGER,
-                roleta_id  TEXT,
-                raridade   TEXT,
-                quantidade INTEGER DEFAULT 0,
-                PRIMARY KEY (user_id, roleta_id, raridade)
-            )
-        """)
-        await db.commit()
-    print("DB hospital OK")
+    pass  # tabelas criadas no db.py
 
 async def get_personagem(user_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM personagens WHERE user_id=?", (user_id,)) as c:
-            return await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
 async def get_giros(user_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT roleta_id, raridade, quantidade FROM giros WHERE user_id=? AND quantidade > 0",
-            (user_id,)
-        ) as c:
-            rows = await c.fetchall()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT roleta_id, raridade, quantidade FROM giros WHERE user_id=$1 AND quantidade > 0",
+            user_id
+        )
     result = {}
     for r in rows:
         key = f"{r['roleta_id']}_{r['raridade']}"
@@ -144,32 +119,28 @@ async def get_giros(user_id):
     return result
 
 async def adicionar_giro(user_id, roleta_id, raridade, quantidade=1):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
             INSERT INTO giros (user_id, roleta_id, raridade, quantidade)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(user_id, roleta_id, raridade)
-            DO UPDATE SET quantidade = quantidade + ?
-        """, (user_id, roleta_id, raridade, quantidade, quantidade))
-        await db.commit()
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, roleta_id, raridade)
+            DO UPDATE SET quantidade = giros.quantidade + $4
+        """, user_id, roleta_id, raridade, quantidade)
 
 async def remover_giro(user_id, roleta_id, raridade):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
             UPDATE giros SET quantidade = quantidade - 1
-            WHERE user_id=? AND roleta_id=? AND raridade=? AND quantidade > 0
-        """, (user_id, roleta_id, raridade))
-        await db.commit()
+            WHERE user_id=$1 AND roleta_id=$2 AND raridade=$3 AND quantidade > 0
+        """, user_id, roleta_id, raridade)
 
-# ─── SORTEAR COM RARIDADE MINIMA ─────────────────────────────────
-
-def sortear_ficha(pool, raridade_minima):
+def sortear_ficha(pool_items, raridade_minima):
     idx_min = RARIDADES.index(raridade_minima) if raridade_minima in RARIDADES else 0
-    disponiveis = [item for item in pool if RARIDADES.index(item["raridade"]) >= idx_min]
+    disponiveis = [item for item in pool_items if RARIDADES.index(item["raridade"]) >= idx_min]
     if not disponiveis:
-        disponiveis = pool
-
-    # Peso inverso: itens mais raros tem peso menor mas sao validos
+        disponiveis = pool_items
     pesos_base = {"Comum":40,"Incomum":25,"Raro":15,"Epico":8,"Lendario":3}
     pesos = [pesos_base.get(item["raridade"], 10) for item in disponiveis]
     total = sum(pesos)
@@ -183,22 +154,16 @@ def sortear_ficha(pool, raridade_minima):
 async def animar_roleta(msg, opcoes, resultado, cor):
     for _ in range(8):
         op = random.choice(opcoes)
-        embed = discord.Embed(
-            description=f"**{op['emoji']} {op['nome']}**",
-            color=0x888780
-        )
-        await msg.edit(embed=embed)
+        await msg.edit(embed=discord.Embed(description=f"**{op['emoji']} {op['nome']}**", color=0x888780))
         await asyncio.sleep(0.15)
     desc = resultado.get("desc", "")
     valor_txt = f" — Poder {resultado['valor']}" if "valor" in resultado else ""
     embed = discord.Embed(
         title=f"{resultado['emoji']} {resultado['nome']}{valor_txt}",
-        description=(f"Raridade: **{resultado.get('raridade','?')}**\n\n*{desc}*" if desc else f"Raridade: **{resultado.get('raridade','?')}**"),
+        description=f"Raridade: **{resultado.get('raridade','?')}**\n\n*{desc}*" if desc else f"Raridade: **{resultado.get('raridade','?')}**",
         color=cor
     )
     await msg.edit(embed=embed)
-
-# ─── /hospital ───────────────────────────────────────────────────
 
 async def cmd_hospital(interaction: discord.Interaction):
     await interaction.response.defer()
@@ -209,273 +174,135 @@ async def cmd_hospital(interaction: discord.Interaction):
 
     hp_a   = p["hp_atual"]
     hp_m   = p["hp_max"]
-    mana_a = p["mana_atual"] if "mana_atual" in p.keys() else 100
-    mana_m = p["mana_max"]   if "mana_max"   in p.keys() else 100
+    mana_a = p["mana_atual"] if p["mana_atual"] else 100
+    mana_m = p["mana_max"]   if p["mana_max"]   else 100
 
-    embed = discord.Embed(
-        title="Hospital da Cidade",
-        description=(
-            f"Bem-vindo, **{p['nome']}**!\n\n"
-            f"HP atual: **{hp_a}/{hp_m}**\n"
-            f"Mana atual: **{mana_a}/{mana_m}**\n"
-            f"Moedas: **{p['moedas']} 🪙**\n\n"
-            "Escolha um plano:"
-        ),
-        color=0x1D9E75
-    )
+    embed = discord.Embed(title="Hospital da Cidade", color=0x1D9E75,
+        description=f"Bem-vindo, **{p['nome']}**!\n\nHP: **{hp_a}/{hp_m}** | Mana: **{mana_a}/{mana_m}**\nMoedas: **{p['moedas']} 🪙**\n\nEscolha um plano:")
     for pl in PLANOS:
-        embed.add_field(
-            name=f"{pl['emoji']} {pl['nome']} — {pl['preco']} 🪙",
-            value=pl["desc"], inline=False
-        )
+        embed.add_field(name=f"{pl['emoji']} {pl['nome']} — {pl['preco']} 🪙", value=pl["desc"], inline=False)
 
-    opcoes = [
-        discord.SelectOption(
-            label=f"{pl['emoji']} {pl['nome']} — {pl['preco']} moedas",
-            value=pl["id"],
-            description=pl["desc"]
-        ) for pl in PLANOS
-    ]
+    opcoes = [discord.SelectOption(label=f"{pl['emoji']} {pl['nome']} — {pl['preco']} moedas", value=pl["id"], description=pl["desc"]) for pl in PLANOS]
     sel = discord.ui.Select(placeholder="Escolha o atendimento...", options=opcoes)
 
     async def escolher(inter: discord.Interaction):
         if inter.user.id != interaction.user.id:
-            await inter.response.send_message("Nao e voce!", ephemeral=True)
-            return
+            await inter.response.send_message("Nao e voce!", ephemeral=True); return
         plano = next((pl for pl in PLANOS if pl["id"] == sel.values[0]), None)
         if not plano: return
         p2 = await get_personagem(inter.user.id)
         if p2["moedas"] < plano["preco"]:
-            await inter.response.send_message(
-                f"Moedas insuficientes! Precisa de **{plano['preco']} 🪙**", ephemeral=True
-            )
-            return
+            await inter.response.send_message(f"Moedas insuficientes! Precisa de **{plano['preco']} 🪙**", ephemeral=True); return
         novo_hp   = int(p2["hp_max"] * plano["hp_pct"])
-        mana_max  = p2["mana_max"] if "mana_max" in p2.keys() else 100
-        novo_mana = int(mana_max * plano["mana_pct"])
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "UPDATE personagens SET hp_atual=?, mana_atual=?, moedas=moedas-? WHERE user_id=?",
-                (novo_hp, novo_mana, plano["preco"], inter.user.id)
+        novo_mana = int((p2["mana_max"] or 100) * plano["mana_pct"])
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE personagens SET hp_atual=$1, mana_atual=$2, moedas=moedas-$3 WHERE user_id=$4",
+                novo_hp, novo_mana, plano["preco"], inter.user.id
             )
-            await db.commit()
         ganho_hp = novo_hp - p2["hp_atual"]
-        desc = (
-            f"{plano['emoji']} **{plano['nome']}** aplicado!\n\n"
-            f"HP: {p2['hp_atual']} → **{novo_hp}/{p2['hp_max']}** (+{max(0,ganho_hp)})\n"
-            f"Mana: restaurada para **{novo_mana}**\n"
-        )
-        if plano["id"] == "premium":
-            desc += "Todos os efeitos negativos removidos!\n"
-        desc += f"\n-{plano['preco']} 🪙"
-        await inter.response.edit_message(
-            embed=discord.Embed(title="Atendimento concluido!", description=desc, color=plano["cor"]),
-            view=None
-        )
+        desc = f"{plano['emoji']} **{plano['nome']}** aplicado!\n\nHP: {p2['hp_atual']} → **{novo_hp}/{p2['hp_max']}** (+{max(0,ganho_hp)})\nMana: restaurada para **{novo_mana}**\n-{plano['preco']} 🪙"
+        await inter.response.edit_message(embed=discord.Embed(title="Atendimento concluido!", description=desc, color=plano["cor"]), view=None)
 
     sel.callback = escolher
-    v = discord.ui.View(timeout=60)
-    v.add_item(sel)
+    v = discord.ui.View(timeout=60); v.add_item(sel)
     await interaction.followup.send(embed=embed, view=v)
-
-# ─── /girar ──────────────────────────────────────────────────────
 
 async def cmd_girar(interaction: discord.Interaction):
     await interaction.response.defer()
     p = await get_personagem(interaction.user.id)
     if not p:
-        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True)
-        return
+        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
 
     giros = await get_giros(interaction.user.id)
     if not giros:
-        await interaction.followup.send(
-            embed=discord.Embed(
-                title="Sem giros disponiveis",
-                description=(
-                    "Voce nao tem giros no momento.\n\n"
-                    "**Como conseguir:**\n"
-                    "• Admin pode conceder com `/set-giros`\n"
-                    "• Completar missoes especiais\n"
-                    "• Top 3 em torneios"
-                ),
-                color=0x888780
-            ),
-            ephemeral=True
-        )
-        return
+        await interaction.followup.send(embed=discord.Embed(title="Sem giros disponiveis",
+            description="Voce nao tem giros no momento.\n\n**Como conseguir:**\n• Admin pode conceder com `/set-giros`\n• Completar missoes especiais", color=0x888780), ephemeral=True); return
 
-    # Monta lista de fichas disponíveis
-    desc_giros = ""
-    opcoes = []
+    desc_giros = ""; opcoes = []
     for key, info in giros.items():
         roleta = ROLETAS.get(info["roleta_id"])
         if not roleta: continue
-        ficha_emoji = EMOJI_FICHA.get(info["raridade"], "⬜")
-        label = f"{ficha_emoji} {roleta['nome']} — {info['raridade']} ({info['quantidade']}x)"
-        opcoes.append(discord.SelectOption(
-            label=label,
-            value=key,
-            description=f"Sorteia itens {info['raridade']} ou acima"
-        ))
-        desc_giros += f"{ficha_emoji} **{roleta['nome']} {info['raridade']}**: {info['quantidade']}x\n"
+        fe = EMOJI_FICHA.get(info["raridade"], "⬜")
+        opcoes.append(discord.SelectOption(label=f"{fe} {roleta['nome']} — {info['raridade']} ({info['quantidade']}x)", value=key, description=f"Sorteia itens {info['raridade']} ou acima"))
+        desc_giros += f"{fe} **{roleta['nome']} {info['raridade']}**: {info['quantidade']}x\n"
 
     if not opcoes:
-        await interaction.followup.send("Sem giros disponiveis!", ephemeral=True)
-        return
+        await interaction.followup.send("Sem giros disponiveis!", ephemeral=True); return
 
-    embed = discord.Embed(
-        title="Seus Giros Disponiveis",
-        description=f"Escolha qual ficha usar:\n\n{desc_giros}",
-        color=0x7F77DD
-    )
-
+    embed = discord.Embed(title="Seus Giros Disponiveis", description=f"Escolha qual ficha usar:\n\n{desc_giros}", color=0x7F77DD)
     sel = discord.ui.Select(placeholder="Qual ficha usar?", options=opcoes[:25])
 
     async def girar(inter: discord.Interaction):
         if inter.user.id != interaction.user.id:
-            await inter.response.send_message("Nao e voce!", ephemeral=True)
-            return
+            await inter.response.send_message("Nao e voce!", ephemeral=True); return
         await inter.response.defer()
-
-        key = sel.values[0]
-        info = giros.get(key)
+        key = sel.values[0]; info = giros.get(key)
         if not info: return
-
-        roleta    = ROLETAS.get(info["roleta_id"])
-        raridade  = info["raridade"]
+        roleta = ROLETAS.get(info["roleta_id"]); raridade = info["raridade"]
         if not roleta: return
-
         await remover_giro(inter.user.id, info["roleta_id"], raridade)
-
         resultado = sortear_ficha(roleta["pool"], raridade)
         cor = COR_RAR.get(resultado.get("raridade", "Comum"), 0x888780)
-
-        msg_anim = await inter.followup.send(
-            embed=discord.Embed(description="Girando...", color=0x888780),
-            wait=True
-        )
+        msg_anim = await inter.followup.send(embed=discord.Embed(description="Girando...", color=0x888780), wait=True)
         await animar_roleta(msg_anim, roleta["pool"], resultado, cor)
         await asyncio.sleep(0.5)
-
-        # Aplica resultado
         aplicado = ""
-        async with aiosqlite.connect(DB_PATH) as db:
+        pool_db = await get_pool()
+        async with pool_db.acquire() as conn:
             rid = info["roleta_id"]
             if rid == "skill":
-                await db.execute(
-                    "INSERT OR IGNORE INTO skills_desbloqueadas(user_id,skill_id) VALUES(?,?)",
-                    (inter.user.id, resultado["id"])
-                )
+                await conn.execute("INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING", inter.user.id, resultado["id"])
                 aplicado = f"Skill **{resultado['nome']}** adicionada ao seu arsenal!"
-
-            elif rid in ("arma", "armadura"):
+            elif rid in ("arma","armadura"):
                 tipo = resultado.get("tipo", rid)
-                async with db.execute(
-                    "SELECT id FROM inventario WHERE user_id=? AND item_id=?",
-                    (inter.user.id, resultado["id"])
-                ) as c:
-                    ex = await c.fetchone()
+                ex = await conn.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", inter.user.id, resultado["id"])
                 if ex:
-                    await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=?", (ex[0],))
+                    await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
                 else:
-                    await db.execute("""
-                        INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao)
-                        VALUES(?,?,?,?,?,?,?)
-                    """, (inter.user.id, resultado["id"], resultado["nome"],
-                          tipo, resultado["raridade"], resultado["emoji"],
-                          resultado.get("desc", "Obtido via roleta")))
+                    await conn.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                        inter.user.id, resultado["id"], resultado["nome"], tipo, resultado["raridade"], resultado["emoji"], resultado.get("desc",""))
                 aplicado = f"**{resultado['nome']}** adicionada ao inventario!"
-
             elif rid == "poder":
-                await db.execute(
-                    "UPDATE personagens SET poder_id=?, poder_valor=? WHERE user_id=?",
-                    (resultado["id"], resultado.get("valor", 10), inter.user.id)
-                )
-                aplicado = f"Poder base alterado para **{resultado['nome']}** ({resultado.get('valor', '?')})!"
-
+                await conn.execute("UPDATE personagens SET poder_id=$1, poder_valor=$2 WHERE user_id=$3", resultado["id"], resultado.get("valor",10), inter.user.id)
+                aplicado = f"Poder base alterado para **{resultado['nome']}** ({resultado.get('valor','?')})!"
             elif rid == "classe":
-                await db.execute(
-                    "UPDATE personagens SET classe_id=?, raridade=? WHERE user_id=?",
-                    (resultado["id"], resultado["raridade"], inter.user.id)
-                )
+                await conn.execute("UPDATE personagens SET classe_id=$1, raridade=$2 WHERE user_id=$3", resultado["id"], resultado["raridade"], inter.user.id)
                 aplicado = f"Classe alterada para **{resultado['nome']}** ({resultado['raridade']})!"
 
-            await db.commit()
-
-        giros_restantes = await get_giros(inter.user.id)
-        total_restante  = sum(v["quantidade"] for v in giros_restantes.values())
-
-        ficha_emoji = EMOJI_FICHA.get(raridade, "⬜")
-        desc_item = resultado.get("desc", "")
-        valor_txt = f" (Poder {resultado['valor']})" if "valor" in resultado else ""
-        ficha_emoji = EMOJI_FICHA.get(raridade, "⬜")
-        desc_item = resultado.get("desc", "")
+        giros_rest = await get_giros(inter.user.id)
+        total_rest = sum(v["quantidade"] for v in giros_rest.values())
+        fe = EMOJI_FICHA.get(raridade,"⬜"); desc_item = resultado.get("desc","")
         valor_txt = f" (Poder {resultado['valor']})" if "valor" in resultado else ""
         desc_txt = f"\n*{desc_item}*" if desc_item else ""
-        embed_result = discord.Embed(
-            title=f"Resultado — Ficha {ficha_emoji} {raridade}",
-            description=f"{resultado['emoji']} **{resultado['nome']}**{valor_txt}\nRaridade: **{resultado.get('raridade','?')}**{desc_txt}\n\n{aplicado}\n\nGiros restantes: **{total_restante}**",
+        await msg_anim.edit(embed=discord.Embed(
+            title=f"Resultado — Ficha {fe} {raridade}",
+            description=f"{resultado['emoji']} **{resultado['nome']}**{valor_txt}\nRaridade: **{resultado.get('raridade','?')}**{desc_txt}\n\n{aplicado}\n\nGiros restantes: **{total_rest}**",
             color=cor
-        )
-        await msg_anim.edit(embed=embed_result)
+        ))
 
     sel.callback = girar
-    v = discord.ui.View(timeout=60)
-
-    sel.callback = girar
-    v = discord.ui.View(timeout=60)
-    v.add_item(sel)
+    v = discord.ui.View(timeout=60); v.add_item(sel)
     await interaction.followup.send(embed=embed, view=v)
-
-# ─── /set-giros (admin) ──────────────────────────────────────────
 
 async def cmd_set_giros(interaction: discord.Interaction, jogador: discord.Member):
     await interaction.response.defer(ephemeral=True)
-
-    p = await get_personagem(jogador.id)
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        p = await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", jogador.id)
     if not p:
-        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True)
-        return
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
 
-    embed = discord.Embed(
-        title=f"Dar giros para {jogador.display_name}",
-        description="Escolha a roleta, a raridade da ficha e a quantidade:",
-        color=0x7F77DD
-    )
-
-    sel_roleta = discord.ui.Select(
-        placeholder="Escolha a roleta...",
-        options=[
-            discord.SelectOption(
-                label=f"{r['emoji']} {r['nome']}",
-                value=rid,
-                description=f"Roleta de {r['nome']}"
-            ) for rid, r in ROLETAS.items()
-        ],
-        row=0
-    )
-
-    sel_raridade = discord.ui.Select(
-        placeholder="Raridade da ficha...",
-        options=[
-            discord.SelectOption(
-                label=f"{EMOJI_FICHA[rar]} Ficha {rar}",
-                value=rar,
-                description=f"Sorteia {rar} ou acima"
-            ) for rar in RARIDADES
-        ],
-        row=1
-    )
-
-    sel_qtd = discord.ui.Select(
-        placeholder="Quantidade...",
-        options=[
-            discord.SelectOption(label=f"{i}x giro(s)", value=str(i))
-            for i in [1, 2, 3, 5, 10, 20]
-        ],
-        row=2
-    )
+    embed = discord.Embed(title=f"Dar giros para {jogador.display_name}", description="Escolha a roleta, raridade e quantidade:", color=0x7F77DD)
+    sel_roleta = discord.ui.Select(placeholder="Escolha a roleta...", options=[
+        discord.SelectOption(label=f"{r['emoji']} {r['nome']}", value=rid, description=f"Roleta de {r['nome']}")
+        for rid, r in ROLETAS.items()], row=0)
+    sel_raridade = discord.ui.Select(placeholder="Raridade da ficha...", options=[
+        discord.SelectOption(label=f"{EMOJI_FICHA[rar]} Ficha {rar}", value=rar, description=f"Sorteia {rar} ou acima")
+        for rar in RARIDADES], row=1)
+    sel_qtd = discord.ui.Select(placeholder="Quantidade...", options=[
+        discord.SelectOption(label=f"{i}x giro(s)", value=str(i)) for i in [1,2,3,5,10,20]], row=2)
 
     escolhas = {"roleta": None, "raridade": None, "qtd": 1}
     btn = discord.ui.Button(label="Confirmar", style=discord.ButtonStyle.success, disabled=True, row=3)
@@ -484,48 +311,27 @@ async def cmd_set_giros(interaction: discord.Interaction, jogador: discord.Membe
         escolhas["roleta"] = sel_roleta.values[0]
         if escolhas["roleta"] and escolhas["raridade"]: btn.disabled = False
         await inter.response.edit_message(view=v)
-
     async def on_raridade(inter):
         escolhas["raridade"] = sel_raridade.values[0]
         if escolhas["roleta"] and escolhas["raridade"]: btn.disabled = False
         await inter.response.edit_message(view=v)
-
     async def on_qtd(inter):
         escolhas["qtd"] = int(sel_qtd.values[0])
         await inter.response.edit_message(view=v)
-
     async def on_confirmar(inter):
         if inter.user.id != interaction.user.id: return
-        rid = escolhas["roleta"]
-        rar = escolhas["raridade"]
-        qtd = escolhas["qtd"]
+        rid = escolhas["roleta"]; rar = escolhas["raridade"]; qtd = escolhas["qtd"]
         roleta = ROLETAS.get(rid)
         if not roleta or not rar: return
-
         await adicionar_giro(jogador.id, rid, rar, qtd)
+        fe = EMOJI_FICHA.get(rar,"⬜")
+        await inter.response.edit_message(embed=discord.Embed(
+            title="Giros adicionados!",
+            description=f"{fe} **{qtd}x Ficha {rar}** de **{roleta['nome']}**\nadicionado para {jogador.mention}!",
+            color=COR_RAR.get(rar,0x888780)), view=None)
 
-        ficha_emoji = EMOJI_FICHA.get(rar, "⬜")
-        await inter.response.edit_message(
-            embed=discord.Embed(
-                title="Giros adicionados!",
-                description=(
-                    f"{ficha_emoji} **{qtd}x Ficha {rar}** de **{roleta['nome']}**\n"
-                    f"adicionado para {jogador.mention}!"
-                ),
-                color=COR_RAR.get(rar, 0x888780)
-            ),
-            view=None
-        )
-
-    sel_roleta.callback  = on_roleta
-    sel_raridade.callback = on_raridade
-    sel_qtd.callback     = on_qtd
-    btn.callback         = on_confirmar
-
+    sel_roleta.callback = on_roleta; sel_raridade.callback = on_raridade
+    sel_qtd.callback = on_qtd; btn.callback = on_confirmar
     v = discord.ui.View(timeout=120)
-    v.add_item(sel_roleta)
-    v.add_item(sel_raridade)
-    v.add_item(sel_qtd)
-    v.add_item(btn)
-
+    v.add_item(sel_roleta); v.add_item(sel_raridade); v.add_item(sel_qtd); v.add_item(btn)
     await interaction.followup.send(embed=embed, view=v, ephemeral=True)
