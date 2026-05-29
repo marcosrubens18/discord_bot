@@ -240,7 +240,7 @@ async def add_item_dungeon(user_id, item):
     async with pool.acquire() as db:
         ex = await db.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", (user_id,iid))
         if ex:
-            await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", (ex[0],))
+            await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
         else:
             await db.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
                              (user_id,iid,nome,tipo,rar,emoji,desc))
