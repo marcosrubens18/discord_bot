@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import discord
 from discord import app_commands
-import aiosqlite, asyncio, random
+import asyncio, random
+from db import get_pool
 
-DB_PATH = "rpg.db"
 
 EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
 COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
@@ -180,42 +180,40 @@ RANKS = {
 # ─── DB ──────────────────────────────────────────────────────────
 
 async def get_personagem(user_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM personagens WHERE user_id=?", (user_id,)) as c:
-            return await c.fetchone()
+    pool = await get_pool()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        return await db.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
 async def get_skills_eq(user_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT skill_id FROM skills_equipadas WHERE user_id=? ORDER BY slot", (user_id,)) as c:
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        async with db.execute("SELECT skill_id FROM skills_equipadas WHERE user_id=$1 ORDER BY slot", user_id) as c:
             return [r["skill_id"] for r in await c.fetchall()]
 
 async def get_pocoes_inv(user_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM inventario WHERE user_id=? AND (item_id LIKE 'pocao%' OR item_id='elixir')",
-            (user_id,)
-        ) as c:
-            return await c.fetchall()
+    pool = await get_pool()
+async def get_skills_eq(user_id):
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        rows = await db.fetch("SELECT skill_id FROM skills_equipadas WHERE user_id=$1 ORDER BY slot", user_id)
+        return [r["skill_id"] for r in rows]
 
 async def remover_pocao(user_id, item_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT id,quantidade FROM inventario WHERE user_id=? AND item_id=?", (user_id,item_id)) as c:
-            row = await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        row = await db.fetchrow("SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", user_id, item_id)
         if row:
-            if row[1] > 1:
-                await db.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=?", (row[0],))
+            if row["quantidade"] > 1:
+                await db.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=$1", row["id"])
             else:
-                await db.execute("DELETE FROM inventario WHERE id=?", (row[0],))
-        await db.commit()
+                await db.execute("DELETE FROM inventario WHERE id=$1", row["id"])
+
 
 async def salvar_resultado_dungeon(user_id, hp_final, xp_total, moedas_total, classe_id, nivel):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT xp,nivel,hp_max,ataque,defesa FROM personagens WHERE user_id=?", (user_id,)) as c:
-            p = await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        p = await db.fetchrow("SELECT xp,nivel,hp_max,ataque,defesa FROM personagens WHERE user_id=$1", user_id)
         if not p: return 0
         novo_xp = p["xp"] + xp_total
         nv = p["nivel"]
@@ -228,26 +226,24 @@ async def salvar_resultado_dungeon(user_id, hp_final, xp_total, moedas_total, cl
         dfs = p["defesa"] + levelups*1
         hp_f = max(1, min(hp_final, hp_max))
         await db.execute("""
-            UPDATE personagens SET hp_atual=?,hp_max=?,xp=?,nivel=?,ataque=?,defesa=?,moedas=moedas+?,vitorias=vitorias+1
-            WHERE user_id=?
+            UPDATE personagens SET hp_atual=$1,hp_max=$2,xp=$3,nivel=$4,ataque=$5,defesa=$6,moedas=moedas+$7,vitorias=vitorias+1
+            WHERE user_id=$8
         """, (hp_f, hp_max, novo_xp, nv, atk, dfs, moedas_total, user_id))
         for s in SKILLS_POR_CLASSE.get(classe_id, []):
             if s["nivel"] <= nv:
-                await db.execute("INSERT OR IGNORE INTO skills_desbloqueadas(user_id,skill_id) VALUES(?,?)", (user_id,s["id"]))
-        await db.commit()
+                await db.execute("INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING", (user_id,s["id"]))
         return levelups
 
 async def add_item_dungeon(user_id, item):
     iid, nome, tipo, rar, emoji, desc = item
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT id,quantidade FROM inventario WHERE user_id=? AND item_id=?", (user_id,iid)) as c:
-            ex = await c.fetchone()
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        ex = await db.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", (user_id,iid))
         if ex:
-            await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=?", (ex[0],))
+            await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", (ex[0],))
         else:
-            await db.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES(?,?,?,?,?,?,?)",
+            await db.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
                              (user_id,iid,nome,tipo,rar,emoji,desc))
-        await db.commit()
 
 # ─── HELPERS ─────────────────────────────────────────────────────
 
@@ -587,22 +583,22 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
 
         if not vitoria:
             # Morreu — perde tudo
-            async with aiosqlite.connect(DB_PATH) as db:
-                await db.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=?", (p["user_id"],))
-                await db.commit()
+            # Morreu - perde tudo
+            pool = await get_pool()
+            async with pool.acquire() as db:
+                await db.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
             for m in msgs_global:
                 try: await m.delete()
                 except: pass
             await interaction.followup.send(embed=discord.Embed(
                 title=f"💀 {p['nome']} foi derrotado no Andar {andar}!",
                 description=(
-                    f"Voce foi derrotado por **{monstro['emoji']} {monstro['nome']}** no andar {andar}.\n\n"
-                    f"❌ **Perdeu todas as recompensas da dungeon!**\n"
-                    f"Acordou na cidade com 10 HP."
+                    f"Voce foi derrotado por **{{monstro['emoji']}} {{monstro['nome']}}** no andar {{andar}}.\n\n"
+                    "Perdeu todas as recompensas da dungeon!\n"
+                    "Acordou na cidade com 10 HP."
                 ),
                 color=0xE24B4A
             ))
-            return
 
         # Vitoria no andar — recompensa
         xp_andar     = dungeon["recompensa_andar"]["xp"]
@@ -651,21 +647,21 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
         try: await m.delete()
         except: pass
 
+
     if fugiu or not vitoria:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=?", (p["user_id"],))
-            await db.commit()
+        pool = await get_pool()
+        async with pool.acquire() as db:
+            await db.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
         for m in msgs_global:
             try: await m.delete()
             except: pass
-        titulo = "🏃 Fugiu do chefe!" if fugiu else f"💀 Derrotado pelo chefe!"
+        titulo = "Fugiu do chefe!" if fugiu else "Derrotado pelo chefe!"
         await interaction.followup.send(embed=discord.Embed(
             title=titulo,
-            description=f"Tao perto... mas voce falhou.\n❌ **Todas as recompensas foram perdidas!**",
+            description="Tao perto... mas voce falhou.\n Todas as recompensas foram perdidas!",
             color=0xE24B4A
         ))
         return
-
     # ── VITÓRIA TOTAL ────────────────────────────────────────────
     xp_total     += dungeon["recompensa_chefe"]["xp"]
     moedas_total += dungeon["recompensa_chefe"]["moedas"]
