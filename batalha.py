@@ -9,11 +9,11 @@ DB_PATH = "rpg.db"
 
 # ─── ARENAS ──────────────────────────────────────────────────────
 ARENAS = [
-    {"id":"floresta", "nome":"Floresta Sombria",  "emoji":"🌲","bonus":"magia +15%", "cor":0x1D9E75,"img":"https://imgur.com/a/FRiYWPt.png"},
+    {"id":"floresta", "nome":"Floresta Sombria",  "emoji":"🌲","bonus":"magia +15%", "cor":0x1D9E75,"img":"https://i.imgur.com/VdFyqem.jpeg"},
     {"id":"vulcao",   "nome":"Cratera Vulcanica", "emoji":"🌋","bonus":"fogo +20%",  "cor":0xD85A30,"img":"https://i.imgur.com/hlwTOAc.jpeg"},
     {"id":"gelo",     "nome":"Pico de Gelo",      "emoji":"❄️","bonus":"defesa +10%","cor":0x378ADD,"img":"https://i.imgur.com/R2i14Fb.jpeg"},
-    {"id":"ruinas",   "nome":"Ruinas Arcanas",    "emoji":"🏚️","bonus":"crit +10%",  "cor":0x7F77DD,"img":"https://i.imgur.com/8PqWrTz.png"},
-    {"id":"coloseu",  "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",     "cor":0xE4AF3C,"img":"https://i.imgur.com/2LmNxKp.png"},
+    {"id":"ruinas",   "nome":"Ruinas Arcanas",    "emoji":"🏚️","bonus":"crit +10%",  "cor":0x7F77DD,"img":"https://i.imgur.com/x9GPdiy.jpeg"},
+    {"id":"coloseu",  "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",     "cor":0xE4AF3C,"img":"https://i.imgur.com/imBvfqX.jpeg"},
 ]
 
 # ─── POCOES ──────────────────────────────────────────────────────
