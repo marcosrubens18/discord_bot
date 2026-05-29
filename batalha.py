@@ -9,11 +9,11 @@ from db import get_pool
 
 # ─── ARENAS ──────────────────────────────────────────────────────
 ARENAS = [
-    {"id":"floresta", "nome":"Floresta Sombria",  "emoji":"🌲","bonus":"magia +15%", "cor":0x1D9E75,"img":"https://i.imgur.com/VdFyqem.jpeg"},
-    {"id":"vulcao",   "nome":"Cratera Vulcanica", "emoji":"🌋","bonus":"fogo +20%",  "cor":0xD85A30,"img":"https://i.imgur.com/hlwTOAc.jpeg"},
-    {"id":"gelo",     "nome":"Pico de Gelo",      "emoji":"❄️","bonus":"defesa +10%","cor":0x378ADD,"img":"https://i.imgur.com/R2i14Fb.jpeg"},
-    {"id":"ruinas",   "nome":"Ruinas Arcanas",    "emoji":"🏚️","bonus":"crit +10%",  "cor":0x7F77DD,"img":"https://i.imgur.com/x9GPdiy.jpeg"},
-    {"id":"coloseu",  "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",     "cor":0xE4AF3C,"img":"https://i.imgur.com/imBvfqX.jpeg"},
+    {"id":"floresta", "nome":"Floresta Sombria",  "emoji":"🌲","bonus":"magia +15%", "cor":0x1D9E75,"img":"https://i.imgur.com/5Q2xXkN.png"},
+    {"id":"vulcao",   "nome":"Cratera Vulcanica", "emoji":"🌋","bonus":"fogo +20%",  "cor":0xD85A30,"img":"https://i.imgur.com/6kqJv1R.png"},
+    {"id":"gelo",     "nome":"Pico de Gelo",      "emoji":"❄️","bonus":"defesa +10%","cor":0x378ADD,"img":"https://i.imgur.com/3nQpLmZ.png"},
+    {"id":"ruinas",   "nome":"Ruinas Arcanas",    "emoji":"🏚️","bonus":"crit +10%",  "cor":0x7F77DD,"img":"https://i.imgur.com/8PqWrTz.png"},
+    {"id":"coloseu",  "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",     "cor":0xE4AF3C,"img":"https://i.imgur.com/2LmNxKp.png"},
 ]
 
 # ─── POCOES ──────────────────────────────────────────────────────
@@ -273,6 +273,16 @@ async def remover_pocao(user_id, item_id):
                 await db.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=$1", row["id"])
             else:
                 await db.execute("DELETE FROM inventario WHERE id=$1", row["id"])
+
+async def get_pocoes_inv(user_id):
+    """Busca pocoes do inventario."""
+    pool = await get_pool()
+    async with pool.acquire() as db:
+        return await db.fetch(
+            "SELECT * FROM inventario WHERE user_id=$1 AND (item_id LIKE 'pocao%' OR item_id='elixir')",
+            user_id
+        )
+
 
 async def equipar_skills_iniciais(user_id, classe_id):
     """Equipa as 4 primeiras skills desbloqueadas automaticamente."""
