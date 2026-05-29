@@ -9,7 +9,7 @@ DB_PATH = "rpg.db"
 
 # ─── ARENAS ──────────────────────────────────────────────────────
 ARENAS = [
-    {"id":"floresta", "nome":"Floresta Sombria",  "emoji":"🌲","bonus":"magia +15%", "cor":0x1D9E75,"img":"https://i.imgur.com/5Q2xXkN.png"},
+    {"id":"floresta", "nome":"Floresta Sombria",  "emoji":"🌲","bonus":"magia +15%", "cor":0x1D9E75,"img":"https://imgur.com/a/FRiYWPt.png"},
     {"id":"vulcao",   "nome":"Cratera Vulcanica", "emoji":"🌋","bonus":"fogo +20%",  "cor":0xD85A30,"img":"https://i.imgur.com/6kqJv1R.png"},
     {"id":"gelo",     "nome":"Pico de Gelo",      "emoji":"❄️","bonus":"defesa +10%","cor":0x378ADD,"img":"https://i.imgur.com/3nQpLmZ.png"},
     {"id":"ruinas",   "nome":"Ruinas Arcanas",    "emoji":"🏚️","bonus":"crit +10%",  "cor":0x7F77DD,"img":"https://i.imgur.com/8PqWrTz.png"},
