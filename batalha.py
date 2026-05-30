@@ -988,13 +988,14 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                 await atualizar_progresso(uid, "treino_hard")
             if loot:
                 await atualizar_progresso(uid, "loots_coletados")
+            await atualizar_progresso(uid, "skills_usadas")
             for rm in recomps:
                 desc += f"\n\n🎯 **Missão concluída!** {rm['descricao']}\n+{rm['xp']} XP | +{rm['moedas']} 🪙"
         except Exception:
             pass
 
-        # Cargo de nivel
-        if lvlups and rank_mudou:
+        # Atualiza cargos em todo level up
+        if lvlups:
             try:
                 from bot import atualizar_cargo_nivel, atualizar_cargo_rank
                 guild  = interaction.guild
