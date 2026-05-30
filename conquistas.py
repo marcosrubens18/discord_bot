@@ -2,6 +2,7 @@
 import discord
 from db import get_pool
 from catalogo import get_rank
+from imagens import IMG_CONQUISTAS
 
 # ─── LISTA DE CONQUISTAS ─────────────────────────────────────────
 # (id, nome, desc, emoji, tipo, meta, xp, moedas, ficha)
@@ -164,5 +165,6 @@ async def cmd_conquistas(interaction: discord.Interaction):
         if txt:
             embed.add_field(name=f"═══ {cat} ═══", value=txt, inline=False)
 
+    embed.set_image(url=IMG_CONQUISTAS)
     embed.set_footer(text="Conquistas desbloqueiam recompensas automáticas!")
     await interaction.followup.send(embed=embed, ephemeral=True)
