@@ -4,6 +4,7 @@ import asyncio
 import random
 from db import get_pool
 from imagens import IMG_HOSPITAL, IMG_ROLETA, IMG_BANNER_GERAL
+from racas import RACAS_ROLETA
 from catalogo import (
     get_armas_classe, get_armaduras_classe, get_skills_classe,
     ARMAS_POR_CLASSE, ARMADURAS_POR_CLASSE, SKILLS_COMPLETAS,
@@ -83,6 +84,16 @@ ROLETAS = {
             {"id":"armadura_plena",  "nome":"Armadura Plena",    "emoji":"⚙️","raridade":"Raro",    "tipo":"armadura","desc":"Defesa +15"},
             {"id":"armadura_escama", "nome":"Armadura de Escama","emoji":"🐉","raridade":"Epico",   "tipo":"armadura","desc":"Defesa +22"},
             {"id":"elmo_dragao",     "nome":"Elmo do Dragao",    "emoji":"🪖","raridade":"Lendario","tipo":"armadura","desc":"Defesa maxima"},
+        ],
+    },
+    "raca": {
+        "nome": "Raça", "emoji": "🧬",
+        "pool": [
+            {
+                "id": r["id"], "nome": r["nome"], "emoji": r["emoji"],
+                "raridade": r["raridade"], "desc": r["desc"]
+            }
+            for r in RACAS_ROLETA
         ],
     },
     "poder": {
@@ -331,6 +342,28 @@ async def cmd_girar(interaction: discord.Interaction):
             elif rid == "poder":
                 await conn.execute("UPDATE personagens SET poder_id=$1, poder_valor=$2 WHERE user_id=$3", resultado["id"], resultado.get("valor",10), inter.user.id)
                 aplicado = f"Poder base alterado para **{resultado['nome']}** ({resultado.get('valor','?')})!"
+            elif rid == "raca":
+                await conn.execute("UPDATE personagens SET raca_id=$1 WHERE user_id=$2", resultado["id"], inter.user.id)
+                # Atualiza cargo de raca
+                guild = inter.guild
+                if guild:
+                    member = guild.get_member(inter.user.id)
+                    if member:
+                        from racas import RACAS
+                        raca_obj = RACAS.get(resultado["id"])
+                        if raca_obj:
+                            # Remove cargos de raca antigos
+                            for r in RACAS.values():
+                                cargo_old = discord.utils.get(guild.roles, name=r["cargos"])
+                                if cargo_old and cargo_old in member.roles:
+                                    try: await member.remove_roles(cargo_old)
+                                    except: pass
+                            # Adiciona novo
+                            cargo_new = discord.utils.get(guild.roles, name=raca_obj["cargos"])
+                            if cargo_new:
+                                try: await member.add_roles(cargo_new)
+                                except: pass
+                aplicado = f"Raça alterada para **{resultado['nome']}** ({resultado['raridade']})! Passiva racial atualizada."
             elif rid == "classe":
                 await conn.execute("UPDATE personagens SET classe_id=$1, raridade=$2 WHERE user_id=$3", resultado["id"], resultado["raridade"], inter.user.id)
                 aplicado = f"Classe alterada para **{resultado['nome']}** ({resultado['raridade']})!"
