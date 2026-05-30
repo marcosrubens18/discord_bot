@@ -1,4 +1,5 @@
 from catalogo import get_rank, CARGOS_RANK
+from utils import atualizar_todos_cargos
 # -*- coding: utf-8 -*-
 import discord
 from discord import app_commands
@@ -255,6 +256,25 @@ POCOES_DEF = {
     "pocao_mana_p":{"nome":"Pocao de Mana P", "emoji":"🔵","tipo":"mana","valor":20},
     "pocao_mana_m":{"nome":"Pocao de Mana M", "emoji":"💙","tipo":"mana","valor":50},
     "elixir":      {"nome":"Elixir Supremo",  "emoji":"✨","tipo":"full","valor":999},
+    "SS": {
+        "nome":"Dungeon Rank SS","rank_min":"SS","emoji":"💎","nivel_min":75,"cor":0xD85A30,
+        "desc":"O conteudo final. Apenas os Transcendentes ousam entrar. Recompensa unica.",
+        "recompensa_andar":{"xp":800,"moedas":500},
+        "recompensa_chefe":{"xp":5000,"moedas":5000},
+        "andares": [
+            {"andar":1,"nome":"Portal do Vazio",    "emoji":"🌀","monstro":{"nome":"Guardiao do Vazio",  "emoji":"🌀","hp":600,"ataque":80,"defesa":50,"skills":[{"nome":"Colapso","emoji":"🌀","dano":90},{"nome":"Distorcao","emoji":"🌀","dano":65}]}},
+            {"andar":2,"nome":"Abismo Eterno",      "emoji":"🕳️","monstro":{"nome":"Devorador de Almas", "emoji":"👁️","hp":700,"ataque":90,"defesa":55,"skills":[{"nome":"Devorar","emoji":"💀","dano":100},{"nome":"Maldição Eterna","emoji":"🩸","dano":70}]}},
+            {"andar":3,"nome":"Salao dos Herois",   "emoji":"🏛️","monstro":{"nome":"Heroi Corrompido",   "emoji":"⚔️","hp":750,"ataque":95,"defesa":60,"skills":[{"nome":"Golpe Lendario","emoji":"⚔️","dano":110},{"nome":"Berserk","emoji":"🔥","dano":80}]}},
+            {"andar":4,"nome":"Trono das Sombras",  "emoji":"🌑","monstro":{"nome":"Senhor das Sombras", "emoji":"🌑","hp":800,"ataque":100,"defesa":65,"skills":[{"nome":"Trevas Absolutas","emoji":"🌑","dano":120},{"nome":"Medo","emoji":"😱","dano":85}]}},
+            {"andar":5,"nome":"Camara do Criador",  "emoji":"✨","monstro":{"nome":"Anjo Caido",         "emoji":"👼","hp":900,"ataque":110,"defesa":70,"skills":[{"nome":"Juizo Divino","emoji":"☀️","dano":130},{"nome":"Purificar","emoji":"✨","dano":95}]}},
+            {"andar":6,"nome":"Nucleo do Mundo",    "emoji":"🌍","monstro":{"nome":"CHEFE — O Criador",  "emoji":"🌌","hp":2000,"ataque":150,"defesa":100,"skills":[{"nome":"Aniquilacao","emoji":"💥","dano":200},{"nome":"Singularidade","emoji":"🕳️","dano":180},{"nome":"Transcender","emoji":"✨","dano":160}],"chefe":True}},
+        ],
+        "loot_chefe": [
+            ("coroa_criador","Coroa do Criador","armadura","Lendario","👑","A armadura definitiva"),
+            ("essencia_criador","Essencia do Criador","material","Lendario","🌌","Material transcendente"),
+            ("titulo_transcendente","Titulo: Transcendente","material","Lendario","💎","Titulo exclusivo do Rank SS"),
+        ],
+    },
 }
 
 def calc_dano(atk, dfs, mult=1.0, crit=False):
