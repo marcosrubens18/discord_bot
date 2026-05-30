@@ -2,6 +2,7 @@
 import discord
 import asyncio
 from db import get_pool
+from imagens import IMG_SETUP
 from catalogo import get_rank, calcular_mana_max, get_armas_classe, get_armaduras_classe, SKILLS_COMPLETAS as SKILLS_COMPLETAS_CAT
 
 EMOJI_CLASSE = {
@@ -494,5 +495,6 @@ async def cmd_setup(interaction: discord.Interaction):
         magia_sup_id=magia_sup_id, magias_inv=magias_inv,
         armas_inv=armas_inv, armaduras_inv=armaduras_inv,
     )
+    embed.set_image(url=IMG_SETUP)
     msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True, wait=True)
     view.msg = msg
