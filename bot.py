@@ -763,6 +763,79 @@ async def hospital(interaction: discord.Interaction):
 async def girar(interaction: discord.Interaction):
     await cmd_girar(interaction)
 
+
+# ─── /set-nivel ──────────────────────────────────────────────────
+
+@bot.tree.command(name="set-nivel", description="[ADMIN] Define o nivel de um jogador")
+@app_commands.describe(jogador="Jogador alvo", nivel="Nivel desejado (1-100)")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_nivel(interaction: discord.Interaction, jogador: discord.Member, nivel: int):
+    await interaction.response.defer(ephemeral=True)
+
+    if nivel < 1 or nivel > 100:
+        await interaction.followup.send("Nivel deve ser entre 1 e 100!", ephemeral=True)
+        return
+
+    p = await get_personagem(jogador.id)
+    if not p:
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True)
+        return
+
+    # Calcula novos stats baseados no nivel
+    nivel_diff = nivel - p["nivel"]
+    hp_max_novo  = max(50, p["hp_max"]  + nivel_diff * 5)
+    atk_novo     = max(5,  p["ataque"]  + nivel_diff * 2)
+    dfs_novo     = max(3,  p["defesa"]  + nivel_diff * 1)
+    mana_max_novo = calcular_mana_max(p["classe_id"], nivel, p["poder_valor"], p["destino_id"])
+
+    # XP zerado no nivel novo (comeca do zero no nivel definido)
+    xp_needed = 100 + (nivel - 1) * 50
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE personagens
+            SET nivel=$1, xp=0, hp_max=$2, hp_atual=$3,
+                ataque=$4, defesa=$5, mana_max=$6, mana_atual=$7
+            WHERE user_id=$8
+        """, nivel, hp_max_novo, hp_max_novo, atk_novo, dfs_novo, mana_max_novo, mana_max_novo, jogador.id)
+
+        # Desbloqueia skills do nivel
+        from catalogo import SKILLS_COMPLETAS
+        for sk in SKILLS_COMPLETAS.get(p["classe_id"], []):
+            if sk["nivel"] <= nivel:
+                await conn.execute(
+                    "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
+                    jogador.id, sk["id"]
+                )
+
+    # Atualiza cargos
+    rank_obj = get_rank(nivel)
+    guild = interaction.guild
+    if guild:
+        member = guild.get_member(jogador.id)
+        if member:
+            await atualizar_todos_cargos(guild, member, nivel)
+
+    embed = discord.Embed(
+
+        title="✅ Nivel atualizado!",
+        description=(
+            f"{jogador.mention} agora e **Nivel {nivel}**!\n\n"
+            f"❤️ HP: **{hp_max_novo}** | ⚔️ ATK: **{atk_novo}** | 🛡️ DEF: **{dfs_novo}**\n"
+            f"💙 Mana: **{mana_max_novo}**\n"
+            f"🏅 Rank: {rank_obj['emoji']} **{rank_obj['rank']}** — {rank_obj['nome']}\n\n"
+            f"Todas as skills ate Nv {nivel} foram desbloqueadas!"
+        ),
+        color=0xE4AF3C
+    )
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+
+
+
+
 # ─── /set-giros ──────────────────────────────────────────────────
 
 @bot.tree.command(name="set-giros", description="[ADMIN] Da giros de roleta para um jogador")
@@ -1008,7 +1081,7 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Batalha",     value="`/treinar` `/desafiar` `/dungeon`", inline=False)
     embed.add_field(name="Economia",    value="`/loja` `/ferreiro` `/hospital`", inline=False)
     embed.add_field(name="Progresso",   value="`/missoes` `/ranking` `/girar`", inline=False)
-    embed.add_field(name="Admin",       value="`/set-item` `/set-moedas` `/set-giros`", inline=False)
+    embed.add_field(name="Admin",       value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── EVENTOS ─────────────────────────────────────────────────────
