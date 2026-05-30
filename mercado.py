@@ -4,6 +4,7 @@ import asyncio
 import random
 from db import get_pool
 from catalogo import get_rank
+from imagens import IMG_MERCADOR, IMG_MERCADO
 
 # ─── CORES E TEMA ────────────────────────────────────────────────
 COR_MERCADOR = 0x1a0a2e
@@ -286,6 +287,7 @@ async def cmd_mercador(interaction: discord.Interaction):
         ),
         color=COR_MERCADOR
     )
+    embed.set_image(url=IMG_MERCADOR)
 
     # Lista itens com custo
     for it in disponiveis:
@@ -409,6 +411,7 @@ async def cmd_mercado_vender(interaction: discord.Interaction):
         ),
         color=COR_MERCADO
     )
+    embed.set_image(url=IMG_MERCADO)
 
     # Mostra tabela de preços
     preco_txt = " | ".join([f"{EMOJI_RAR[r]} {calcular_preco_venda(r)}🪙" for r in ["Comum","Incomum","Raro","Epico","Lendario"]])
