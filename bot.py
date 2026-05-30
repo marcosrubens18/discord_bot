@@ -25,6 +25,7 @@ from batalha import (
 from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progresso
 from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
 from mercado import cmd_mercador, cmd_mercado_vender
+from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
 from imagens import (
     IMG_PERFIL, IMG_SETUP, IMG_INVENTARIO, IMG_SKILLS, IMG_AJUDA,
     IMG_LOJA, IMG_FERREIRO, IMG_HOSPITAL, IMG_MERCADO, IMG_MERCADOR,
@@ -239,11 +240,11 @@ async def criar_personagem(interaction: discord.Interaction):
         await conn.execute("""
             INSERT INTO personagens
             (user_id,nome,classe_id,raridade,poder_id,poder_valor,destino_id,skill_id,
-             nivel,xp,hp_max,hp_atual,ataque,defesa,mana_max,mana_atual,moedas)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,1,0,$9,$10,$11,$12,100,100,50)
+             nivel,xp,hp_max,hp_atual,ataque,defesa,mana_max,mana_atual,moedas,raca_id)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,1,0,$9,$10,$11,$12,100,100,50,$13)
         """, uid, nome, classe["id"], classe["raridade"], poder["id"], poder["valor"],
             destino["id"], skills_sorteadas[0]["id"] if skills_sorteadas else "",
-            hp, hp, atk, dfs)
+            hp, hp, atk, dfs, raca_escolhida["id"])
         for i, sk in enumerate(skills_sorteadas):
             await conn.execute(
                 "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
@@ -292,6 +293,11 @@ async def criar_personagem(interaction: discord.Interaction):
                     except: pass
             # Adiciona Rank F automaticamente
             await atualizar_cargo_rank(guild, member, "F")
+            # Cargo de raca
+            cargo_raca = discord.utils.get(guild.roles, name=raca_escolhida["cargos"])
+            if cargo_raca:
+                try: await member.add_roles(cargo_raca)
+                except: pass
         await criar_canal_privado(guild, member, nome, classe)
 
 # ─── /perfil ─────────────────────────────────────────────────────
@@ -314,9 +320,11 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
     barra = "█" * int(pct*10) + "░" * (10-int(pct*10))
 
     rank_info = get_rank(p["nivel"])
+    raca_p    = get_raca(p["raca_id"] if p["raca_id"] else "humano")
     embed = discord.Embed(
         title=f"{cls['emoji'] if cls else '?'} {p['nome']}",
         description=(
+            f"**Raça:** {raca_p['emoji']} {raca_p['nome']} [{raca_p['raridade']}]\n"
             f"**Classe:** {cls['nome'] if cls else p['classe_id']} — *{p['raridade']}*\n"
             f"**Rank:** {rank_info['emoji']} {rank_info['rank']} — {rank_info['nome']}\n"
             f"**Destino:** {dst['emoji'] if dst else ''} {dst['nome'] if dst else p['destino_id']}\n"
@@ -379,6 +387,7 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
         embed.add_field(name="🔒 Próxima skill", value=f"{proxima['emoji']} **{proxima['nome']}** — Nv {proxima['nivel']}", inline=True)
 
     img_cls = IMG_CLASSE.get(p['classe_id'], IMG_PERFIL)
+    embed.add_field(name=f"{raca_p['emoji']} Passiva Racial", value=raca_p['passiva_desc'], inline=False)
     embed.set_image(url=img_cls)
     embed.set_footer(text=f"ID: {alvo.id} • /setup para equipar • /skills para gerenciar")
     await interaction.followup.send(embed=embed)
@@ -871,34 +880,35 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
 
     rank_info = get_rank(p["nivel"])
 
+    LOJA_RARIDADES = ["Comum", "Incomum"]  # Raro+ só por dungeon/ferreiro/roleta
+
     if categoria == "armas":
         itens_cat = get_armas_classe(p["classe_id"])
-        # so mostra itens com preco > 0 (os de preco 0 sao de dungeon/ferreiro)
         itens = [
             {"id":i["id"],"nome":i["nome"],"emoji":i["emoji"],
              "raridade":i["raridade"],"preco":i["preco"],"desc":i["desc"],"tipo":"arma"}
-            for i in itens_cat if i["preco"] > 0
+            for i in itens_cat if i["preco"] > 0 and i["raridade"] in LOJA_RARIDADES
         ]
     elif categoria == "armaduras":
         itens_cat = get_armaduras_classe(p["classe_id"])
         itens = [
             {"id":i["id"],"nome":i["nome"],"emoji":i["emoji"],
              "raridade":i["raridade"],"preco":i["preco"],"desc":i["desc"],"tipo":"armadura"}
-            for i in itens_cat if i["preco"] > 0
+            for i in itens_cat if i["preco"] > 0 and i["raridade"] in LOJA_RARIDADES
         ]
     else:
         itens = list(LOJA_ITENS.get("pocoes", []))
 
     COR_RAR_LOJA = {"Comum":"⬜","Incomum":"🟩","Raro":"🟦","Epico":"🟪","Lendario":"🟧"}
     classe_nome = p["classe_id"].title()
-    titulo_cat = f"⚔️ Armas — {classe_nome}" if categoria=="armas" else (f"🛡️ Armaduras — {classe_nome}" if categoria=="armaduras" else "🧪 Pocoes")
+    titulo_cat = f"⚔️ Armas — {classe_nome} (Comum/Incomum)" if categoria=="armas" else (f"🛡️ Armaduras — {classe_nome} (Comum/Incomum)" if categoria=="armaduras" else "🧪 Pocoes e Elixires")
 
     embed = discord.Embed(
         title=f"🏪 Loja — {titulo_cat}",
         description=(
             f"Jogador: **{p['nome']}** {rank_info['emoji']} Rank {rank_info['rank']} — Nv {p['nivel']}\n"
             f"Moedas: **{p['moedas']} 🪙** | Classe: **{classe_nome}**\n\n"
-            f"{'*Mostrando apenas itens compraveis — itens Lendarios e gratuitos sao de dungeons/ferreiro*' if categoria in ('armas','armaduras') else ''}"
+            "⚠️ Itens Raro+ só obtidos em Dungeons, Ferreiro e Roletas!" if categoria in ('armas','armaduras') else ""
         ),
         color=0xE4AF3C
     )
