@@ -3,6 +3,10 @@ import discord
 import asyncio
 import random
 from db import get_pool
+from catalogo import (
+    get_armas_classe, get_armaduras_classe, get_skills_classe,
+    ARMAS_POR_CLASSE, ARMADURAS_POR_CLASSE, SKILLS_COMPLETAS,
+)
 
 PLANOS = [
     {"id":"basico",   "nome":"Atendimento Basico",  "emoji":"🩹","preco":10, "hp_pct":0.5,"mana_pct":0.5,"desc":"Restaura 50% do HP e Mana",                        "cor":0x1D9E75},
@@ -165,6 +169,42 @@ async def animar_roleta(msg, opcoes, resultado, cor):
     )
     await msg.edit(embed=embed)
 
+
+async def get_personagem_hospital(user_id):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
+
+def build_pool_filtrado(roleta_id, classe_id, ids_ja_tem):
+    """Retorna pool filtrado: so itens da classe e que nao tem ainda."""
+    if roleta_id == "skill":
+        skills = get_skills_classe(classe_id)
+        pool_filtrado = [
+            {"id": s["id"], "nome": s["nome"], "emoji": s["emoji"],
+             "raridade": "Comum" if s["nivel"] <= 5 else ("Incomum" if s["nivel"] <= 15 else ("Raro" if s["nivel"] <= 30 else ("Epico" if s["nivel"] <= 50 else "Lendario"))),
+             "desc": s["desc"]}
+            for s in skills if s["id"] not in ids_ja_tem
+        ]
+        return pool_filtrado if pool_filtrado else [{"id": skills[0]["id"], "nome": skills[0]["nome"], "emoji": skills[0]["emoji"], "raridade": "Comum", "desc": skills[0]["desc"]}]
+
+    elif roleta_id == "arma":
+        armas = get_armas_classe(classe_id)
+        return [
+            {"id": a["id"], "nome": a["nome"], "emoji": a["emoji"],
+             "raridade": a["raridade"], "tipo": "arma", "desc": a["desc"]}
+            for a in armas if a["id"] not in ids_ja_tem
+        ] or [{"id": armas[0]["id"], "nome": armas[0]["nome"], "emoji": armas[0]["emoji"], "raridade": "Comum", "tipo": "arma", "desc": armas[0]["desc"]}]
+
+    elif roleta_id == "armadura":
+        armaduras = get_armaduras_classe(classe_id)
+        return [
+            {"id": a["id"], "nome": a["nome"], "emoji": a["emoji"],
+             "raridade": a["raridade"], "tipo": "armadura", "desc": a["desc"]}
+            for a in armaduras if a["id"] not in ids_ja_tem
+        ] or [{"id": armaduras[0]["id"], "nome": armaduras[0]["nome"], "emoji": armaduras[0]["emoji"], "raridade": "Comum", "tipo": "armadura", "desc": armaduras[0]["desc"]}]
+
+    return []
+
 async def cmd_hospital(interaction: discord.Interaction):
     await interaction.response.defer()
     p = await get_personagem(interaction.user.id)
@@ -243,10 +283,31 @@ async def cmd_girar(interaction: discord.Interaction):
         roleta = ROLETAS.get(info["roleta_id"]); raridade = info["raridade"]
         if not roleta: return
         await remover_giro(inter.user.id, info["roleta_id"], raridade)
-        resultado = sortear_ficha(roleta["pool"], raridade)
+
+        # Busca personagem para filtrar por classe
+        p_girar = await get_personagem_hospital(inter.user.id)
+        classe_id_g = p_girar["classe_id"] if p_girar else "guerreiro"
+
+        # Busca o que o jogador ja tem para nao repetir
+        pool_db2 = await get_pool()
+        async with pool_db2.acquire() as conn2:
+            if info["roleta_id"] == "skill":
+                rows_tem = await conn2.fetch("SELECT skill_id FROM skills_desbloqueadas WHERE user_id=$1", inter.user.id)
+                ids_ja_tem = {r["skill_id"] for r in rows_tem}
+            else:
+                rows_tem = await conn2.fetch("SELECT item_id FROM inventario WHERE user_id=$1 AND tipo=$2", inter.user.id, info["roleta_id"])
+                ids_ja_tem = {r["item_id"] for r in rows_tem}
+
+        # Usa pool filtrado por classe e sem repetir
+        if info["roleta_id"] in ("skill", "arma", "armadura"):
+            pool_filtrado = build_pool_filtrado(info["roleta_id"], classe_id_g, ids_ja_tem)
+        else:
+            pool_filtrado = roleta["pool"]
+
+        resultado = sortear_ficha(pool_filtrado, raridade)
         cor = COR_RAR.get(resultado.get("raridade", "Comum"), 0x888780)
         msg_anim = await inter.followup.send(embed=discord.Embed(description="Girando...", color=0x888780), wait=True)
-        await animar_roleta(msg_anim, roleta["pool"], resultado, cor)
+        await animar_roleta(msg_anim, pool_filtrado, resultado, cor)
         await asyncio.sleep(0.5)
         aplicado = ""
         pool_db = await get_pool()
