@@ -167,84 +167,162 @@ async def criar_canal_privado(guild, member, nome_jogador, classe):
 
 # ─── /criar_personagem ───────────────────────────────────────────
 
-@bot.tree.command(name="criar_personagem", description="Cria seu personagem girando as roletas!")
+@bot.tree.command(name="criar_personagem", description="Escolha sua raca e classe para comecar sua jornada!")
 async def criar_personagem(interaction: discord.Interaction):
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     uid = interaction.user.id
     if await get_personagem(uid):
         await interaction.followup.send("Voce ja tem personagem! Use `/perfil`.", ephemeral=True)
         return
 
-    embed0 = discord.Embed(title="As roletas do destino estao girando...", description=f"{interaction.user.mention}, prepare-se!", color=0x7F77DD)
-    await interaction.followup.send(embed=embed0)
-    await asyncio.sleep(1)
+    # ── PASSO 1: Escolha de Raca ─────────────────────────────────
+    embed_raca = discord.Embed(
+        title="🧬 Passo 1 de 2 — Escolha sua Raça",
+        description=(
+            "Sua **raça** define sua passiva racial exclusiva em batalha.\n"
+            "Raças raras só por roleta — não disponíveis na criação!\n\n"
+            "**Escolha uma das 3 raças básicas:**"
+        ),
+        color=0x7F77DD
+    )
+    for rid in RACAS_BASICAS:
+        r = RACAS[rid]
+        embed_raca.add_field(
+            name=f"{r['emoji']} {r['nome']}",
+            value=f"*{r['passiva_desc']}*",
+            inline=False
+        )
+    embed_raca.set_footer(text="Demônio, Anjo, Draconiano... só por roleta de raça!")
 
-    pesos_cls = [c["peso"] for c in CLASSES]
-    classe = sortear_peso(CLASSES, pesos_cls)
-    e1 = discord.Embed(title="Roleta 1 — Classe", color=COR_RAR.get(classe["raridade"], 0x888780))
-    e1.description = "Girando..."
-    m1 = await interaction.followup.send(embed=e1, wait=True)
-    for _ in range(6):
-        rc = random.choice(CLASSES)
-        e1.description = f"**{rc['emoji']} {rc['nome']}**"
-        await m1.edit(embed=e1); await asyncio.sleep(0.3)
-    e1.description = f"**{classe['emoji']} {classe['nome']} — {classe['raridade']}**"
-    await m1.edit(embed=e1); await asyncio.sleep(0.5)
+    raca_escolhida = {"id": None}
 
-    poder = sortear_peso(PODERES, PESOS_PODER)
-    e2 = discord.Embed(title="Roleta 2 — Poder base", color=0xD85A30)
-    e2.description = "Girando..."
-    m2 = await interaction.followup.send(embed=e2, wait=True)
-    for _ in range(6):
-        rp = random.choice(PODERES)
-        e2.description = f"**{rp['emoji']} {rp['nome']} ({rp['valor']})**"
-        await m2.edit(embed=e2); await asyncio.sleep(0.3)
-    e2.description = f"**{poder['emoji']} {poder['nome']} — Poder {poder['valor']}**"
-    await m2.edit(embed=e2); await asyncio.sleep(0.5)
+    # Build race view with fixed buttons
+    class RacaViewFinal(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=120)
+            self.escolha = None
 
+        @discord.ui.button(label="👤 Humano", style=discord.ButtonStyle.primary, custom_id="raca_humano")
+        async def btn_humano(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = "humano"; await inter.response.defer(); self.stop()
+
+        @discord.ui.button(label="🧔 Anão", style=discord.ButtonStyle.primary, custom_id="raca_anao")
+        async def btn_anao(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = "anao"; await inter.response.defer(); self.stop()
+
+        @discord.ui.button(label="👂 Elfo", style=discord.ButtonStyle.primary, custom_id="raca_elfo")
+        async def btn_elfo(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = "elfo"; await inter.response.defer(); self.stop()
+
+    vr = RacaViewFinal()
+    msg = await interaction.followup.send(embed=embed_raca, view=vr, ephemeral=True, wait=True)
+    await vr.wait()
+
+    if not vr.escolha:
+        await msg.edit(content="⏰ Tempo esgotado! Use /criar_personagem novamente.", embed=None, view=None)
+        return
+
+    raca = RACAS[vr.escolha]
+
+    # ── PASSO 2: Escolha de Classe ───────────────────────────────
+    CLASSES_BASICAS = [c for c in CLASSES if c["raridade"] == "Comum"]
+
+    embed_cls = discord.Embed(
+        title="⚔️ Passo 2 de 2 — Escolha sua Classe",
+        description=(
+            "Sua **classe** define suas skills e estilo de combate.\n"
+            "Classes raras (Paladino, Necromante...) só por roleta!\n\n"
+            "**Escolha uma das 3 classes básicas:**"
+        ),
+        color=0xE4AF3C
+    )
+    for c in CLASSES_BASICAS:
+        embed_cls.add_field(name=f"{c['emoji']} {c['nome']}", value=c["desc"], inline=True)
+    embed_cls.set_footer(text=f"Raça escolhida: {raca['emoji']} {raca['nome']}")
+
+    class ClasseView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=120)
+            self.escolha = None
+
+        @discord.ui.button(label="🗡️ Guerreiro", style=discord.ButtonStyle.success, custom_id="cls_guerreiro")
+        async def btn_guerreiro(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = next(c for c in CLASSES if c["id"] == "guerreiro")
+            await inter.response.defer(); self.stop()
+
+        @discord.ui.button(label="🏹 Arqueiro", style=discord.ButtonStyle.success, custom_id="cls_arqueiro")
+        async def btn_arqueiro(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = next(c for c in CLASSES if c["id"] == "arqueiro")
+            await inter.response.defer(); self.stop()
+
+        @discord.ui.button(label="🔮 Mago", style=discord.ButtonStyle.success, custom_id="cls_mago")
+        async def btn_mago(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = next(c for c in CLASSES if c["id"] == "mago")
+            await inter.response.defer(); self.stop()
+
+    vc = ClasseView()
+    await msg.edit(embed=embed_cls, view=vc)
+    await vc.wait()
+
+    if not vc.escolha:
+        await msg.edit(content="⏰ Tempo esgotado! Use /criar_personagem novamente.", embed=None, view=None)
+        return
+
+    classe = vc.escolha
+
+    # ── PASSO 3: Roletas automaticas ────────────────────────────
+    await msg.edit(
+        embed=discord.Embed(
+            title="🎰 As roletas do destino giram...",
+            description=(
+                f"{raca['emoji']} **{raca['nome']}** + {classe['emoji']} **{classe['nome']}**\n\n"
+                "Sortindo poder, destino e habilidades..."
+            ),
+            color=0x7F77DD
+        ),
+        view=None
+    )
+    await asyncio.sleep(1.5)
+
+    # Sorteios
+    poder   = sortear_peso(PODERES, PESOS_PODER)
     destino = random.choice(DESTINOS)
-    e3 = discord.Embed(title="Roleta 3 — Destino", color=0xE4AF3C)
-    e3.description = "Girando..."
-    m3 = await interaction.followup.send(embed=e3, wait=True)
-    for _ in range(6):
-        rd = random.choice(DESTINOS)
-        e3.description = f"**{rd['emoji']} {rd['nome']}**"
-        await m3.edit(embed=e3); await asyncio.sleep(0.3)
-    e3.description = f"**{destino['emoji']} {destino['nome']} — {destino['desc']}**"
-    await m3.edit(embed=e3); await asyncio.sleep(0.5)
+    mana_max = calcular_mana_max(classe["id"], 1, poder["valor"], destino["id"])
+    from racas import get_raca as _gr
+    if raca["id"] == "elfo":
+        mana_max += 20
 
-    skills_cls = SKILLS_POR_CLASSE.get(classe["id"], [])
-    todas_sk = [s for cls in SKILLS_POR_CLASSE.values() for s in cls]
-    disponiveis = list(skills_cls); random.shuffle(disponiveis)
+    skills_cls   = SKILLS_POR_CLASSE.get(classe["id"], [])
+    disponiveis  = [s for s in skills_cls if s["nivel"] <= 5]
+    if len(disponiveis) < 4:
+        disponiveis = skills_cls[:4]
+    random.shuffle(disponiveis)
     skills_sorteadas = disponiveis[:4]
-    while len(skills_sorteadas) < 4 and disponiveis:
-        skills_sorteadas.append(random.choice(disponiveis))
-
-    for i, sk_final in enumerate(skills_sorteadas):
-        e_sk = discord.Embed(title=f"Roleta {4+i} — Skill {i+1}", color=0x1D9E75)
-        e_sk.description = "Girando..."
-        m_sk = await interaction.followup.send(embed=e_sk, wait=True)
-        for _ in range(6):
-            rs = random.choice(todas_sk)
-            e_sk.description = f"**{rs['emoji']} {rs['nome']}**"
-            await m_sk.edit(embed=e_sk); await asyncio.sleep(0.25)
-        e_sk.description = f"**{sk_final['emoji']} {sk_final['nome']}** — {sk_final['desc']}"
-        await m_sk.edit(embed=e_sk); await asyncio.sleep(0.4)
 
     hp, atk, dfs = calcular_stats(poder["valor"], destino["id"], 1)
+    if raca["id"] == "anao":
+        dfs += 8
     nome = interaction.user.display_name
-    it = ITEM_INICIAL.get(classe["id"], ITEM_INICIAL["guerreiro"])
+    it   = ITEM_INICIAL.get(classe["id"], ITEM_INICIAL["guerreiro"])
 
-    pool = await get_pool()
-    async with pool.acquire() as conn:
+    # Salva no banco
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
         await conn.execute("""
             INSERT INTO personagens
             (user_id,nome,classe_id,raridade,poder_id,poder_valor,destino_id,skill_id,
              nivel,xp,hp_max,hp_atual,ataque,defesa,mana_max,mana_atual,moedas,raca_id)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,1,0,$9,$10,$11,$12,100,100,50,$13)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,1,0,$9,$10,$11,$12,$13,$13,50,$14)
         """, uid, nome, classe["id"], classe["raridade"], poder["id"], poder["valor"],
             destino["id"], skills_sorteadas[0]["id"] if skills_sorteadas else "",
-            hp, hp, atk, dfs, raca_escolhida["id"])
+            hp, hp, atk, dfs, mana_max, raca["id"])
+
         for i, sk in enumerate(skills_sorteadas):
             await conn.execute(
                 "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
@@ -259,46 +337,50 @@ async def criar_personagem(interaction: discord.Interaction):
             VALUES($1,$2,$3,$4,$5,$6,$7,1)
         """, uid, it[0], it[1], it[2], it[3], it[4], it[5])
 
+    # Embed final
+    from racas import get_raca as get_r
     cor = COR_RAR.get(classe["raridade"], 0x888780)
-    efinal = discord.Embed(title=f"{classe['emoji']} {nome} entrou na cidade!", color=cor)
-    if classe["raridade"] in ("Lendario", "Epico"):
-        efinal.description = f"CLASSE {classe['raridade'].upper()}!"
-    efinal.add_field(name="Classe",  value=f"{classe['emoji']} {classe['nome']} ({classe['raridade']})", inline=True)
-    efinal.add_field(name="Poder",   value=f"{poder['emoji']} {poder['nome']} ({poder['valor']})", inline=True)
-    efinal.add_field(name="Destino", value=f"{destino['emoji']} {destino['nome']}", inline=True)
-    sk_nomes = " | ".join([f"{s['emoji']} {s['nome']}" for s in skills_sorteadas])
-    efinal.add_field(name="Skills",  value=sk_nomes, inline=False)
-    efinal.add_field(name="HP",      value=str(hp),  inline=True)
-    efinal.add_field(name="Ataque",  value=str(atk), inline=True)
-    efinal.add_field(name="Defesa",  value=str(dfs), inline=True)
-    efinal.add_field(name="Item",    value=f"{it[4]} {it[1]}", inline=True)
-    efinal.set_footer(text="Use /setup para equipar e /perfil para ver sua ficha")
-    await interaction.followup.send(embed=efinal)
+    efinal = discord.Embed(
+        title=f"✅ {nome} entrou em Villa Eldoria!",
+        color=cor
+    )
+    efinal.add_field(name="🧬 Raça",    value=f"{raca['emoji']} {raca['nome']}\n*{raca['passiva_desc']}*", inline=False)
+    efinal.add_field(name="⚔️ Classe",  value=f"{classe['emoji']} {classe['nome']}", inline=True)
+    efinal.add_field(name="💪 Poder",   value=f"{poder['emoji']} {poder['nome']} ({poder['valor']})", inline=True)
+    efinal.add_field(name="🌟 Destino", value=f"{destino['emoji']} {destino['nome']}", inline=True)
+    sk_txt = " | ".join([f"{s['emoji']} {s['nome']}" for s in skills_sorteadas])
+    efinal.add_field(name="⚡ Skills",  value=sk_txt, inline=False)
+    efinal.add_field(name="❤️ HP",      value=str(hp), inline=True)
+    efinal.add_field(name="⚔️ ATK",    value=str(atk), inline=True)
+    efinal.add_field(name="🛡️ DEF",    value=str(dfs), inline=True)
+    efinal.add_field(name="💙 Mana",    value=str(mana_max), inline=True)
+    efinal.set_footer(text="Use /setup para equipar e /perfil para ver sua ficha completa!")
 
+    await msg.edit(embed=efinal, view=None)
+
+    # Cargos
     guild = interaction.guild
     if guild:
         member = guild.get_member(uid)
         if member:
-            # Cargos base
             for cn in ["🏠 Morador da Vila", f"{classe['emoji']} {classe['nome']}"]:
                 cargo = discord.utils.get(guild.roles, name=cn)
                 if cargo:
                     try: await member.add_roles(cargo)
                     except: pass
-            # Remove recem-chegado
-            for nome_recem in ["🌱 Recem-chegado", "Recem-chegado"]:
-                recem = discord.utils.get(guild.roles, name=nome_recem)
+            for nr in ["🌱 Recem-chegado"]:
+                recem = discord.utils.get(guild.roles, name=nr)
                 if recem and recem in member.roles:
                     try: await member.remove_roles(recem)
                     except: pass
-            # Adiciona Rank F automaticamente
             await atualizar_cargo_rank(guild, member, "F")
-            # Cargo de raca
-            cargo_raca = discord.utils.get(guild.roles, name=raca_escolhida["cargos"])
+            cargo_raca = discord.utils.get(guild.roles, name=raca["cargos"])
             if cargo_raca:
                 try: await member.add_roles(cargo_raca)
                 except: pass
         await criar_canal_privado(guild, member, nome, classe)
+
+
 
 # ─── /perfil ─────────────────────────────────────────────────────
 
@@ -1228,9 +1310,16 @@ async def on_ready():
     try:
         guild_id = int(os.getenv("GUILD_ID", "0"))
         if guild_id:
-            bot.tree.copy_global_to(guild=discord.Object(id=guild_id))
-            synced = await bot.tree.sync(guild=discord.Object(id=guild_id))
+            guild_obj = discord.Object(id=guild_id)
+            # Limpa comandos globais antigos para evitar duplicatas
+            bot.tree.clear_commands(guild=None)
+            await bot.tree.sync(guild=None)
+            # Sincroniza apenas no servidor
+            synced = await bot.tree.sync(guild=guild_obj)
             print(f"Comandos sincronizados: {len(synced)}")
+        else:
+            synced = await bot.tree.sync()
+            print(f"Comandos sincronizados globalmente: {len(synced)}")
     except Exception as e:
         print(f"ERRO ao sincronizar: {e}")
     print(f"Bot online: {bot.user}")
