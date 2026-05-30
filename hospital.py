@@ -3,6 +3,7 @@ import discord
 import asyncio
 import random
 from db import get_pool
+from imagens import IMG_HOSPITAL, IMG_ROLETA, IMG_BANNER_GERAL
 from catalogo import (
     get_armas_classe, get_armaduras_classe, get_skills_classe,
     ARMAS_POR_CLASSE, ARMADURAS_POR_CLASSE, SKILLS_COMPLETAS,
@@ -217,7 +218,7 @@ async def cmd_hospital(interaction: discord.Interaction):
     mana_a = p["mana_atual"] if p["mana_atual"] else 100
     mana_m = p["mana_max"]   if p["mana_max"]   else 100
 
-    embed = discord.Embed(title="Hospital da Cidade", color=0x1D9E75,
+    embed = discord.Embed(title="🏥 Hospital da Cidade", color=0x1D9E75,
         description=f"Bem-vindo, **{p['nome']}**!\n\nHP: **{hp_a}/{hp_m}** | Mana: **{mana_a}/{mana_m}**\nMoedas: **{p['moedas']} 🪙**\n\nEscolha um plano:")
     for pl in PLANOS:
         embed.add_field(name=f"{pl['emoji']} {pl['nome']} — {pl['preco']} 🪙", value=pl["desc"], inline=False)
@@ -246,7 +247,9 @@ async def cmd_hospital(interaction: discord.Interaction):
         await inter.response.edit_message(embed=discord.Embed(title="Atendimento concluido!", description=desc, color=plano["cor"]), view=None)
 
     sel.callback = escolher
+    embed.set_image(url=IMG_HOSPITAL)
     v = discord.ui.View(timeout=60); v.add_item(sel)
+    embed.set_image(url=IMG_ROLETA)
     await interaction.followup.send(embed=embed, view=v)
 
 async def cmd_girar(interaction: discord.Interaction):
@@ -271,7 +274,7 @@ async def cmd_girar(interaction: discord.Interaction):
     if not opcoes:
         await interaction.followup.send("Sem giros disponiveis!", ephemeral=True); return
 
-    embed = discord.Embed(title="Seus Giros Disponiveis", description=f"Escolha qual ficha usar:\n\n{desc_giros}", color=0x7F77DD)
+    embed = discord.Embed(title="🎰 Seus Giros Disponíveis", description=f"Escolha qual ficha usar:\n\n{desc_giros}", color=0x7F77DD)
     sel = discord.ui.Select(placeholder="Qual ficha usar?", options=opcoes[:25])
 
     async def girar(inter: discord.Interaction):
@@ -344,6 +347,7 @@ async def cmd_girar(interaction: discord.Interaction):
         ))
 
     sel.callback = girar
+    embed.set_image(url=IMG_HOSPITAL)
     v = discord.ui.View(timeout=60); v.add_item(sel)
     await interaction.followup.send(embed=embed, view=v)
 
