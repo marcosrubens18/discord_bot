@@ -9,6 +9,7 @@ from discord.ext import commands
 
 from db import get_pool, init_db
 from catalogo import get_rank, CARGOS_RANK, calcular_mana_max, get_armas_classe, get_armaduras_classe
+from utils import atualizar_cargo_nivel, atualizar_cargo_rank, atualizar_todos_cargos
 from setup_cmd import cmd_setup
 from dungeon import cmd_dungeon
 from hospital import (
@@ -118,43 +119,7 @@ def sortear_peso(lista, pesos):
 
 # ─── CARGO DE NIVEL ──────────────────────────────────────────────
 
-async def atualizar_cargo_nivel(guild, member, nivel):
-    """Atualiza cargo de nivel (Aventureiro/Veterano/Elite/Mestre)."""
-    if not guild or not member: return
-    CARGOS_NIVEL = [
-        (50, "💎 Mestre"),
-        (30, "🥇 Elite"),
-        (15, "🥈 Veterano"),
-        (5,  "🥉 Aventureiro"),
-    ]
-    for _, nome in CARGOS_NIVEL:
-        cargo = discord.utils.get(guild.roles, name=nome)
-        if cargo and cargo in member.roles:
-            try: await member.remove_roles(cargo)
-            except: pass
-    for nivel_min, nome in CARGOS_NIVEL:
-        if nivel >= nivel_min:
-            cargo = discord.utils.get(guild.roles, name=nome)
-            if cargo:
-                try: await member.add_roles(cargo)
-                except: pass
-            break
-
-async def atualizar_cargo_rank(guild, member, rank_str):
-    """Atualiza cargo de rank (F ao SS)."""
-    if not guild or not member: return
-    todos_ranks = ["🟫 Rank F","🟩 Rank E","🟦 Rank D","🟨 Rank C","🟧 Rank B","🟥 Rank A","⭐ Rank S","💎 Rank SS"]
-    for nome in todos_ranks:
-        cargo = discord.utils.get(guild.roles, name=nome)
-        if cargo and cargo in member.roles:
-            try: await member.remove_roles(cargo)
-            except: pass
-    nome_novo = CARGOS_RANK.get(rank_str)
-    if nome_novo:
-        cargo = discord.utils.get(guild.roles, name=nome_novo)
-        if cargo:
-            try: await member.add_roles(cargo)
-            except: pass
+# cargo functions moved to utils.py
 
 # ─── CANAL PRIVADO ───────────────────────────────────────────────
 
@@ -351,26 +316,61 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
         ),
         color=COR_RAR.get(p["raridade"], 0x888780)
     )
-    embed.add_field(name="Nivel",    value=str(p["nivel"]), inline=True)
-    embed.add_field(name="XP",       value=f"{xp_cur}/{xp_nxt}\n`{barra}`", inline=True)
-    embed.add_field(name="\u200b",   value="\u200b", inline=True)
-    embed.add_field(name="HP",       value=f"{p['hp_atual']}/{p['hp_max']}", inline=True)
-    embed.add_field(name="Ataque",   value=str(p["ataque"]), inline=True)
-    embed.add_field(name="Defesa",   value=str(p["defesa"]), inline=True)
-    embed.add_field(name="Moedas",   value=f"{p['moedas']} 🪙", inline=True)
-    embed.add_field(name="Vitorias", value=str(p["vitorias"]), inline=True)
-    embed.add_field(name="Derrotas", value=str(p["derrotas"]), inline=True)
+    # Barras de HP e XP
+    hp_barra = "█" * int((p["hp_atual"]/p["hp_max"])*10) + "░" * (10-int((p["hp_atual"]/p["hp_max"])*10))
+    mana_at  = p["mana_atual"] or 0
+    mana_mx  = p["mana_max"]   or 100
+    xp_barra = "█" * int((xp_cur/xp_nxt)*10) + "░" * (10-int((xp_cur/xp_nxt)*10))
 
-    atv  = [s for s in todas if s["id"] in sks]
-    bloq = [s for s in todas if s["id"] not in sks]
-    if atv:
-        txt = "\n".join([f"{'🟢' if s['id'] in eq else '⚪'} {s['emoji']} **{s['nome']}** — {s['desc']}" for s in atv])
-        embed.add_field(name="Skills (🟢=equipada)", value=txt, inline=False)
+    # Progresso para proximo rank
+    rank_atual = get_rank(p["nivel"])
+    proximos   = [r for r in [{"rank":"F","nivel_min":1},{"rank":"E","nivel_min":10},{"rank":"D","nivel_min":20},{"rank":"C","nivel_min":30},{"rank":"B","nivel_min":40},{"rank":"A","nivel_min":50},{"rank":"S","nivel_min":60},{"rank":"SS","nivel_min":75}] if r["nivel_min"] > p["nivel"]]
+    prox_rank  = proximos[0] if proximos else None
+    rank_txt   = f"Proximo: Rank {prox_rank['rank']} (Nv {prox_rank['nivel_min']})" if prox_rank else "Rank máximo atingido! 💎"
+
+    embed.add_field(name="📊 Stats",
+        value=(
+            f"❤️ HP `{hp_barra}` {p['hp_atual']}/{p['hp_max']}\n"
+            f"💙 Mana `{hp_barra}` {mana_at}/{mana_mx}\n"
+            f"✨ XP `{xp_barra}` {xp_cur}/{xp_nxt}\n"
+            f"⭐ {rank_atual['emoji']} Rank {rank_atual['rank']} — {rank_txt}"
+        ), inline=False)
+
+    embed.add_field(name="⚔️ Combate",
+        value=f"ATK: **{p['ataque']}** | DEF: **{p['defesa']}** | 🏆 {p['vitorias']}V / {p['derrotas']}D",
+        inline=True)
+    embed.add_field(name="💰 Economia",
+        value=f"**{p['moedas']} moedas** 🪙",
+        inline=True)
+
+    # Itens equipados
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        arma_eq = await conn.fetchrow("SELECT * FROM inventario WHERE user_id=$1 AND tipo='arma' AND equipado=1 LIMIT 1", alvo.id)
+        arm_eq  = await conn.fetchrow("SELECT * FROM inventario WHERE user_id=$1 AND tipo='armadura' AND equipado=1 LIMIT 1", alvo.id)
+
+    equip_txt = (
+        f"⚔️ {arma_eq['emoji']} **{arma_eq['nome']}** [{arma_eq['raridade']}]\n" if arma_eq else "⚔️ Sem arma equipada\n"
+    ) + (
+        f"🛡️ {arm_eq['emoji']} **{arm_eq['nome']}** [{arm_eq['raridade']}]" if arm_eq else "🛡️ Sem armadura equipada"
+    )
+    embed.add_field(name="🎒 Equipamentos", value=equip_txt, inline=False)
+
+    # Skills equipadas
+    todas_sk   = SKILLS_POR_CLASSE.get(p["classe_id"], []) if hasattr(cls, "__class__") else []
+    from catalogo import SKILLS_COMPLETAS
+    todas_sk = SKILLS_COMPLETAS.get(p["classe_id"], [])
+    if eq:
+        sk_txt = " | ".join([f"{next((s['emoji'] for s in todas_sk if s['id']==sid), '⚡')} {next((s['nome'] for s in todas_sk if s['id']==sid), sid)}" for sid in eq[:4]])
+        embed.add_field(name="⚡ Skills equipadas", value=sk_txt or "Nenhuma", inline=False)
+
+    # Skills bloqueadas proximas
+    bloq = [s for s in todas_sk if s["id"] not in sks and s["nivel"] > p["nivel"]]
     if bloq:
-        txt = "\n".join([f"🔒 {s['emoji']} {s['nome']} — Nv {s['nivel']}" for s in bloq])
-        embed.add_field(name="Bloqueadas", value=txt, inline=False)
+        proxima = sorted(bloq, key=lambda x: x["nivel"])[0]
+        embed.add_field(name="🔒 Próxima skill", value=f"{proxima['emoji']} **{proxima['nome']}** — Nv {proxima['nivel']}", inline=True)
 
-    embed.set_footer(text=f"ID: {alvo.id} • Use /setup para montar seu equipamento")
+    embed.set_footer(text=f"ID: {alvo.id} • /setup para equipar • /skills para gerenciar")
     await interaction.followup.send(embed=embed)
 
 # ─── /inventario ─────────────────────────────────────────────────
