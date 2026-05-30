@@ -2,6 +2,7 @@
 import discord
 import asyncio
 from db import get_pool
+from catalogo import get_rank, calcular_mana_max, get_armas_classe, get_armaduras_classe, SKILLS_COMPLETAS as SKILLS_COMPLETAS_CAT
 
 EMOJI_CLASSE = {
     "guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹",
@@ -33,20 +34,18 @@ AFINIDADE_ARMADURA = {
     "dracomante": ["armadura_escama","elmo_dragao"],
     "arcano":     ["armadura_couro","cota_malha"],
 }
-BONUS_ARMA = {
-    "espada_ferro":  {"atk": 5},  "arco_madeira":  {"atk": 4},
-    "cajado_pinho":  {"atk": 4},  "maca_sagrada":  {"atk": 6},
-    "orbe_arcano":   {"atk": 8},  "garra_dragao":  {"atk": 25},
-    "espada_prata":  {"atk": 10}, "arco_elfico":   {"atk": 14},
-    "cajado_magico": {"atk": 15}, "lanca_sagrada": {"atk": 18},
-    "espada_orc":    {"atk": 16}, "cajado_osso2":  {"atk": 14},
-}
-BONUS_ARMADURA = {
-    "armadura_couro":  {"def": 5},  "cota_malha":      {"def": 10},
-    "armadura_plena":  {"def": 18}, "armadura_escama": {"def": 25},
-    "elmo_dragao":     {"def": 32}, "capa_vampiro":    {"def": 12},
-    "armadura_titan":  {"def": 45},
-}
+# Bonus gerados automaticamente do catalogo
+from catalogo import get_bonus_arma as _get_bonus_arma, get_bonus_armadura as _get_bonus_armadura, ARMAS_POR_CLASSE as _ARMAS, ARMADURAS_POR_CLASSE as _ARMS
+
+BONUS_ARMA = {}
+for _cls, _itens in _ARMAS.items():
+    for _it in _itens:
+        BONUS_ARMA[_it["id"]] = {"atk": _it["atk_bonus"]}
+
+BONUS_ARMADURA = {}
+for _cls, _itens in _ARMS.items():
+    for _it in _itens:
+        BONUS_ARMADURA[_it["id"]] = {"def": _it["def_bonus"]}
 MAGIAS_SUPORTE = {
     "cura_universal":   {"nome":"Cura Universal",   "emoji":"💗","raridade":"Incomum","desc":"Restaura 50% HP em batalha",             "mana":40},
     "bencao_divina":    {"nome":"Bencao Divina",    "emoji":"🙏","raridade":"Incomum","desc":"+20% todos os stats por 3 turnos",       "mana":30},
@@ -177,7 +176,9 @@ def calcular_stats_setup(p, arma, armadura, classe_id):
     if arma:
         aid = arma["item_id"]
         bonus_atk_num = BONUS_ARMA.get(aid, {}).get("atk", 0)
-        if aid in AFINIDADE_ARMA.get(classe_id, []):
+        # Verifica afinidade via catalogo
+        armas_cls = {a["id"] for a in get_armas_classe(classe_id)}
+        if aid in armas_cls:
             bonus_atk_pct = 1.15; arma_compat = True
         else:
             bonus_atk_pct = 0.85; arma_compat = False
@@ -185,7 +186,8 @@ def calcular_stats_setup(p, arma, armadura, classe_id):
     if armadura:
         armid = armadura["item_id"]
         bonus_dfs_num = BONUS_ARMADURA.get(armid, {}).get("def", 0)
-        if armid in AFINIDADE_ARMADURA.get(classe_id, []):
+        armaduras_cls = {a["id"] for a in get_armaduras_classe(classe_id)}
+        if armid in armaduras_cls:
             bonus_dfs_pct = 1.10; armadura_compat = True
         else:
             bonus_dfs_pct = 0.90; armadura_compat = False
@@ -219,16 +221,38 @@ def avaliar_setup(skills_eq, arma_compat, armadura_compat):
     return ratings.get(nota, ratings[0])
 
 def build_embed_setup(p, skills_eq_ids, skills_desbloq_ids, arma, armadura, magia_sup_id, magias_inv, stats):
-    emoji_j = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
-    classe_s = SKILLS_POR_CLASSE.get(p["classe_id"], [])
+    emoji_j  = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
+    rank_inf = get_rank(p["nivel"])
+    mana_mx  = calcular_mana_max(p["classe_id"], p["nivel"], p.get("poder_valor",10), p.get("destino_id","equilibrado"))
 
     # Mapa de todas as skills para busca
     todas_skills = {}
-    for cid, lista in SKILLS_POR_CLASSE.items():
+    for cid, lista in SKILLS_COMPLETAS_CAT.items():
         for sk in lista:
             todas_skills[sk["id"]] = dict(sk, classe_origem=cid)
 
-    embed = discord.Embed(title=f"{emoji_j} Setup de {p['nome']}", color=COR_RAR.get(p["raridade"], 0x7F77DD))
+    PASSIVA_DESC = {
+        "guerreiro":  "🗡️ A cada 3 turnos +3 DEF permanente (cap 30)",
+        "arqueiro":   "🏹 Critico recupera 8 de mana",
+        "mago":       "🔮 Dano magico +8% por turno (cap 40%)",
+        "paladino":   "⚡ HP<30%: cura 15 HP/turno automaticamente",
+        "necromante": "🌑 Cada dreno aumenta o proximo em +10% (cap x2.0)",
+        "dracomante": "🐉 -10% dano recebido, imune veneno/queimadura",
+        "arcano":     "✨ Sem tomar dano: acumula +10% dano arcano (cap 50%)",
+    }
+    passiva_txt = PASSIVA_DESC.get(p["classe_id"], "")
+    COR_CLASSE  = {"guerreiro":0x888780,"arqueiro":0x888780,"mago":0x888780,"paladino":0x1D9E75,"necromante":0x378ADD,"dracomante":0xD85A30,"arcano":0x7F77DD}
+
+    embed = discord.Embed(
+        title=f"{emoji_j} Setup de {p['nome']}",
+        description=(
+            f"**Classe:** {emoji_j} {p['classe_id'].title()} — *{p['raridade']}*\n"
+            f"**Rank:** {rank_inf['emoji']} {rank_inf['rank']} | **Nível:** {p['nivel']}\n"
+            f"**Mana máx:** {mana_mx} 💙\n"
+            f"**Passiva:** {passiva_txt}"
+        ),
+        color=COR_CLASSE.get(p["classe_id"], 0x7F77DD)
+    )
 
     # Skills
     sk_txt = ""
@@ -319,7 +343,7 @@ class SetupView(discord.ui.View):
     def _montar_menus(self):
         self.clear_items()
         todas_skills = {}
-        for cid, lista in SKILLS_POR_CLASSE.items():
+        for cid, lista in SKILLS_COMPLETAS_CAT.items():
             for sk in lista:
                 todas_skills[sk["id"]] = dict(sk, classe_origem=cid)
 
@@ -343,9 +367,10 @@ class SetupView(discord.ui.View):
 
         # Arma
         opcoes_arma = [discord.SelectOption(label="Sem arma", value="none", default=self.arma is None)]
+        armas_cls_ids = {a["id"] for a in get_armas_classe(self.p["classe_id"])}
         for a in self.armas_inv:
             aid = a["item_id"]
-            compat = "✅" if aid in AFINIDADE_ARMA.get(self.p["classe_id"], []) else "❌"
+            compat = "✅" if aid in armas_cls_ids else "❌"
             bonus = BONUS_ARMA.get(aid, {}).get("atk", 0)
             pct = "+15%" if compat == "✅" else "-15%"
             opcoes_arma.append(discord.SelectOption(
@@ -361,9 +386,10 @@ class SetupView(discord.ui.View):
 
         # Armadura
         opcoes_arm = [discord.SelectOption(label="Sem armadura", value="none", default=self.armadura is None)]
+        armaduras_cls_ids = {a["id"] for a in get_armaduras_classe(self.p["classe_id"])}
         for a in self.armaduras_inv:
             armid = a["item_id"]
-            compat = "✅" if armid in AFINIDADE_ARMADURA.get(self.p["classe_id"], []) else "❌"
+            compat = "✅" if armid in armaduras_cls_ids else "❌"
             bonus = BONUS_ARMADURA.get(armid, {}).get("def", 0)
             pct = "+10%" if compat == "✅" else "-10%"
             opcoes_arm.append(discord.SelectOption(
