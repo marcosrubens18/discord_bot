@@ -1,4 +1,3 @@
-cat > /mnt/user-data/outputs/catalogo.py << 'PYEOF'
 # catalogo.py — Catalogo completo: armas, armaduras, skills, ranks e mana por classe
 
 # ─── RANKS F → SS ────────────────────────────────────────────────
@@ -373,5 +372,3 @@ def get_bonus_armadura(item_id, classe_id):
         if item2:
             return item2["def_bonus"], False
     return 0, None
-PYEOF
-echo "OK - $(wc -l < /mnt/user-data/outputs/catalogo.py) linhas"
