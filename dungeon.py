@@ -1,3 +1,4 @@
+from catalogo import get_rank, CARGOS_RANK
 # -*- coding: utf-8 -*-
 import discord
 from discord import app_commands
@@ -57,7 +58,7 @@ SKILLS_POR_CLASSE = {
 
 RANKS = {
     "F": {
-        "nome":"Dungeon Rank F","emoji":"🟫","nivel_min":1,"cor":0x888780,
+        "nome":"Dungeon Rank F","rank_min":"F","emoji":"🟫","nivel_min":1,"cor":0x888780,
         "desc":"Para iniciantes. Monstros fracos mas boa fonte de XP.",
         "recompensa_andar":{"xp":30,"moedas":15},
         "recompensa_chefe":{"xp":150,"moedas":80},
@@ -74,7 +75,7 @@ RANKS = {
                  "loot_epico":None},
     },
     "E": {
-        "nome":"Dungeon Rank E","emoji":"🟩","nivel_min":5,"cor":0x1D9E75,
+        "nome":"Dungeon Rank E","rank_min":"E","emoji":"🟩","nivel_min":5,"cor":0x1D9E75,
         "desc":"Monstros com habilidades especiais. Requer preparo.",
         "recompensa_andar":{"xp":60,"moedas":30},
         "recompensa_chefe":{"xp":300,"moedas":180},
@@ -91,7 +92,7 @@ RANKS = {
                  "loot_epico":("espada_maldita","Espada Maldita","arma","Epico","⚔️","Ataque +18, drena HP")},
     },
     "D": {
-        "nome":"Dungeon Rank D","emoji":"🟦","nivel_min":10,"cor":0x378ADD,
+        "nome":"Dungeon Rank D","rank_min":"D","emoji":"🟦","nivel_min":10,"cor":0x378ADD,
         "desc":"Perigo real. Venha preparado com pocoes.",
         "recompensa_andar":{"xp":100,"moedas":55},
         "recompensa_chefe":{"xp":500,"moedas":350},
@@ -108,7 +109,7 @@ RANKS = {
                  "loot_epico":("veneno_hidra","Veneno da Hidra","material","Epico","🧪","Material lendario de forja")},
     },
     "C": {
-        "nome":"Dungeon Rank C","emoji":"🟨","nivel_min":20,"cor":0xE4AF3C,
+        "nome":"Dungeon Rank C","rank_min":"C","emoji":"🟨","nivel_min":20,"cor":0xE4AF3C,
         "desc":"Apenas guerreiros experientes sobrevivem aqui.",
         "recompensa_andar":{"xp":180,"moedas":100},
         "recompensa_chefe":{"xp":900,"moedas":600},
@@ -125,7 +126,7 @@ RANKS = {
                  "loot_epico":("coroa_lich","Coroa do Rei Lich","armadura","Lendario","👑","Defesa +30, imune a magia negra")},
     },
     "B": {
-        "nome":"Dungeon Rank B","emoji":"🟧","nivel_min":30,"cor":0xD85A30,
+        "nome":"Dungeon Rank B","rank_min":"B","emoji":"🟧","nivel_min":30,"cor":0xD85A30,
         "desc":"Elite dos aventureiros. Recompensas extraordinarias.",
         "recompensa_andar":{"xp":300,"moedas":180},
         "recompensa_chefe":{"xp":1500,"moedas":1000},
@@ -142,7 +143,7 @@ RANKS = {
                  "loot_epico":("armadura_titan","Armadura do Titan","armadura","Lendario","🗿","Defesa +45, +20% HP max")},
     },
     "A": {
-        "nome":"Dungeon Rank A","emoji":"🟥","nivel_min":40,"cor":0xE24B4A,
+        "nome":"Dungeon Rank A","rank_min":"A","emoji":"🟥","nivel_min":40,"cor":0xE24B4A,
         "desc":"Apenas lendas entram aqui. Recompensas unicas.",
         "recompensa_andar":{"xp":500,"moedas":300},
         "recompensa_chefe":{"xp":2500,"moedas":2000},
@@ -159,7 +160,7 @@ RANKS = {
                  "loot_epico":("skill_apocalipse","Apocalipse","skill_especial","Lendario","💥","Skill UNICA: dano massivo em area")},
     },
     "S": {
-        "nome":"Dungeon Rank S","emoji":"⭐","nivel_min":50,"cor":0x7F77DD,
+        "nome":"Dungeon Rank S","rank_min":"S","emoji":"⭐","nivel_min":50,"cor":0x7F77DD,
         "desc":"A dungeon mais perigosa. Recompensas UNICAS no servidor.",
         "recompensa_andar":{"xp":800,"moedas":500},
         "recompensa_chefe":{"xp":5000,"moedas":5000},
