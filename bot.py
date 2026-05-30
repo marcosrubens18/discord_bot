@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from db import get_pool, init_db
+from catalogo import get_rank, CARGOS_RANK, calcular_mana_max, get_armas_classe, get_armaduras_classe
 from setup_cmd import cmd_setup
 from dungeon import cmd_dungeon
 from hospital import (
@@ -118,6 +119,7 @@ def sortear_peso(lista, pesos):
 # ─── CARGO DE NIVEL ──────────────────────────────────────────────
 
 async def atualizar_cargo_nivel(guild, member, nivel):
+    """Atualiza cargo de nivel (Aventureiro/Veterano/Elite/Mestre)."""
     if not guild or not member: return
     CARGOS_NIVEL = [
         (50, "💎 Mestre"),
@@ -137,6 +139,22 @@ async def atualizar_cargo_nivel(guild, member, nivel):
                 try: await member.add_roles(cargo)
                 except: pass
             break
+
+async def atualizar_cargo_rank(guild, member, rank_str):
+    """Atualiza cargo de rank (F ao SS)."""
+    if not guild or not member: return
+    todos_ranks = ["🟫 Rank F","🟩 Rank E","🟦 Rank D","🟨 Rank C","🟧 Rank B","🟥 Rank A","⭐ Rank S","💎 Rank SS"]
+    for nome in todos_ranks:
+        cargo = discord.utils.get(guild.roles, name=nome)
+        if cargo and cargo in member.roles:
+            try: await member.remove_roles(cargo)
+            except: pass
+    nome_novo = CARGOS_RANK.get(rank_str)
+    if nome_novo:
+        cargo = discord.utils.get(guild.roles, name=nome_novo)
+        if cargo:
+            try: await member.add_roles(cargo)
+            except: pass
 
 # ─── CANAL PRIVADO ───────────────────────────────────────────────
 
@@ -318,10 +336,12 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
     pct = xp_cur / xp_nxt if xp_nxt > 0 else 0
     barra = "█" * int(pct*10) + "░" * (10-int(pct*10))
 
+    rank_info = get_rank(p["nivel"])
     embed = discord.Embed(
         title=f"{cls['emoji'] if cls else '?'} {p['nome']}",
         description=(
             f"**Classe:** {cls['nome'] if cls else p['classe_id']} — *{p['raridade']}*\n"
+            f"**Rank:** {rank_info['emoji']} {rank_info['rank']} — {rank_info['nome']}\n"
             f"**Destino:** {dst['emoji'] if dst else ''} {dst['nome'] if dst else p['destino_id']}\n"
             f"**Poder:** {pod['nome'] if pod else p['poder_id']} ({p['poder_valor']})"
         ),
@@ -749,11 +769,11 @@ async def set_giros(interaction: discord.Interaction, jogador: discord.Member):
 
 # ─── /loja ───────────────────────────────────────────────────────
 
-@bot.tree.command(name="loja", description="Compre itens, armas e pocoes")
+@bot.tree.command(name="loja", description="Compre itens da loja — armas, armaduras e pocoes da sua classe")
 @app_commands.choices(categoria=[
-    app_commands.Choice(name="Armas",     value="armas"),
-    app_commands.Choice(name="Armaduras", value="armaduras"),
-    app_commands.Choice(name="Pocoes",    value="pocoes"),
+    app_commands.Choice(name="⚔️ Armas da minha classe",     value="armas"),
+    app_commands.Choice(name="🛡️ Armaduras da minha classe", value="armaduras"),
+    app_commands.Choice(name="🧪 Pocoes e Elixires",         value="pocoes"),
 ])
 async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
     await interaction.response.defer(ephemeral=True)
@@ -761,13 +781,59 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
     if not p:
         await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
 
-    itens = LOJA_ITENS.get(categoria, [])
-    embed = discord.Embed(title=f"Loja — {categoria.title()}", description=f"Suas moedas: **{p['moedas']} 🪙**\nEscolha um item:", color=0xE4AF3C)
-    for it in itens:
-        embed.add_field(name=f"{it['emoji']} {it['nome']} [{it['raridade']}]", value=f"{it['desc']}\n{it['preco']} 🪙", inline=True)
+    rank_info = get_rank(p["nivel"])
 
-    opcoes = [discord.SelectOption(label=f"{it['emoji']} {it['nome']} — {it['preco']} 🪙", value=it["id"], description=it["desc"][:50]) for it in itens]
-    sel = discord.ui.Select(placeholder="Selecione o item...", options=opcoes)
+    if categoria == "armas":
+        itens_cat = get_armas_classe(p["classe_id"])
+        # so mostra itens com preco > 0 (os de preco 0 sao de dungeon/ferreiro)
+        itens = [
+            {"id":i["id"],"nome":i["nome"],"emoji":i["emoji"],
+             "raridade":i["raridade"],"preco":i["preco"],"desc":i["desc"],"tipo":"arma"}
+            for i in itens_cat if i["preco"] > 0
+        ]
+    elif categoria == "armaduras":
+        itens_cat = get_armaduras_classe(p["classe_id"])
+        itens = [
+            {"id":i["id"],"nome":i["nome"],"emoji":i["emoji"],
+             "raridade":i["raridade"],"preco":i["preco"],"desc":i["desc"],"tipo":"armadura"}
+            for i in itens_cat if i["preco"] > 0
+        ]
+    else:
+        itens = list(LOJA_ITENS.get("pocoes", []))
+
+    COR_RAR_LOJA = {"Comum":"⬜","Incomum":"🟩","Raro":"🟦","Epico":"🟪","Lendario":"🟧"}
+    classe_nome = p["classe_id"].title()
+    titulo_cat = f"⚔️ Armas — {classe_nome}" if categoria=="armas" else (f"🛡️ Armaduras — {classe_nome}" if categoria=="armaduras" else "🧪 Pocoes")
+
+    embed = discord.Embed(
+        title=f"🏪 Loja — {titulo_cat}",
+        description=(
+            f"Jogador: **{p['nome']}** {rank_info['emoji']} Rank {rank_info['rank']} — Nv {p['nivel']}\n"
+            f"Moedas: **{p['moedas']} 🪙** | Classe: **{classe_nome}**\n\n"
+            f"{'*Mostrando apenas itens compraveis — itens Lendarios e gratuitos sao de dungeons/ferreiro*' if categoria in ('armas','armaduras') else ''}"
+        ),
+        color=0xE4AF3C
+    )
+    for it in itens[:15]:
+        rar_emoji = COR_RAR_LOJA.get(it['raridade'], "⬜")
+        embed.add_field(
+            name=f"{rar_emoji} {it['emoji']} {it['nome']}",
+            value=f"*{it['desc']}*\n**{it['preco']} 🪙** | {it['raridade']}",
+            inline=True
+        )
+
+    if not itens:
+        embed.description += "\n\n*Nenhum item disponivel para compra nesta categoria.*"
+        await interaction.followup.send(embed=embed, ephemeral=True); return
+
+    opcoes = [
+        discord.SelectOption(
+            label=f"{it['emoji']} {it['nome']} — {it['preco']} 🪙",
+            value=it["id"],
+            description=f"{it['raridade']} | {it['desc'][:50]}"
+        ) for it in itens[:25]
+    ]
+    sel = discord.ui.Select(placeholder="Selecione o item para comprar...", options=opcoes)
 
     async def comprar(inter: discord.Interaction):
         if inter.user.id != interaction.user.id: return
@@ -775,20 +841,28 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
         if not item_def: return
         p2 = await get_personagem(inter.user.id)
         if p2["moedas"] < item_def["preco"]:
-            await inter.response.send_message(f"Moedas insuficientes! Precisa de {item_def['preco']} 🪙", ephemeral=True); return
-        tipo = "pocao" if categoria == "pocoes" else categoria[:-1]
-        pool = await get_pool()
-        async with pool.acquire() as conn:
+            await inter.response.send_message(f"Moedas insuficientes! Precisa de **{item_def['preco']} 🪙**", ephemeral=True); return
+        tipo = item_def.get("tipo", "pocao")
+        db_pool = await get_pool()
+        async with db_pool.acquire() as conn:
             await conn.execute("UPDATE personagens SET moedas=moedas-$1 WHERE user_id=$2", item_def["preco"], inter.user.id)
-            await conn.execute(
-                "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
-                inter.user.id, item_def["id"], item_def["nome"], tipo, item_def["raridade"], item_def["emoji"], item_def["desc"]
-            )
-        # Progresso missao
+            ex = await conn.fetchrow("SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", inter.user.id, item_def["id"])
+            if ex:
+                await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
+            else:
+                await conn.execute(
+                    "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                    inter.user.id, item_def["id"], item_def["nome"], tipo, item_def["raridade"], item_def["emoji"], item_def["desc"]
+                )
         try: await atualizar_progresso(inter.user.id, "moedas_gastas", item_def["preco"])
         except: pass
+        rar_e = COR_RAR_LOJA.get(item_def["raridade"], "⬜")
         await inter.response.edit_message(
-            embed=discord.Embed(title="Compra realizada!", description=f"{item_def['emoji']} **{item_def['nome']}** adicionado!\n-{item_def['preco']} 🪙", color=0x1D9E75),
+            embed=discord.Embed(
+                title="✅ Compra realizada!",
+                description=f"{rar_e} {item_def['emoji']} **{item_def['nome']}** adicionado ao inventario!\n\n-{item_def['preco']} 🪙 | Saldo restante: {p2['moedas']-item_def['preco']} 🪙",
+                color=0x1D9E75
+            ),
             view=None
         )
 
@@ -957,12 +1031,25 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member: discord.Member):
-    cargo = discord.utils.get(member.guild.roles, name="🌱 Recem-chegado")
-    if cargo:
-        try: await member.add_roles(cargo)
-        except: pass
+    for nome_cargo in ["🌱 Recem-chegado"]:
+        cargo = discord.utils.get(member.guild.roles, name=nome_cargo)
+        if cargo:
+            try: await member.add_roles(cargo)
+            except: pass
     try:
-        embed = discord.Embed(title="Bem-vindo!", description=f"Ola **{member.display_name}**! Use `/criar_personagem` para comecar.", color=0x7F77DD)
+        embed = discord.Embed(
+            title="⚔️ Bem-vindo a Villa Eldoria!",
+            description=(
+                f"Ola **{member.display_name}**!\n\n"
+                "Use `/criar_personagem` no canal **#criar-personagem** para comecar sua jornada!\n\n"
+                "**7 classes disponíveis:**\n"
+                "🗡️ Guerreiro | 🏹 Arqueiro | 🔮 Mago | ⚡ Paladino\n"
+                "🌑 Necromante | ✨ Arcano | 🐉 Dracomante\n\n"
+                "**Sistema de Ranks:** F → E → D → C → B → A → S → SS\n"
+                "Bom jogo!"
+            ),
+            color=0x7F77DD
+        )
         await member.send(embed=embed)
     except: pass
 
