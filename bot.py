@@ -1311,12 +1311,11 @@ async def on_ready():
         guild_id = int(os.getenv("GUILD_ID", "0"))
         if guild_id:
             guild_obj = discord.Object(id=guild_id)
-            # Limpa comandos globais antigos para evitar duplicatas
-            bot.tree.clear_commands(guild=None)
-            await bot.tree.sync(guild=None)
-            # Sincroniza apenas no servidor
+            # Sincroniza no servidor (rapido, sem duplicatas)
             synced = await bot.tree.sync(guild=guild_obj)
-            print(f"Comandos sincronizados: {len(synced)}")
+            print(f"Comandos sincronizados no servidor: {len(synced)}")
+            for cmd in synced:
+                print(f"  /{cmd.name}")
         else:
             synced = await bot.tree.sync()
             print(f"Comandos sincronizados globalmente: {len(synced)}")
