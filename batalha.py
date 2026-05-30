@@ -3,6 +3,7 @@ import discord
 import asyncio
 import random
 from db import get_pool
+from imagens import IMG_VITORIA, IMG_DERROTA, IMG_LEVEL_UP
 from catalogo import (
     get_rank, CARGOS_RANK,
     get_bonus_arma, get_bonus_armadura,
@@ -23,11 +24,11 @@ COR_RAR = {
 }
 
 ARENAS = [
-    {"id":"floresta","nome":"Floresta Sombria", "emoji":"🌲","bonus":"magia +15%","cor":0x1D9E75,"img":"https://i.imgur.com/VdFyqem.jpeg"},
-    {"id":"vulcao",  "nome":"Cratera Vulcanica","emoji":"🌋","bonus":"fogo +20%", "cor":0xD85A30,"img":"https://i.imgur.com/hlwTOAc.jpeg"},
-    {"id":"gelo",    "nome":"Pico de Gelo",     "emoji":"❄️","bonus":"def +10%", "cor":0x378ADD,"img":"https://i.imgur.com/R2i14Fb.jpeg"},
-    {"id":"ruinas",  "nome":"Ruinas Arcanas",   "emoji":"🏚️","bonus":"crit +10%","cor":0x7F77DD,"img":"https://i.imgur.com/x9GPdiy.jpeg"},
-    {"id":"coloseu", "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",  "cor":0xE4AF3C,"img":"https://i.imgur.com/imBvfqX.jpeg"},
+    {"id":"floresta","nome":"Floresta Sombria", "emoji":"🌲","bonus":"magia +15%","cor":0x1D9E75,"img":"https://i.imgur.com/5Q2xXkN.png"},
+    {"id":"vulcao",  "nome":"Cratera Vulcanica","emoji":"🌋","bonus":"fogo +20%", "cor":0xD85A30,"img":"https://i.imgur.com/6kqJv1R.png"},
+    {"id":"gelo",    "nome":"Pico de Gelo",     "emoji":"❄️","bonus":"def +10%", "cor":0x378ADD,"img":"https://i.imgur.com/3nQpLmZ.png"},
+    {"id":"ruinas",  "nome":"Ruinas Arcanas",   "emoji":"🏚️","bonus":"crit +10%","cor":0x7F77DD,"img":"https://i.imgur.com/8PqWrTz.png"},
+    {"id":"coloseu", "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",  "cor":0xE4AF3C,"img":"https://i.imgur.com/2LmNxKp.png"},
 ]
 
 POCOES = {
@@ -1309,7 +1310,7 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena):
         ),
         color=0xE4AF3C
     )
-    fim.set_image(url=arena["img"])
+    fim.set_image(url=IMG_VITORIA)
     await channel.send(embed=fim)
 
     await asyncio.sleep(1.5)
