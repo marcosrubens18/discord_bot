@@ -25,6 +25,12 @@ from batalha import (
 from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progresso
 from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
 from mercado import cmd_mercador, cmd_mercado_vender
+from imagens import (
+    IMG_PERFIL, IMG_SETUP, IMG_INVENTARIO, IMG_SKILLS, IMG_AJUDA,
+    IMG_LOJA, IMG_FERREIRO, IMG_HOSPITAL, IMG_MERCADO, IMG_MERCADOR,
+    IMG_MISSOES, IMG_RANKING, IMG_CONQUISTAS, IMG_ROLETA,
+    IMG_BANNER_GERAL, IMG_VITORIA, IMG_DERROTA, IMG_LEVEL_UP, IMG_CLASSE
+)
 
 # ─── CONFIG ──────────────────────────────────────────────────────
 
@@ -372,6 +378,8 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
         proxima = sorted(bloq, key=lambda x: x["nivel"])[0]
         embed.add_field(name="🔒 Próxima skill", value=f"{proxima['emoji']} **{proxima['nome']}** — Nv {proxima['nivel']}", inline=True)
 
+    img_cls = IMG_CLASSE.get(p['classe_id'], IMG_PERFIL)
+    embed.set_image(url=img_cls)
     embed.set_footer(text=f"ID: {alvo.id} • /setup para equipar • /skills para gerenciar")
     await interaction.followup.send(embed=embed)
 
@@ -401,6 +409,7 @@ async def inventario(interaction: discord.Interaction, jogador: discord.Member =
             txt = "\n".join([f"{i['emoji']} **{i['nome']}** [{i['raridade']}] (x{i['quantidade']})" for i in neq])
             embed.add_field(name="Mochila", value=txt, inline=False)
     embed.add_field(name="Moedas", value=f"{p['moedas']} 🪙", inline=True)
+    embed.set_image(url=IMG_INVENTARIO)
     embed.set_footer(text="Use /setup para equipar itens")
     await interaction.followup.send(embed=embed)
 
@@ -946,6 +955,8 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
         )
 
     sel.callback = comprar
+    embed.set_image(url=IMG_LOJA)
+    embed.set_image(url=IMG_FERREIRO)
     v = discord.ui.View(timeout=60); v.add_item(sel)
     await interaction.followup.send(embed=embed, view=v, ephemeral=True)
 
@@ -1180,6 +1191,7 @@ async def ajuda(interaction: discord.Interaction):
         ),
         inline=False
     )
+    embed.set_image(url=IMG_AJUDA)
     embed.set_footer(text="Villa Eldoria RPG • Ranks: F→E→D→C→B→A→S→SS • Nível máx: 100")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
