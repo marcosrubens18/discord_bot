@@ -23,6 +23,7 @@ from batalha import (
     ARENAS, LOJA_ITENS, RECEITAS, POCOES
 )
 from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progresso
+from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
 
 # ─── CONFIG ──────────────────────────────────────────────────────
 
@@ -1071,18 +1072,105 @@ async def deletar_personagem(interaction: discord.Interaction):
     )
     await interaction.followup.send(embed=embed, view=ConfirmarDelete(interaction.user.id, p["nome"], p["classe_id"]), ephemeral=True)
 
+
+# ─── /conquistas ─────────────────────────────────────────────────
+
+@bot.tree.command(name="conquistas", description="Veja suas conquistas e progresso")
+async def conquistas(interaction: discord.Interaction):
+    await cmd_conquistas(interaction)
+
+
 # ─── /ajuda ──────────────────────────────────────────────────────
 
-@bot.tree.command(name="ajuda", description="Lista todos os comandos")
+@bot.tree.command(name="ajuda", description="Lista todos os comandos e como jogar")
 async def ajuda(interaction: discord.Interaction):
-    embed = discord.Embed(title="Comandos do RPG", color=0x7F77DD)
-    embed.add_field(name="Personagem",  value="`/criar_personagem` `/perfil` `/skills` `/setup` `/deletar_personagem`", inline=False)
-    embed.add_field(name="Inventario",  value="`/inventario` `/equipar` `/jogar-fora` `/dar`", inline=False)
-    embed.add_field(name="Batalha",     value="`/treinar` `/desafiar` `/dungeon`", inline=False)
-    embed.add_field(name="Economia",    value="`/loja` `/ferreiro` `/hospital`", inline=False)
-    embed.add_field(name="Progresso",   value="`/missoes` `/ranking` `/girar`", inline=False)
-    embed.add_field(name="Admin",       value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros`", inline=False)
+    embed = discord.Embed(
+        title="📖 Guia de Comandos — Villa Eldoria RPG",
+        description=(
+            "Bem-vindo ao Villa Eldoria RPG!\n"
+            "Veja os canais de tutorial para guias detalhados.\n"
+            "Use `/conquistas` para ver suas metas!\n"
+        ),
+        color=0x7F77DD
+    )
+    embed.add_field(
+        name="👤 Personagem",
+        value=(
+            "`/criar_personagem` — Cria seu personagem com 7 roletas\n"
+            "`/perfil` — Veja seus stats, rank, equipamentos e skills\n"
+            "`/skills` — Gerencie suas skills equipadas\n"
+            "`/setup` — Monte seu setup completo (arma+armadura+skills)\n"
+            "`/deletar_personagem` — Deleta seu personagem"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="🎒 Inventário",
+        value=(
+            "`/inventario` — Veja todos seus itens\n"
+            "`/equipar [item]` — Equipa um item pelo nome\n"
+            "`/jogar-fora [item]` — Descarta um item\n"
+            "`/dar [@jogador] [item]` — Doa um item para outro jogador"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="⚔️ Batalha",
+        value=(
+            "`/treinar [dificuldade]` — Batalha vs monstros (fácil/médio/difícil/lendário)\n"
+            "`/desafiar [@jogador]` — Desafia outro jogador para PvP\n"
+            "`/dungeon [rank]` — Entre em uma dungeon (F/E/D/C/B/A/S/SS)"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="💰 Economia",
+        value=(
+            "`/loja [categoria]` — Compre armas, armaduras ou poções\n"
+            "`/ferreiro` — Forje itens com materiais de dungeon\n"
+            "`/hospital` — Restaure HP e Mana (pago)\n"
+            "`/girar` — Use fichas de roleta para ganhar itens"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="📊 Progresso",
+        value=(
+            "`/missoes` — Missões diárias com recompensas\n"
+            "`/conquistas` — 22 conquistas com XP e fichas\n"
+            "`/ranking` — Top 10 por vitórias, nível e moedas"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="⚙️ Admin",
+        value=(
+            "`/set-item [@jogador]` — Dá item a um jogador\n"
+            "`/set-moedas [@jogador] [qtd]` — Define/adiciona moedas\n"
+            "`/set-nivel [@jogador] [nivel]` — Define nível (1-100)\n"
+            "`/set-giros [@jogador]` — Dá fichas de roleta"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="📚 Tutoriais Detalhados",
+        value=(
+            "Veja os canais de tutorial para guias completos:\n"
+            "• `#como-jogar` `#tutorial-batalha` `#tutorial-dungeon`\n"
+            "• `#tutorial-roletas` `#tutorial-economia`\n"
+            "• `#tutorial-missoes` `#tutorial-conquistas`"
+        ),
+        inline=False
+    )
+    embed.set_footer(text="Villa Eldoria RPG • Ranks: F→E→D→C→B→A→S→SS • Nível máx: 100")
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+async def auto_delete(msg, segundos=300):
+    """Deleta mensagem apos X segundos."""
+    await asyncio.sleep(segundos)
+    try: await msg.delete()
+    except: pass
 
 # ─── EVENTOS ─────────────────────────────────────────────────────
 
@@ -1094,6 +1182,7 @@ async def on_ready():
         await init_db_batalha()
         await init_db_hospital()
         await init_db_missoes()
+        await init_conquistas()
     except Exception as e:
         print(f"ERRO no banco: {e}")
     try:
