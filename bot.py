@@ -24,6 +24,7 @@ from batalha import (
 )
 from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progresso
 from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
+from mercado import cmd_mercador, cmd_mercado_vender
 
 # ─── CONFIG ──────────────────────────────────────────────────────
 
@@ -1073,6 +1074,21 @@ async def deletar_personagem(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, view=ConfirmarDelete(interaction.user.id, p["nome"], p["classe_id"]), ephemeral=True)
 
 
+
+# ─── /mercador ───────────────────────────────────────────────────
+
+@bot.tree.command(name="mercador", description="Visite o Mercador Sombrio e troque itens por poderes especiais")
+async def mercador(interaction: discord.Interaction):
+    await cmd_mercador(interaction)
+
+
+# ─── /mercado ────────────────────────────────────────────────────
+
+@bot.tree.command(name="mercado", description="Venda itens do seu inventario por moedas")
+async def mercado(interaction: discord.Interaction):
+    await cmd_mercado_vender(interaction)
+
+
 # ─── /conquistas ─────────────────────────────────────────────────
 
 @bot.tree.command(name="conquistas", description="Veja suas conquistas e progresso")
@@ -1129,7 +1145,9 @@ async def ajuda(interaction: discord.Interaction):
             "`/loja [categoria]` — Compre armas, armaduras ou poções\n"
             "`/ferreiro` — Forje itens com materiais de dungeon\n"
             "`/hospital` — Restaure HP e Mana (pago)\n"
-            "`/girar` — Use fichas de roleta para ganhar itens"
+            "`/girar` — Use fichas de roleta para ganhar itens\n"
+            "`/mercado` — Venda itens por moedas (preço justo)\n"
+            "`/mercador` — Troque materiais por itens exclusivos 🕵️"
         ),
         inline=False
     )
