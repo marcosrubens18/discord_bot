@@ -2,6 +2,7 @@
 import discord
 import asyncio
 from db import get_pool
+from racas import get_raca
 from imagens import IMG_SETUP
 from catalogo import get_rank, calcular_mana_max, get_armas_classe, get_armaduras_classe, SKILLS_COMPLETAS as SKILLS_COMPLETAS_CAT
 
@@ -223,7 +224,8 @@ def avaliar_setup(skills_eq, arma_compat, armadura_compat):
 
 def build_embed_setup(p, skills_eq_ids, skills_desbloq_ids, arma, armadura, magia_sup_id, magias_inv, stats):
     emoji_j  = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
-    rank_inf = get_rank(p["nivel"])
+    rank_inf  = get_rank(p["nivel"])
+    raca_info = get_raca(p.get("raca_id", "humano") if "raca_id" in p.keys() else "humano")
     mana_mx  = calcular_mana_max(p["classe_id"], p["nivel"], p.get("poder_valor",10), p.get("destino_id","equilibrado"))
 
     # Mapa de todas as skills para busca
@@ -247,10 +249,11 @@ def build_embed_setup(p, skills_eq_ids, skills_desbloq_ids, arma, armadura, magi
     embed = discord.Embed(
         title=f"{emoji_j} Setup de {p['nome']}",
         description=(
-            f"**Classe:** {emoji_j} {p['classe_id'].title()} — *{p['raridade']}*\n"
+            f"**Raça:** {raca_info['emoji']} {raca_info['nome']} | **Classe:** {emoji_j} {p['classe_id'].title()} — *{p['raridade']}*\n"
             f"**Rank:** {rank_inf['emoji']} {rank_inf['rank']} | **Nível:** {p['nivel']}\n"
             f"**Mana máx:** {mana_mx} 💙\n"
-            f"**Passiva:** {passiva_txt}"
+            f"**Passiva Classe:** {passiva_txt}\n"
+            f"**Passiva Racial:** {raca_info['passiva_desc']}"
         ),
         color=COR_CLASSE.get(p["classe_id"], 0x7F77DD)
     )
