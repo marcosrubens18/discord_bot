@@ -286,17 +286,26 @@ async def init_db_batalha():
 # ─── CALCULOS ────────────────────────────────────────────────────
 
 def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False):
-    """Calcula dano com suporte a critico, bonus de afinidade e ignorar defesa."""
+    """Calcula dano com suporte a critico, bonus de afinidade e ignorar defesa.
+    Dano minimo garantido = 30% do ATK para evitar resultados de 1.
+    """
+    dano_minimo = max(3, int(atk * 0.30))  # nunca menos que 30% do ATK
+
     if ignorar_defesa:
-        base = max(1, int(atk * mult))
+        base = max(dano_minimo, int(atk * mult))
     else:
-        base = max(1, int((atk - dfs // 2) * mult))
-    variacao = random.randint(-2, 4)
-    dano = base + variacao
+        reducao_def = dfs // 3  # DEF reduz menos agressivamente
+        base = max(dano_minimo, int((atk - reducao_def) * mult))
+
+    # Variacao de +/- 15% para nao dar sempre o mesmo numero
+    variacao = random.randint(-max(1, base // 8), max(2, base // 5))
+    dano = max(dano_minimo, base + variacao)
     dano = int(dano * bonus_atk)
+
     if crit:
         dano = int(dano * 1.5)
-    return max(1, dano)
+
+    return max(dano_minimo, dano)
 
 def barra_hp(cur, mx):
     if mx <= 0: return "░░░░░░░░░░"
