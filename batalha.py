@@ -23,11 +23,11 @@ COR_RAR = {
 }
 
 ARENAS = [
-    {"id":"floresta","nome":"Floresta Sombria", "emoji":"🌲","bonus":"magia +15%","cor":0x1D9E75,"img":"https://i.imgur.com/VdFyqem.jpeg"},
-    {"id":"vulcao",  "nome":"Cratera Vulcanica","emoji":"🌋","bonus":"fogo +20%", "cor":0xD85A30,"img":"https://i.imgur.com/hlwTOAc.jpeg"},
-    {"id":"gelo",    "nome":"Pico de Gelo",     "emoji":"❄️","bonus":"def +10%", "cor":0x378ADD,"img":"https://i.imgur.com/R2i14Fb.jpeg"},
-    {"id":"ruinas",  "nome":"Ruinas Arcanas",   "emoji":"🏚️","bonus":"crit +10%","cor":0x7F77DD,"img":"https://i.imgur.com/x9GPdiy.jpeg"},
-    {"id":"coloseu", "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",  "cor":0xE4AF3C,"img":"https://i.imgur.com/imBvfqX.jpeg"},
+    {"id":"floresta","nome":"Floresta Sombria", "emoji":"🌲","bonus":"magia +15%","cor":0x1D9E75,"img":"https://i.imgur.com/5Q2xXkN.png"},
+    {"id":"vulcao",  "nome":"Cratera Vulcanica","emoji":"🌋","bonus":"fogo +20%", "cor":0xD85A30,"img":"https://i.imgur.com/6kqJv1R.png"},
+    {"id":"gelo",    "nome":"Pico de Gelo",     "emoji":"❄️","bonus":"def +10%", "cor":0x378ADD,"img":"https://i.imgur.com/3nQpLmZ.png"},
+    {"id":"ruinas",  "nome":"Ruinas Arcanas",   "emoji":"🏚️","bonus":"crit +10%","cor":0x7F77DD,"img":"https://i.imgur.com/8PqWrTz.png"},
+    {"id":"coloseu", "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",  "cor":0xE4AF3C,"img":"https://i.imgur.com/2LmNxKp.png"},
 ]
 
 POCOES = {
@@ -113,30 +113,30 @@ MONSTROS = [
      "loot":[("muco_troll","Muco de Troll","material","Incomum","🟢","Ingrediente alquimico")]},
 
     # ── DIFICIL ───────────────────────────────────────────────────
-    {"id":"vampiro","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":280,"ataque":35,"defesa":18,"xp":220,"moedas":140,"dificuldade":"dificil",
+    {"id":"vampiro","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":280,"ataque":35,"defesa":18,"xp":400,"moedas":200,"dificuldade":"dificil",
      "skills":[{"nome":"Drenar Sangue","emoji":"🩸","dano":40},{"nome":"Hipnose","emoji":"👁️","dano":15}],
      "loot":[("capa_vampiro","Capa de Vampiro","armadura","Epico","🧛","Absorve magia negra"),("sangue_anciao","Sangue Anciao","material","Raro","🩸","Ingrediente raro")]},
-    {"id":"troll_pedra","nome":"Troll das Pedras","emoji":"🗿","nivel":22,"hp":320,"ataque":38,"defesa":25,"xp":250,"moedas":160,"dificuldade":"dificil",
+    {"id":"troll_pedra","nome":"Troll das Pedras","emoji":"🗿","nivel":22,"hp":320,"ataque":38,"defesa":25,"xp":420,"moedas":220,"dificuldade":"dificil",
      "skills":[{"nome":"Avalanche","emoji":"🪨","dano":45},{"nome":"Esmagar","emoji":"💥","dano":35}],
      "loot":[("nucleo_pedra","Nucleo de Pedra","material","Raro","💎","Material magico raro")]},
-    {"id":"bruxa","nome":"Bruxa das Trevas","emoji":"🧙","nivel":25,"hp":260,"ataque":42,"defesa":15,"xp":270,"moedas":170,"dificuldade":"dificil",
+    {"id":"bruxa","nome":"Bruxa das Trevas","emoji":"🧙","nivel":25,"hp":260,"ataque":42,"defesa":15,"xp":450,"moedas":240,"dificuldade":"dificil",
      "skills":[{"nome":"Maldicao","emoji":"🩸","dano":38},{"nome":"Bola de Fogo Sombria","emoji":"🔥","dano":50}],
      "loot":[("essencia_sombria","Essencia Sombria","material","Raro","🌑","Ingrediente sombrio")]},
-    {"id":"grifo","nome":"Grifo Selvagem","emoji":"🦅","nivel":28,"hp":300,"ataque":40,"defesa":20,"xp":280,"moedas":175,"dificuldade":"dificil",
+    {"id":"grifo","nome":"Grifo Selvagem","emoji":"🦅","nivel":28,"hp":300,"ataque":40,"defesa":20,"xp":460,"moedas":250,"dificuldade":"dificil",
      "skills":[{"nome":"Bico de Aco","emoji":"⚔️","dano":42},{"nome":"Garra Dupla","emoji":"🐾","dano":35}],
      "loot":[("pena_grifo","Pena de Grifo","material","Raro","🦅","Material de voo")]},
 
     # ── LENDARIO ──────────────────────────────────────────────────
-    {"id":"dragao","nome":"Dragao Jovem","emoji":"🐉","nivel":35,"hp":500,"ataque":60,"defesa":35,"xp":500,"moedas":350,"dificuldade":"lendario",
+    {"id":"dragao","nome":"Dragao Jovem","emoji":"🐉","nivel":35,"hp":500,"ataque":60,"defesa":35,"xp":900,"moedas":600,"dificuldade":"lendario",
      "skills":[{"nome":"Baforada de Fogo","emoji":"🔥","dano":70},{"nome":"Garra Draconica","emoji":"🐾","dano":55}],
      "loot":[("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario"),("olho_dragao","Olho de Dragao","material","Epico","👁️","Material epico")]},
-    {"id":"quimera","nome":"Quimera Anciao","emoji":"🦁","nivel":40,"hp":580,"ataque":70,"defesa":40,"xp":600,"moedas":420,"dificuldade":"lendario",
+    {"id":"quimera","nome":"Quimera Anciao","emoji":"🦁","nivel":40,"hp":580,"ataque":70,"defesa":40,"xp":1000,"moedas":700,"dificuldade":"lendario",
      "skills":[{"nome":"Rugido do Caos","emoji":"😤","dano":75},{"nome":"Chamas e Gelo","emoji":"❄️","dano":60}],
      "loot":[("corno_quimera","Corno de Quimera","material","Lendario","🦄","Extremamente raro"),("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario")]},
-    {"id":"lich","nome":"Lich Anciao","emoji":"💀","nivel":45,"hp":520,"ataque":75,"defesa":30,"xp":650,"moedas":450,"dificuldade":"lendario",
+    {"id":"lich","nome":"Lich Anciao","emoji":"💀","nivel":45,"hp":520,"ataque":75,"defesa":30,"xp":1100,"moedas":750,"dificuldade":"lendario",
      "skills":[{"nome":"Toque da Morte","emoji":"☠️","dano":80},{"nome":"Exercito Espectral","emoji":"👻","dano":50}],
      "loot":[("essencia_lich","Essencia do Lich","material","Lendario","💀","O material mais sombrio"),("coroa_lich","Coroa do Lich","armadura","Lendario","👑","Armadura lendaria")]},
-    {"id":"titan","nome":"Titan Primordial","emoji":"🗿","nivel":50,"hp":700,"ataque":85,"defesa":50,"xp":750,"moedas":550,"dificuldade":"lendario",
+    {"id":"titan","nome":"Titan Primordial","emoji":"🗿","nivel":50,"hp":700,"ataque":85,"defesa":50,"xp":1200,"moedas":850,"dificuldade":"lendario",
      "skills":[{"nome":"Golpe Primordial","emoji":"💥","dano":90},{"nome":"Tremor da Terra","emoji":"🌋","dano":70}],
      "loot":[("fragmento_titan","Fragmento do Titan","material","Lendario","🗿","Lendario absoluto"),("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario")]},
 ]
@@ -1069,6 +1069,21 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         except Exception:
             pass
 
+        # Conquistas
+        try:
+            from conquistas import verificar_conquistas
+            from db import get_pool as _gp
+            _pool = await _gp()
+            async with _pool.acquire() as _conn:
+                _p2 = await _conn.fetchrow("SELECT vitorias, moedas FROM personagens WHERE user_id=$1", uid)
+            cqs_vit = await verificar_conquistas(uid, "vitorias", _p2["vitorias"] if _p2 else 0)
+            cqs_mon = await verificar_conquistas(uid, "moedas",   _p2["moedas"]   if _p2 else 0)
+            cqs_rnk = await verificar_conquistas(uid, "rank",     nivel_novo)
+            for cq in (cqs_vit + cqs_mon + cqs_rnk):
+                desc += f"\n\n🏆 **Conquista desbloqueada!** {cq['emoji']} {cq['nome']}\n+{cq['xp']} XP | +{cq['moedas']} 🪙"
+        except Exception:
+            pass
+
         # Atualiza cargos em todo level up
         if lvlups:
             try:
@@ -1088,16 +1103,17 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
             uid, 10, 0, 0, False, p["classe_id"], p["nivel"]
         )
         desc = (
-            f"💀 Você foi derrotado por **{monstro['emoji']} {monstro['nome']}**...\n"
-            f"Acordou na cidade com 10 HP."
+            f"Você foi derrotado por **{monstro['emoji']} {monstro['nome']}**...\n\n"
+            f"❤️ HP restaurado para **10** | 😴 Acordou na cidade\n\n"
+            f"*Use /hospital para se recuperar antes da próxima batalha!*"
         )
         cor    = 0xE24B4A
-        titulo = "💀 Derrota..."
+        titulo = "💀 Você foi derrotado!"
 
     # Envia resultado ANTES de apagar mensagens
     fim = discord.Embed(title=titulo, description=desc, color=cor)
     fim.set_image(url=arena["img"])
-    await interaction.followup.send(embed=fim)
+    msg_fim = await interaction.followup.send(embed=fim, wait=True)
 
     await asyncio.sleep(1.5)
 
@@ -1105,6 +1121,11 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     for m in msgs_batalha:
         try: await m.delete()
         except: pass
+
+    # Auto-deleta resultado apos 5 minutos
+    await asyncio.sleep(300)
+    try: await msg_fim.delete()
+    except: pass
 
 
 # ─── ENGINE PVP ──────────────────────────────────────────────────
