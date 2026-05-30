@@ -1,4 +1,5 @@
 from catalogo import get_rank, CARGOS_RANK
+from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA
 from utils import atualizar_todos_cargos
 # -*- coding: utf-8 -*-
 import discord
