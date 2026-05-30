@@ -4,32 +4,52 @@ import asyncio
 import random
 from datetime import date
 from db import get_pool
+from catalogo import get_rank
 
 COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
 EMOJI_FICHA = {"Comum":"🟫","Incomum":"🟩","Raro":"🟦","Epico":"🟪","Lendario":"🟧"}
 
+# (id, descricao, tipo, meta, xp, moedas, ficha, rank_minimo)
 POOL_MISSOES = [
-    ("vencer_batalhas_1",  "Venca 1 batalha de treino",          "vitorias_treino", 1,  30,  20,  None),
-    ("vencer_batalhas_3",  "Venca 3 batalhas de treino",          "vitorias_treino", 3,  80,  50,  None),
-    ("vencer_batalhas_5",  "Venca 5 batalhas de treino",          "vitorias_treino", 5,  150, 100, "Incomum"),
-    ("dungeon_qualquer",   "Complete qualquer dungeon",            "dungeons",        1,  100, 80,  "Incomum"),
-    ("dungeon_dificil",    "Complete uma dungeon Rank C ou acima", "dungeons_c_plus", 1,  200, 150, "Raro"),
-    ("usar_skills_5",      "Use skills 5 vezes em batalha",       "skills_usadas",   5,  40,  30,  None),
-    ("usar_skills_10",     "Use skills 10 vezes em batalha",      "skills_usadas",   10, 80,  60,  None),
-    ("usar_pocao",         "Use uma pocao em batalha",            "pocoes_usadas",   1,  20,  15,  None),
-    ("usar_pocao_3",       "Use 3 pocoes em batalha",             "pocoes_usadas",   3,  60,  40,  None),
-    ("pvp_participar",     "Participe de um duelo PvP",           "pvp_jogados",     1,  50,  40,  None),
-    ("pvp_vencer",         "Venca um duelo PvP",                  "pvp_vitorias",    1,  120, 90,  "Raro"),
-    ("pvp_vencer_3",       "Venca 3 duelos PvP",                  "pvp_vitorias",    3,  300, 200, "Epico"),
-    ("gastos_loja",        "Gaste 100 moedas na loja",            "moedas_gastas",   100,40,  0,   None),
-    ("nivel_up",           "Suba de nivel",                       "level_ups",       1,  60,  50,  "Incomum"),
-    ("usar_hospital",      "Use o hospital",                      "hospital_usado",  1,  20,  0,   None),
-    ("treino_dificil",     "Venca um treino Dificil ou Lendario", "treino_hard",     1,  100, 70,  "Raro"),
-    ("coleta_loot",        "Colete loot em 3 batalhas",           "loots_coletados", 3,  60,  40,  None),
+    # ── Rank F (iniciante) ────────────────────────────────────────
+    ("vencer_batalhas_1",  "Venca 1 batalha de treino",           "vitorias_treino", 1,  35,  20,  None,      "F"),
+    ("vencer_batalhas_3",  "Venca 3 batalhas de treino",          "vitorias_treino", 3,  90,  55,  None,      "F"),
+    ("usar_skills_5",      "Use skills 5 vezes em batalha",       "skills_usadas",   5,  45,  30,  None,      "F"),
+    ("usar_pocao",         "Use uma pocao em batalha",            "pocoes_usadas",   1,  25,  15,  None,      "F"),
+    ("usar_hospital",      "Use o hospital",                      "hospital_usado",  1,  25,  0,   None,      "F"),
+    ("gastos_loja",        "Gaste 100 moedas na loja",            "moedas_gastas",   100,45,  0,   None,      "F"),
+    ("coleta_loot",        "Colete loot em 3 batalhas",           "loots_coletados", 3,  65,  40,  None,      "F"),
+    # ── Rank E+ ───────────────────────────────────────────────────
+    ("vencer_batalhas_5",  "Venca 5 batalhas de treino",          "vitorias_treino", 5,  160, 100, "Incomum", "E"),
+    ("dungeon_qualquer",   "Complete qualquer dungeon",            "dungeons",        1,  110, 85,  "Incomum", "E"),
+    ("nivel_up",           "Suba de nivel",                       "level_ups",       1,  70,  50,  "Incomum", "E"),
+    ("usar_skills_10",     "Use skills 10 vezes em batalha",      "skills_usadas",   10, 90,  65,  None,      "E"),
+    ("usar_pocao_3",       "Use 3 pocoes em batalha",             "pocoes_usadas",   3,  70,  45,  None,      "E"),
+    # ── Rank D+ ───────────────────────────────────────────────────
+    ("pvp_participar",     "Participe de um duelo PvP",           "pvp_jogados",     1,  60,  45,  None,      "D"),
+    ("pvp_vencer",         "Venca um duelo PvP",                  "pvp_vitorias",    1,  140, 100, "Raro",    "D"),
+    ("treino_medio",       "Venca 5 treinos Medios",              "vitorias_treino", 5,  120, 80,  None,      "D"),
+    # ── Rank C+ ───────────────────────────────────────────────────
+    ("dungeon_c_plus",     "Complete dungeon Rank C ou acima",    "dungeons_c_plus", 1,  220, 160, "Raro",    "C"),
+    ("treino_dificil",     "Venca um treino Dificil",             "treino_hard",     1,  120, 80,  "Raro",    "C"),
+    ("pvp_vencer_3",       "Venca 3 duelos PvP",                  "pvp_vitorias",    3,  350, 220, "Epico",   "C"),
+    # ── Rank B+ ───────────────────────────────────────────────────
+    ("treino_lendario",    "Venca um treino Lendario",            "treino_hard",     1,  200, 150, "Epico",   "B"),
+    ("dungeon_b_plus",     "Complete dungeon Rank B ou acima",    "dungeons_c_plus", 1,  400, 300, "Epico",   "B"),
+    # ── Rank S+ ───────────────────────────────────────────────────
+    ("dungeon_s",          "Complete dungeon Rank S",             "dungeons_c_plus", 1,  800, 600, "Lendario","S"),
+    ("pvp_5_vitorias",     "Venca 5 duelos PvP seguidos",         "pvp_vitorias",    5,  700, 500, "Lendario","S"),
 ]
 
-def sortear_missoes_dia():
-    return random.sample(POOL_MISSOES, min(3, len(POOL_MISSOES)))
+RANK_ORDEM = ["F","E","D","C","B","A","S","SS"]
+
+def sortear_missoes_dia(rank_atual="F"):
+    rank_idx = RANK_ORDEM.index(rank_atual) if rank_atual in RANK_ORDEM else 0
+    # Pega missoes do rank atual e anteriores
+    disponiveis = [m for m in POOL_MISSOES if RANK_ORDEM.index(m[7]) <= rank_idx]
+    if len(disponiveis) < 3:
+        disponiveis = POOL_MISSOES[:7]
+    return random.sample(disponiveis, min(3, len(disponiveis)))
 
 async def init_db_missoes():
     pass  # tabelas criadas no db.py
@@ -48,13 +68,13 @@ async def get_missoes_hoje(user_id):
             user_id, hoje
         )
 
-async def criar_missoes_hoje(user_id):
+async def criar_missoes_hoje(user_id, rank_atual="F"):
     hoje = date.today().isoformat()
-    missoes = sortear_missoes_dia()
+    missoes = sortear_missoes_dia(rank_atual)
     pool = await get_pool()
     async with pool.acquire() as conn:
         for m in missoes:
-            mid, desc, tipo, meta, xp, moedas, ficha = m
+            mid, desc, tipo, meta, xp, moedas, ficha, rank_min = m
             await conn.execute("""
                 INSERT INTO missoes_diarias
                 (user_id, data, missao_id, descricao, tipo, meta, progresso, concluida, xp, moedas, ficha)
@@ -105,7 +125,8 @@ async def cmd_missoes(interaction: discord.Interaction):
 
     missoes = await get_missoes_hoje(interaction.user.id)
     if not missoes:
-        await criar_missoes_hoje(interaction.user.id)
+        rank_atual = get_rank(p["nivel"])["rank"]
+        await criar_missoes_hoje(interaction.user.id, rank_atual)
         missoes = await get_missoes_hoje(interaction.user.id)
 
     hoje = date.today().strftime("%d/%m/%Y")
