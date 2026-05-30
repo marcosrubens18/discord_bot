@@ -5,6 +5,7 @@ import random
 from datetime import date
 from db import get_pool
 from catalogo import get_rank
+from imagens import IMG_MISSOES, IMG_RANKING
 
 COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
 EMOJI_FICHA = {"Comum":"🟫","Incomum":"🟩","Raro":"🟦","Epico":"🟪","Lendario":"🟧"}
@@ -130,7 +131,7 @@ async def cmd_missoes(interaction: discord.Interaction):
         missoes = await get_missoes_hoje(interaction.user.id)
 
     hoje = date.today().strftime("%d/%m/%Y")
-    embed = discord.Embed(title=f"Missoes Diarias — {hoje}",
+    embed = discord.Embed(title=f"📋 Missões Diárias — {hoje}",
         description="Complete missoes para ganhar XP, moedas e fichas!\nRenovam todo dia a meia-noite.", color=0xE4AF3C)
 
     total_concluidas = 0
@@ -149,6 +150,7 @@ async def cmd_missoes(interaction: discord.Interaction):
             value=f"`{barra}` {m['progresso']}/{m['meta']}\n{recomp}",
             inline=False
         )
+    embed.set_image(url=IMG_MISSOES)
     embed.set_footer(text=f"Concluidas: {total_concluidas}/3 hoje")
     await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -175,5 +177,6 @@ async def cmd_ranking(interaction: discord.Interaction):
     embed.add_field(name="⚔️ Top Vitorias", value=fmt(top_vitorias,"vitorias"), inline=True)
     embed.add_field(name="⭐ Top Nivel",    value=fmt(top_nivel,"nivel"),    inline=True)
     embed.add_field(name="💰 Top Moedas",   value=fmt(top_moedas,"moedas"),  inline=True)
+    embed.set_image(url=IMG_RANKING)
     embed.set_footer(text="Ranking atualizado em tempo real")
     await interaction.followup.send(embed=embed)
