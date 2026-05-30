@@ -48,31 +48,97 @@ LOJA_ITENS = {
 }
 
 RECEITAS = [
-    {"id":"espada_orc",    "nome":"Espada Orc",        "emoji":"🗡️","tipo":"arma",    "raridade":"Raro",    "desc":"Metal orc forjado",         "materiais":{"dente_orc":2,"minerio_ferro":3},"preco_forja":100},
-    {"id":"armadura_escama","nome":"Armadura de Escama","emoji":"🐉","tipo":"armadura","raridade":"Epico",   "desc":"Escamas de dragao",          "materiais":{"escama_dragao":1,"fragmento_golem":2},"preco_forja":300},
-    {"id":"cajado_osso2",  "nome":"Cajado Osseo+",     "emoji":"💀","tipo":"arma",    "raridade":"Raro",    "desc":"Amplifica magia negra",      "materiais":{"dente_orc":1,"sangue_anciao":1},"preco_forja":200},
-    {"id":"elmo_dragao",   "nome":"Elmo do Dragao",    "emoji":"🪖","tipo":"armadura","raridade":"Lendario","desc":"Protecao maxima",             "materiais":{"escama_dragao":2,"olho_dragao":1},"preco_forja":500},
+    # ── Rank Raro ─────────────────────────────────────────────────
+    {"id":"espada_orc",     "nome":"Espada Orc",         "emoji":"🗡️","tipo":"arma",    "raridade":"Raro",    "desc":"Forjada com metal orc. ATK +20",
+     "materiais":{"dente_orc":2,"minerio_ferro":3},"preco_forja":100},
+    {"id":"cajado_osso2",   "nome":"Cajado Osseo+",      "emoji":"💀","tipo":"arma",    "raridade":"Raro",    "desc":"Amplifica magia negra. Magia +17",
+     "materiais":{"dente_orc":1,"sangue_anciao":1},"preco_forja":200},
+    {"id":"anel_combate",   "nome":"Anel de Combate",    "emoji":"💍","tipo":"acessorio","raridade":"Raro",   "desc":"+10 ATK e +5 DEF permanente",
+     "materiais":{"fragmento_golem":1,"minerio_ferro":2},"preco_forja":150},
+    {"id":"manto_sombra2",  "nome":"Manto das Sombras+", "emoji":"🧥","tipo":"armadura","raridade":"Raro",    "desc":"DEF +20 e +15% esquiva",
+     "materiais":{"muco_troll":2,"essencia_sombria":1},"preco_forja":220},
+    {"id":"pocao_superior", "nome":"Pocao Superior",     "emoji":"🍶","tipo":"pocao",   "raridade":"Raro",    "desc":"Restaura 200 HP instantaneamente",
+     "materiais":{"sangue_anciao":1,"olho_dragao":1},"preco_forja":180},
+    {"id":"lanca_orc",      "nome":"Lanca Orc",          "emoji":"🔱","tipo":"arma",    "raridade":"Raro",    "desc":"Forjada com ossos de orc. ATK +18",
+     "materiais":{"dente_orc":3,"osso_oco":2},"preco_forja":160},
+
+    # ── Rank Epico ────────────────────────────────────────────────
+    {"id":"armadura_escama","nome":"Armadura de Escama", "emoji":"🐉","tipo":"armadura","raridade":"Epico",   "desc":"Escamas de dragao. DEF +25",
+     "materiais":{"escama_dragao":1,"fragmento_golem":2},"preco_forja":300},
+    {"id":"espada_sombria2","nome":"Espada das Trevas",  "emoji":"🗡️","tipo":"arma",    "raridade":"Epico",   "desc":"Drena HP ao acertar. ATK +28",
+     "materiais":{"essencia_sombria":2,"dente_orc":2},"preco_forja":400},
+    {"id":"cajado_vazio2",  "nome":"Cajado do Vazio+",   "emoji":"🌀","tipo":"arma",    "raridade":"Epico",   "desc":"Ignora 20% da defesa. ATK +26",
+     "materiais":{"essencia_sombria":1,"olho_dragao":1,"fragmento_golem":1},"preco_forja":450},
+    {"id":"capa_grifo",     "nome":"Capa do Grifo",      "emoji":"🦅","tipo":"armadura","raridade":"Epico",   "desc":"DEF +30 e +20% velocidade",
+     "materiais":{"pena_grifo":3,"pele_lobo":4},"preco_forja":380},
+
+    # ── Rank Lendario ─────────────────────────────────────────────
+    {"id":"elmo_dragao",    "nome":"Elmo do Dragao",     "emoji":"🪖","tipo":"armadura","raridade":"Lendario","desc":"Protecao maxima. DEF +32",
+     "materiais":{"escama_dragao":2,"olho_dragao":1},"preco_forja":500},
+    {"id":"espada_dragao2", "nome":"Espada do Dragao+",  "emoji":"⚔️","tipo":"arma",    "raridade":"Lendario","desc":"Flamejante eternamente. ATK +40",
+     "materiais":{"escama_dragao":3,"dente_dragao":2},"preco_forja":700},
+    {"id":"armadura_titan", "nome":"Armadura do Titan",  "emoji":"🗿","tipo":"armadura","raridade":"Lendario","desc":"Maxima protecao. DEF +45 +20% HP max",
+     "materiais":{"fragmento_titan":2,"escama_dragao":2,"fragmento_golem":3},"preco_forja":900},
+    {"id":"cajado_lich2",   "nome":"Cetro do Lich+",     "emoji":"💀","tipo":"arma",    "raridade":"Lendario","desc":"Poder necrotico supremo. ATK +47",
+     "materiais":{"essencia_lich":1,"coroa_lich":1},"preco_forja":800},
 ]
 
 MONSTROS = [
-    {"id":"goblin", "nome":"Goblin",        "emoji":"👺","nivel":1, "hp":40, "ataque":6, "defesa":2, "xp":20,"moedas":10,"dificuldade":"facil",
+    # ── FACIL ─────────────────────────────────────────────────────
+    {"id":"goblin","nome":"Goblin","emoji":"👺","nivel":1,"hp":40,"ataque":6,"defesa":2,"xp":25,"moedas":12,"dificuldade":"facil",
      "skills":[{"nome":"Mordida","emoji":"🦷","dano":8},{"nome":"Arranhao","emoji":"💢","dano":5}],
-     "loot":[("pedra_suja","Pedra Suja","material","Comum","🪨","Pedra qualquer")]},
-    {"id":"lobo",   "nome":"Lobo Selvagem","emoji":"🐺","nivel":3, "hp":65, "ataque":10,"defesa":4, "xp":35,"moedas":18,"dificuldade":"facil",
+     "loot":[("pedra_suja","Pedra Suja","material","Comum","🪨","Ingrediente basico")]},
+    {"id":"lobo","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":65,"ataque":10,"defesa":4,"xp":38,"moedas":20,"dificuldade":"facil",
      "skills":[{"nome":"Mordida Feroz","emoji":"🦷","dano":14},{"nome":"Investida","emoji":"💨","dano":10}],
-     "loot":[("pele_lobo","Pele de Lobo","material","Comum","🐾","Util")]},
-    {"id":"orc",    "nome":"Orc Guerreiro","emoji":"👹","nivel":7, "hp":120,"ataque":18,"defesa":10,"xp":70,"moedas":40,"dificuldade":"medio",
-     "skills":[{"nome":"Machado","emoji":"🪓","dano":22},{"nome":"Grito","emoji":"😤","dano":12}],
-     "loot":[("dente_orc","Dente de Orc","material","Incomum","🦷","Ingrediente"),("minerio_ferro","Minerio de Ferro","material","Comum","⛏️","Metal")]},
-    {"id":"golem",  "nome":"Golem de Pedra","emoji":"🗿","nivel":12,"hp":200,"ataque":22,"defesa":20,"xp":120,"moedas":65,"dificuldade":"medio",
-     "skills":[{"nome":"Soco","emoji":"👊","dano":30},{"nome":"Terremoto","emoji":"🌋","dano":20}],
+     "loot":[("pele_lobo","Pele de Lobo","material","Comum","🐾","Material de armadura")]},
+    {"id":"rato_gigante","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":50,"ataque":8,"defesa":3,"xp":30,"moedas":15,"dificuldade":"facil",
+     "skills":[{"nome":"Arranhao Duplo","emoji":"💢","dano":9},{"nome":"Fuga","emoji":"💨","dano":4}],
+     "loot":[("pelo_rato","Pelo de Rato","material","Comum","🐾","Material comum")]},
+    {"id":"goblin_arqueiro","nome":"Goblin Arqueiro","emoji":"👺","nivel":4,"hp":55,"ataque":9,"defesa":3,"xp":35,"moedas":18,"dificuldade":"facil",
+     "skills":[{"nome":"Flechada","emoji":"🏹","dano":12},{"nome":"Tiro Rapido","emoji":"🏹","dano":8}],
+     "loot":[("flecha_goblin","Flecha de Goblin","material","Comum","🏹","Material de projétil")]},
+
+    # ── MEDIO ─────────────────────────────────────────────────────
+    {"id":"orc","nome":"Orc Guerreiro","emoji":"👹","nivel":7,"hp":120,"ataque":18,"defesa":10,"xp":85,"moedas":50,"dificuldade":"medio",
+     "skills":[{"nome":"Machado","emoji":"🪓","dano":22},{"nome":"Grito de Guerra","emoji":"😤","dano":12}],
+     "loot":[("dente_orc","Dente de Orc","material","Incomum","🦷","Ingrediente alquimico"),("minerio_ferro","Minerio de Ferro","material","Comum","⛏️","Metal bruto")]},
+    {"id":"golem","nome":"Golem de Pedra","emoji":"🗿","nivel":12,"hp":200,"ataque":22,"defesa":20,"xp":140,"moedas":75,"dificuldade":"medio",
+     "skills":[{"nome":"Soco de Pedra","emoji":"👊","dano":30},{"nome":"Terremoto","emoji":"🌋","dano":20}],
      "loot":[("fragmento_golem","Fragmento de Golem","material","Raro","🪨","Material magico")]},
-    {"id":"vampiro","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":280,"ataque":35,"defesa":18,"xp":200,"moedas":120,"dificuldade":"dificil",
+    {"id":"esqueleto","nome":"Esqueleto Armado","emoji":"💀","nivel":9,"hp":140,"ataque":20,"defesa":12,"xp":100,"moedas":60,"dificuldade":"medio",
+     "skills":[{"nome":"Espada Ossea","emoji":"⚔️","dano":25},{"nome":"Lanca de Osso","emoji":"🔱","dano":18}],
+     "loot":[("osso_oco","Osso Oco","material","Incomum","💀","Material necrotico")]},
+    {"id":"troll_pântano","nome":"Troll do Pantano","emoji":"🧌","nivel":11,"hp":180,"ataque":24,"defesa":8,"xp":120,"moedas":68,"dificuldade":"medio",
+     "skills":[{"nome":"Porrada","emoji":"👊","dano":32},{"nome":"Lama Toxica","emoji":"🟢","dano":15}],
+     "loot":[("muco_troll","Muco de Troll","material","Incomum","🟢","Ingrediente alquimico")]},
+
+    # ── DIFICIL ───────────────────────────────────────────────────
+    {"id":"vampiro","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":280,"ataque":35,"defesa":18,"xp":220,"moedas":140,"dificuldade":"dificil",
      "skills":[{"nome":"Drenar Sangue","emoji":"🩸","dano":40},{"nome":"Hipnose","emoji":"👁️","dano":15}],
-     "loot":[("capa_vampiro","Capa de Vampiro","armadura","Epico","🧛","Absorve magia"),("sangue_anciao","Sangue Anciao","material","Raro","🩸","Pocao")]},
-    {"id":"dragao", "nome":"Dragao Jovem",  "emoji":"🐉","nivel":35,"hp":500,"ataque":60,"defesa":35,"xp":450,"moedas":300,"dificuldade":"lendario",
-     "skills":[{"nome":"Baforada","emoji":"🔥","dano":70},{"nome":"Garra","emoji":"🐾","dano":50}],
-     "loot":[("escama_dragao","Escama de Dragao","material","Lendario","🐉","Lendario"),("olho_dragao","Olho de Dragao","material","Epico","👁️","Raro")]},
+     "loot":[("capa_vampiro","Capa de Vampiro","armadura","Epico","🧛","Absorve magia negra"),("sangue_anciao","Sangue Anciao","material","Raro","🩸","Ingrediente raro")]},
+    {"id":"troll_pedra","nome":"Troll das Pedras","emoji":"🗿","nivel":22,"hp":320,"ataque":38,"defesa":25,"xp":250,"moedas":160,"dificuldade":"dificil",
+     "skills":[{"nome":"Avalanche","emoji":"🪨","dano":45},{"nome":"Esmagar","emoji":"💥","dano":35}],
+     "loot":[("nucleo_pedra","Nucleo de Pedra","material","Raro","💎","Material magico raro")]},
+    {"id":"bruxa","nome":"Bruxa das Trevas","emoji":"🧙","nivel":25,"hp":260,"ataque":42,"defesa":15,"xp":270,"moedas":170,"dificuldade":"dificil",
+     "skills":[{"nome":"Maldicao","emoji":"🩸","dano":38},{"nome":"Bola de Fogo Sombria","emoji":"🔥","dano":50}],
+     "loot":[("essencia_sombria","Essencia Sombria","material","Raro","🌑","Ingrediente sombrio")]},
+    {"id":"grifo","nome":"Grifo Selvagem","emoji":"🦅","nivel":28,"hp":300,"ataque":40,"defesa":20,"xp":280,"moedas":175,"dificuldade":"dificil",
+     "skills":[{"nome":"Bico de Aco","emoji":"⚔️","dano":42},{"nome":"Garra Dupla","emoji":"🐾","dano":35}],
+     "loot":[("pena_grifo","Pena de Grifo","material","Raro","🦅","Material de voo")]},
+
+    # ── LENDARIO ──────────────────────────────────────────────────
+    {"id":"dragao","nome":"Dragao Jovem","emoji":"🐉","nivel":35,"hp":500,"ataque":60,"defesa":35,"xp":500,"moedas":350,"dificuldade":"lendario",
+     "skills":[{"nome":"Baforada de Fogo","emoji":"🔥","dano":70},{"nome":"Garra Draconica","emoji":"🐾","dano":55}],
+     "loot":[("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario"),("olho_dragao","Olho de Dragao","material","Epico","👁️","Material epico")]},
+    {"id":"quimera","nome":"Quimera Anciao","emoji":"🦁","nivel":40,"hp":580,"ataque":70,"defesa":40,"xp":600,"moedas":420,"dificuldade":"lendario",
+     "skills":[{"nome":"Rugido do Caos","emoji":"😤","dano":75},{"nome":"Chamas e Gelo","emoji":"❄️","dano":60}],
+     "loot":[("corno_quimera","Corno de Quimera","material","Lendario","🦄","Extremamente raro"),("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario")]},
+    {"id":"lich","nome":"Lich Anciao","emoji":"💀","nivel":45,"hp":520,"ataque":75,"defesa":30,"xp":650,"moedas":450,"dificuldade":"lendario",
+     "skills":[{"nome":"Toque da Morte","emoji":"☠️","dano":80},{"nome":"Exercito Espectral","emoji":"👻","dano":50}],
+     "loot":[("essencia_lich","Essencia do Lich","material","Lendario","💀","O material mais sombrio"),("coroa_lich","Coroa do Lich","armadura","Lendario","👑","Armadura lendaria")]},
+    {"id":"titan","nome":"Titan Primordial","emoji":"🗿","nivel":50,"hp":700,"ataque":85,"defesa":50,"xp":750,"moedas":550,"dificuldade":"lendario",
+     "skills":[{"nome":"Golpe Primordial","emoji":"💥","dano":90},{"nome":"Tremor da Terra","emoji":"🌋","dano":70}],
+     "loot":[("fragmento_titan","Fragmento do Titan","material","Lendario","🗿","Lendario absoluto"),("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario")]},
 ]
 
 # ─── DB HELPERS ──────────────────────────────────────────────────
@@ -997,12 +1063,11 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         # Atualiza cargos em todo level up
         if lvlups:
             try:
-                from bot import atualizar_cargo_nivel, atualizar_cargo_rank
+                from utils import atualizar_todos_cargos
                 guild  = interaction.guild
                 member = guild.get_member(uid) if guild else None
                 if member:
-                    await atualizar_cargo_nivel(guild, member, nivel_novo)
-                    await atualizar_cargo_rank(guild, member, rank_obj["rank"])
+                    await atualizar_todos_cargos(guild, member, nivel_novo)
             except Exception:
                 pass
 
