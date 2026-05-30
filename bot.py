@@ -305,16 +305,20 @@ async def criar_personagem(interaction: discord.Interaction):
     if guild:
         member = guild.get_member(uid)
         if member:
-            for cn in ["🏠 Morador da Vila", classe["nome"]]:
+            # Cargos base
+            for cn in ["🏠 Morador da Vila", f"{classe['emoji']} {classe['nome']}"]:
                 cargo = discord.utils.get(guild.roles, name=cn)
                 if cargo:
                     try: await member.add_roles(cargo)
                     except: pass
+            # Remove recem-chegado
             for nome_recem in ["🌱 Recem-chegado", "Recem-chegado"]:
                 recem = discord.utils.get(guild.roles, name=nome_recem)
                 if recem and recem in member.roles:
                     try: await member.remove_roles(recem)
                     except: pass
+            # Adiciona Rank F automaticamente
+            await atualizar_cargo_rank(guild, member, "F")
         await criar_canal_privado(guild, member, nome, classe)
 
 # ─── /perfil ─────────────────────────────────────────────────────
