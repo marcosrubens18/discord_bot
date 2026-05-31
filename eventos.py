@@ -118,6 +118,8 @@ class CriarEventoModal(discord.ui.Modal, title="Criar Novo Evento"):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+        # Garante que as tabelas existem
+        await init_db_eventos()
         try:
             horas = max(1, int(self.duracao_horas.value))
         except:
