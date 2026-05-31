@@ -484,7 +484,7 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
 
     img_cls = IMG_CLASSE.get(p['classe_id'], IMG_PERFIL)
     embed.add_field(name=f"{raca_p['emoji']} Passiva Racial", value=raca_p['passiva_desc'], inline=False)
-    embed.set_image(url=img_cls)
+    if img_cls: embed.set_image(url=img_cls)
     embed.set_footer(text=f"ID: {alvo.id} • /setup para equipar • /skills para gerenciar")
     await interaction.followup.send(embed=embed)
 
@@ -514,7 +514,7 @@ async def inventario(interaction: discord.Interaction, jogador: discord.Member =
             txt = "\n".join([f"{i['emoji']} **{i['nome']}** [{i['raridade']}] (x{i['quantidade']})" for i in neq])
             embed.add_field(name="Mochila", value=txt, inline=False)
     embed.add_field(name="Moedas", value=f"{p['moedas']} 🪙", inline=True)
-    embed.set_image(url=IMG_INVENTARIO)
+    if IMG_INVENTARIO: embed.set_image(url=IMG_INVENTARIO)
     embed.set_footer(text="Use /setup para equipar itens")
     await interaction.followup.send(embed=embed)
 
@@ -689,8 +689,14 @@ async def set_item(interaction: discord.Interaction, jogador: discord.Member):
         await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
 
     # Monta catalogo completo de todos os itens do jogo
-    from catalogo import ARMAS_POR_CLASSE, ARMADURAS_POR_CLASSE
-    TODOS_ITENS = {
+    try:
+        from catalogo import ARMAS_POR_CLASSE, ARMADURAS_POR_CLASSE
+    except Exception as e:
+        await interaction.followup.send(f"Erro ao carregar catalogo: {e}", ephemeral=True)
+        return
+
+    try:
+        TODOS_ITENS = {
         "🧪 Poções": [
             {"id":"pocao_hp_p",   "nome":"Poção de Cura P",   "emoji":"🧪","tipo":"pocao","raridade":"Comum",   "desc":"Recupera 30 HP"},
             {"id":"pocao_hp_m",   "nome":"Poção de Cura M",   "emoji":"💊","tipo":"pocao","raridade":"Comum",   "desc":"Recupera 60 HP"},
@@ -775,6 +781,10 @@ async def set_item(interaction: discord.Interaction, jogador: discord.Member):
             {"id":"coroa_criador",    "nome":"Coroa do Criador",     "emoji":"👑","tipo":"armadura","raridade":"Lendario","desc":"A armadura definitiva"},
         ],
     }
+
+    except Exception as e:
+        await interaction.followup.send(f"Erro ao montar catalogo: {e}", ephemeral=True)
+        return
 
     categorias = list(TODOS_ITENS.keys())
     cat_sel   = {"v": None}
