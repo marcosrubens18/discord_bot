@@ -1,5 +1,5 @@
 from catalogo import get_rank, CARGOS_RANK
-from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA
+from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA, IMG_DUNGEON_MONSTRO
 from utils import atualizar_todos_cargos
 # -*- coding: utf-8 -*-
 import discord
@@ -213,29 +213,49 @@ async def remover_pocao(user_id, item_id):
                 await db.execute("DELETE FROM inventario WHERE id=$1", row["id"])
 
 
-async def salvar_resultado_dungeon(user_id, hp_final, xp_total, moedas_total, classe_id, nivel):
+def xp_needed_rank(nivel):
+    base = 100 + (nivel-1)*50
+    if nivel >= 60: return int(base * 3.0)
+    if nivel >= 40: return int(base * 2.0)
+    if nivel >= 20: return int(base * 1.5)
+    return base
+
+async def salvar_resultado_dungeon(user_id, hp_final, xp_total, classe_id, nivel):
+    """Salva resultado da dungeon. Sem moedas — ganhe vendendo loot!"""
     pool = await get_pool()
     async with pool.acquire() as db:
-        p = await db.fetchrow("SELECT xp,nivel,hp_max,ataque,defesa FROM personagens WHERE user_id=$1", user_id)
-        if not p: return 0
+        p = await db.fetchrow(
+            "SELECT xp,nivel,hp_max,ataque,defesa,poder_valor,destino_id FROM personagens WHERE user_id=$1",
+            user_id
+        )
+        if not p: return 0, nivel
         novo_xp = p["xp"] + xp_total
         nv = p["nivel"]
         levelups = 0
-        needed = 100 + (nv-1)*50
+        needed = xp_needed_rank(nv)
         while novo_xp >= needed:
-            novo_xp -= needed; nv += 1; needed = 100+(nv-1)*50; levelups += 1
+            novo_xp -= needed; nv += 1; needed = xp_needed_rank(nv); levelups += 1
         hp_max = p["hp_max"] + levelups*5
-        atk = p["ataque"] + levelups*2
-        dfs = p["defesa"] + levelups*1
+        atk    = p["ataque"] + levelups*2
+        dfs    = p["defesa"] + levelups*1
+        from catalogo import calcular_mana_max
+        mana_max = calcular_mana_max(classe_id, nv, p["poder_valor"], p["destino_id"])
         hp_f = max(1, min(hp_final, hp_max))
         await db.execute("""
-            UPDATE personagens SET hp_atual=$1,hp_max=$2,xp=$3,nivel=$4,ataque=$5,defesa=$6,moedas=moedas+$7,vitorias=vitorias+1
+            UPDATE personagens
+            SET hp_atual=$1, hp_max=$2, xp=$3, nivel=$4,
+                ataque=$5, defesa=$6, mana_max=$7,
+                vitorias=vitorias+1
             WHERE user_id=$8
-        """, (hp_f, hp_max, novo_xp, nv, atk, dfs, moedas_total, user_id))
-        for s in SKILLS_POR_CLASSE.get(classe_id, []):
+        """, hp_f, hp_max, novo_xp, nv, atk, dfs, mana_max, user_id)
+        from catalogo import SKILLS_COMPLETAS
+        for s in SKILLS_COMPLETAS.get(classe_id, []):
             if s["nivel"] <= nv:
-                await db.execute("INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING", (user_id,s["id"]))
-        return levelups
+                await db.execute(
+                    "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
+                    user_id, s["id"]
+                )
+        return levelups, nv
 
 async def add_item_dungeon(user_id, item):
     iid, nome, tipo, rar, emoji, desc = item
@@ -323,16 +343,32 @@ class DungeonBatalhaView(discord.ui.View):
             btn.callback = self._sk(i)
             self.add_item(btn)
 
+        atk_btn = discord.ui.Button(
+            label="⚔️ Ataque Básico",
+            style=discord.ButtonStyle.secondary,
+            row=2, custom_id="atk_basico"
+        )
+        atk_btn.callback = self._atk_basico
+        self.add_item(atk_btn)
+
+        def_btn = discord.ui.Button(
+            label="🛡️ Defesa",
+            style=discord.ButtonStyle.secondary,
+            row=2, custom_id="defesa_basica"
+        )
+        def_btn.callback = self._defesa_basica
+        self.add_item(def_btn)
+
         mochila = discord.ui.Button(
             label=f"🎒 Mochila ({len(self._pocoes)})" if self._pocoes else "🎒 Mochila (vazia)",
             style=discord.ButtonStyle.secondary,
             disabled=not self._pocoes,
-            row=2, custom_id="mochila"
+            row=3, custom_id="mochila"
         )
         mochila.callback = self._mochila
         self.add_item(mochila)
 
-        fugir = discord.ui.Button(label="🏃 Fugir da Dungeon", style=discord.ButtonStyle.danger, row=2, custom_id="fugir")
+        fugir = discord.ui.Button(label="🏃 Fugir da Dungeon", style=discord.ButtonStyle.danger, row=3, custom_id="fugir")
         fugir.callback = self._fugir
         self.add_item(fugir)
 
@@ -369,6 +405,22 @@ class DungeonBatalhaView(discord.ui.View):
         v = discord.ui.View(timeout=20); v.add_item(sel)
         try: await inter.response.send_message("🎒 Escolha uma pocao:", view=v, ephemeral=True)
         except: pass
+
+    async def _atk_basico(self, inter: discord.Interaction):
+        try: await inter.response.defer()
+        except: pass
+        if inter.user.id != self.user_id or self.acao_feita: return
+        self.acao_feita = True
+        self.acao = ("atk_basico", None)
+        self.stop()
+
+    async def _defesa_basica(self, inter: discord.Interaction):
+        try: await inter.response.defer()
+        except: pass
+        if inter.user.id != self.user_id or self.acao_feita: return
+        self.acao_feita = True
+        self.acao = ("defesa_basica", None)
+        self.stop()
 
     async def _fugir(self, inter: discord.Interaction):
         try: await inter.response.defer()
@@ -543,6 +595,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
     msgs_global  = []
 
     # ── Mensagem de entrada ──────────────────────────────────────
+    img_dg = IMG_DUNGEON.get(rank.upper(), IMG_DUNGEON["F"])
     embed_entrada = discord.Embed(
         title=f"{dungeon['emoji']} {dungeon['nome']}",
         description=(
@@ -566,6 +619,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
         monstro = info_andar["monstro"]
 
         # Anuncia o andar
+        img_m = IMG_DUNGEON_MONSTRO.get(monstro["nome"], IMG_DUNGEON_MONSTRO["default"])
         embed_andar = discord.Embed(
             title=f"Andar {andar}/5 — {info_andar['emoji']} {info_andar['nome']}",
             description=(
@@ -575,6 +629,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
             ),
             color=dungeon["cor"]
         )
+        embed_andar.set_thumbnail(url=img_m)
         msg_an = await interaction.followup.send(embed=embed_andar, wait=True)
         msgs_global.append(msg_an)
         await asyncio.sleep(1.5)
@@ -645,6 +700,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
     # ── CHEFE FINAL ──────────────────────────────────────────────
     chefe = dungeon["chefe"]
 
+    img_chefe = IMG_DUNGEON_MONSTRO.get(chefe["nome"], IMG_DUNGEON_MONSTRO["default"])
     embed_chefe = discord.Embed(
         title=f"👑 CHEFE FINAL: {chefe['emoji']} {chefe['nome']}",
         description=(
@@ -655,6 +711,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
         ),
         color=0xE24B4A
     )
+    embed_chefe.set_thumbnail(url=img_chefe)
     msg_ch = await interaction.followup.send(embed=embed_chefe, wait=True)
     msgs_global.append(msg_ch)
     await asyncio.sleep(2)
@@ -699,26 +756,36 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
         await add_item_dungeon(p["user_id"], chefe["loot_epico"])
         loot_obtido.append(f"{chefe['loot_epico'][4]} **{chefe['loot_epico'][1]}** [{chefe['loot_epico'][3]}] 🎉")
 
-    lvlups = await salvar_resultado_dungeon(p["user_id"], hp_j, xp_total, moedas_total, p["classe_id"], p["nivel"])
+    lvlups, nivel_novo_d = await salvar_resultado_dungeon(p["user_id"], hp_j, xp_total, p["classe_id"], p["nivel"])
 
-    # Limpa todas as mensagens
+    loot_txt = "\n".join(loot_obtido) if loot_obtido else "*Nenhum item obtido*"
+    rank_obj_d = get_rank(nivel_novo_d)
+
+    desc_final = (
+        f"**{emoji_j} {p['nome']}** completou a **{dungeon['emoji']} {dungeon['nome']}**!\n\n"
+        f"👑 Chefe derrotado: **{chefe['emoji']} {chefe['nome']}**\n\n"
+        f"✨ **+{xp_total} XP** conquistados\n"
+        f"📦 **Venda o loot no** `/mercado` **para ganhar moedas!**\n\n"
+        f"🎁 **Loot obtido:**\n{loot_txt}"
+    )
+    if lvlups:
+        rank_txt = f"\n🏅 Novo rank: {rank_obj_d['emoji']} **{rank_obj_d['rank']}**!" if get_rank(p['nivel'])['rank'] != rank_obj_d['rank'] else ""
+        desc_final += f"\n\n🎉 **LEVEL UP! Nível {nivel_novo_d}!** (+{lvlups} nível){rank_txt}"
+        desc_final += f"\n+{lvlups*5} HP | +{lvlups*2} ATK | +{lvlups} DEF"
+
+    embed_recomp = discord.Embed(
+        title=f"🏆 Dungeon Concluída!",
+        description=desc_final,
+        color=dungeon["cor"]
+    )
+    embed_recomp.set_image(url=IMG_VITORIA)
+    embed_recomp.set_footer(text="Venda seus itens no /mercado para ganhar moedas!")
+
+    # Envia resultado ANTES de apagar mensagens
+    await interaction.followup.send(embed=embed_recomp)
+    await asyncio.sleep(1.5)
+
+    # Agora limpa mensagens antigas
     for m in msgs_global:
         try: await m.delete()
         except: pass
-
-    loot_txt = "\n".join(loot_obtido) if loot_obtido else "Nenhum item"
-    desc_final = (
-        f"🏆 **{dungeon['nome']} COMPLETADA!**\n\n"
-        f"**{emoji_j} {p['nome']}** derrotou **{chefe['emoji']} {chefe['nome']}**!\n\n"
-        f"✨ **+{xp_total} XP total**\n"
-        f"💰 **+{moedas_total} moedas**\n\n"
-        f"🎁 **Itens obtidos:**\n{loot_txt}"
-    )
-    if lvlups:
-        desc_final += f"\n\n🎉 **LEVEL UP! +{lvlups} nivel(is)!**"
-
-    await interaction.followup.send(embed=discord.Embed(
-        title=f"🏆 Dungeon Concluida!",
-        description=desc_final,
-        color=dungeon["cor"]
-    ))
