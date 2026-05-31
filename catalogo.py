@@ -66,7 +66,7 @@ def calcular_mana_max(classe_id, nivel, poder_valor, destino_id):
 
 ARMAS_POR_CLASSE = {
     "guerreiro": [
-        {"id":"espada_ferro",    "nome":"Espada de Ferro",    "emoji":"⚔️","raridade":"Comum",    "atk_bonus":5,  "preco":0,    "desc":"Arma inicial. Confiavel e resistente."},
+        {"id":"espada_ferro",    "nome":"Espada de Ferro",    "emoji":"⚔️","raridade":"Comum",    "atk_bonus":5,  "preco":20,   "desc":"Arma inicial. Confiavel e resistente."},
         {"id":"machado_pesado",  "nome":"Machado Pesado",     "emoji":"🪓","raridade":"Comum",    "atk_bonus":8,  "preco":120,  "desc":"Machado de ferro. Dano bruto alto."},
         {"id":"espada_prata",    "nome":"Espada de Prata",    "emoji":"⚔️","raridade":"Incomum",  "atk_bonus":12, "preco":300,  "desc":"Forjada em prata pura. ATK +12."},
         {"id":"lanca_combate",   "nome":"Lanca de Combate",   "emoji":"🔱","raridade":"Incomum",  "atk_bonus":10, "preco":280,  "desc":"Alcance extra. Bom para contra-ataques."},
@@ -78,7 +78,7 @@ ARMAS_POR_CLASSE = {
         {"id":"espada_lendaria", "nome":"Espada do Heroi",    "emoji":"⚔️","raridade":"Lendario","atk_bonus":40, "preco":0,    "desc":"Arma dos grandes herois. Apenas em dungeons."},
     ],
     "arqueiro": [
-        {"id":"arco_madeira",    "nome":"Arco de Madeira",    "emoji":"🏹","raridade":"Comum",    "atk_bonus":4,  "preco":0,    "desc":"Arco inicial. Leve e preciso."},
+        {"id":"arco_madeira",    "nome":"Arco de Madeira",    "emoji":"🏹","raridade":"Comum",    "atk_bonus":4,  "preco":20,   "desc":"Arco inicial. Leve e preciso."},
         {"id":"besta_leve",      "nome":"Besta Leve",         "emoji":"🏹","raridade":"Comum",    "atk_bonus":6,  "preco":100,  "desc":"Besta de disparo rapido."},
         {"id":"arco_composto",   "nome":"Arco Composto",      "emoji":"🏹","raridade":"Incomum",  "atk_bonus":10, "preco":260,  "desc":"Mais potente que o arco basico."},
         {"id":"besta_pesada",    "nome":"Besta Pesada",       "emoji":"🏹","raridade":"Incomum",  "atk_bonus":12, "preco":290,  "desc":"Dano perfurante. Ignora 10% da defesa."},
@@ -90,7 +90,7 @@ ARMAS_POR_CLASSE = {
         {"id":"arco_lendario",   "nome":"Arco do Cacador",    "emoji":"🏹","raridade":"Lendario","atk_bonus":45, "preco":0,    "desc":"Arco do maior cacador de todos os tempos."},
     ],
     "mago": [
-        {"id":"cajado_pinho",    "nome":"Cajado de Pinho",    "emoji":"🪄","raridade":"Comum",    "atk_bonus":4,  "preco":0,    "desc":"Cajado inicial. Canaliza energia basica."},
+        {"id":"cajado_pinho",    "nome":"Cajado de Pinho",    "emoji":"🪄","raridade":"Comum",    "atk_bonus":4,  "preco":20,   "desc":"Cajado inicial. Canaliza energia basica."},
         {"id":"vara_magica",     "nome":"Vara Magica",        "emoji":"🪄","raridade":"Comum",    "atk_bonus":6,  "preco":90,   "desc":"Vara de carvalho encantada. +5 mana."},
         {"id":"cajado_quartzo",  "nome":"Cajado de Quartzo",  "emoji":"🪄","raridade":"Incomum",  "atk_bonus":10, "preco":250,  "desc":"Cristal de quartzo amplifica magias."},
         {"id":"orbe_fogo",       "nome":"Orbe de Fogo",       "emoji":"🔮","raridade":"Incomum",  "atk_bonus":11, "preco":280,  "desc":"Orbe de fogo elementar. +10% dano de fogo."},
@@ -102,7 +102,7 @@ ARMAS_POR_CLASSE = {
         {"id":"cajado_lendario", "nome":"Cajado do Arquimago","emoji":"🪄","raridade":"Lendario","atk_bonus":48, "preco":0,    "desc":"Cajado do maior mago de todos os tempos."},
     ],
     "paladino": [
-        {"id":"maca_sagrada",    "nome":"Maca Sagrada",       "emoji":"⚡","raridade":"Comum",    "atk_bonus":6,  "preco":0,    "desc":"Maca abencada pelos deuses."},
+        {"id":"maca_sagrada",    "nome":"Maca Sagrada",       "emoji":"⚡","raridade":"Comum",    "atk_bonus":6,  "preco":20,   "desc":"Maca abencada pelos deuses."},
         {"id":"escudo_espada",   "nome":"Espada e Escudo",    "emoji":"⚔️","raridade":"Comum",    "atk_bonus":5,  "preco":110,  "desc":"Combo de defesa e ataque. +5 DEF."},
         {"id":"lanca_prata",     "nome":"Lanca de Prata",     "emoji":"🔱","raridade":"Incomum",  "atk_bonus":11, "preco":270,  "desc":"Lanca de prata sagrada. Efetiva vs trevas."},
         {"id":"espada_prata",    "nome":"Espada de Prata",    "emoji":"⚔️","raridade":"Incomum",  "atk_bonus":12, "preco":300,  "desc":"Dano fisico e magico combinados."},
@@ -114,7 +114,7 @@ ARMAS_POR_CLASSE = {
         {"id":"espada_cruzada",  "nome":"Espada da Cruzada",  "emoji":"⚔️","raridade":"Lendario","atk_bonus":46, "preco":0,    "desc":"Arma dos grandes paladinos da historia."},
     ],
     "necromante": [
-        {"id":"cajado_osso",     "nome":"Cajado de Osso",     "emoji":"💀","raridade":"Comum",    "atk_bonus":4,  "preco":0,    "desc":"Feito de ossos. Amplifica magia negra."},
+        {"id":"cajado_osso",     "nome":"Cajado de Osso",     "emoji":"💀","raridade":"Comum",    "atk_bonus":4,  "preco":20,   "desc":"Feito de ossos. Amplifica magia negra."},
         {"id":"foice_ferrugem",  "nome":"Foice Enferrujada",  "emoji":"⚰️","raridade":"Comum",    "atk_bonus":6,  "preco":95,   "desc":"Foice velha. Causa sangramento (veneno fraco)."},
         {"id":"cajado_sombra",   "nome":"Cajado das Sombras", "emoji":"💀","raridade":"Incomum",  "atk_bonus":10, "preco":240,  "desc":"Amplifica necromancia. +10% dreno de vida."},
         {"id":"foice_arcana",    "nome":"Foice Arcana",       "emoji":"⚰️","raridade":"Incomum",  "atk_bonus":12, "preco":280,  "desc":"Foice encantada. Drenan vida ao acertar."},
@@ -126,7 +126,7 @@ ARMAS_POR_CLASSE = {
         {"id":"cajado_sombra_l", "nome":"Cajado das Trevas",  "emoji":"💀","raridade":"Lendario","atk_bonus":47, "preco":0,    "desc":"O mais poderoso artefato das trevas."},
     ],
     "dracomante": [
-        {"id":"garra_dragao",    "nome":"Garra de Dragao",    "emoji":"🐉","raridade":"Comum",    "atk_bonus":5,  "preco":0,    "desc":"Garra de dragao jovem. Dano de fogo."},
+        {"id":"garra_dragao",    "nome":"Garra de Dragao",    "emoji":"🐉","raridade":"Comum",    "atk_bonus":5,  "preco":20,   "desc":"Garra de dragao jovem. Dano de fogo."},
         {"id":"dente_dragao_arm","nome":"Dente de Dragao",    "emoji":"🐉","raridade":"Comum",    "atk_bonus":7,  "preco":130,  "desc":"Dente afiado como faca. Sangramento."},
         {"id":"cajado_dragao",   "nome":"Cajado do Dragao",   "emoji":"🐉","raridade":"Incomum",  "atk_bonus":11, "preco":260,  "desc":"Cajado com essencia de dragao. +15% fogo."},
         {"id":"lanca_escama",    "nome":"Lanca de Escama",    "emoji":"🐉","raridade":"Incomum",  "atk_bonus":13, "preco":300,  "desc":"Feita com escamas duras. Perfura armaduras."},
@@ -138,7 +138,7 @@ ARMAS_POR_CLASSE = {
         {"id":"garra_dragao_l",  "nome":"Garra do Dragao Eterno","emoji":"🐉","raridade":"Lendario","atk_bonus":50,"preco":0,"desc":"A arma de um dragao imortal. Poder absoluto."},
     ],
     "arcano": [
-        {"id":"orbe_arcano_p",   "nome":"Orbe Arcano",        "emoji":"✨","raridade":"Comum",    "atk_bonus":4,  "preco":0,    "desc":"Orbe de energia arcana pura."},
+        {"id":"orbe_arcano_p",   "nome":"Orbe Arcano",        "emoji":"✨","raridade":"Comum",    "atk_bonus":4,  "preco":20,   "desc":"Orbe de energia arcana pura."},
         {"id":"anel_arcano",     "nome":"Anel Arcano",         "emoji":"💍","raridade":"Comum",    "atk_bonus":6,  "preco":100,  "desc":"Anel que amplifica feiticos. +5 mana."},
         {"id":"cristal_arcano",  "nome":"Cristal Arcano",     "emoji":"✨","raridade":"Incomum",  "atk_bonus":10, "preco":240,  "desc":"Cristal de poder arcano puro."},
         {"id":"tomo_segredos",   "nome":"Tomo dos Segredos",  "emoji":"📖","raridade":"Incomum",  "atk_bonus":12, "preco":270,  "desc":"Tomo de segredos arcanos. +15 mana."},
@@ -155,7 +155,7 @@ ARMAS_POR_CLASSE = {
 
 ARMADURAS_POR_CLASSE = {
     "guerreiro": [
-        {"id":"armadura_couro",  "nome":"Armadura de Couro",  "emoji":"🥋","raridade":"Comum",    "def_bonus":5,  "preco":0,    "desc":"Armadura inicial. Leve e flexivel."},
+        {"id":"armadura_couro",  "nome":"Armadura de Couro",  "emoji":"🥋","raridade":"Comum",    "def_bonus":5,  "preco":20,   "desc":"Armadura inicial. Leve e flexivel."},
         {"id":"cota_malha_g",    "nome":"Cota de Malha",      "emoji":"🛡️","raridade":"Comum",    "def_bonus":8,  "preco":150,  "desc":"Malha de ferro. Protecao equilibrada."},
         {"id":"armadura_ferro",  "nome":"Armadura de Ferro",  "emoji":"⚙️","raridade":"Incomum",  "def_bonus":13, "preco":350,  "desc":"Armadura de ferro completa."},
         {"id":"escudo_torre",    "nome":"Escudo Torre",        "emoji":"🛡️","raridade":"Incomum",  "def_bonus":15, "preco":380,  "desc":"Escudo gigante. DEF +15, bloqueia ataques."},
@@ -167,7 +167,7 @@ ARMADURAS_POR_CLASSE = {
         {"id":"armadura_heroi",  "nome":"Armadura do Heroi",  "emoji":"⚙️","raridade":"Lendario","def_bonus":55, "preco":0,    "desc":"A armadura definitiva dos grandes herois."},
     ],
     "arqueiro": [
-        {"id":"armadura_couro",  "nome":"Armadura de Couro",  "emoji":"🥋","raridade":"Comum",    "def_bonus":4,  "preco":0,    "desc":"Couro leve. Ideal para mobilidade."},
+        {"id":"armadura_couro",  "nome":"Armadura de Couro",  "emoji":"🥋","raridade":"Comum",    "def_bonus":4,  "preco":20,   "desc":"Couro leve. Ideal para mobilidade."},
         {"id":"gibao_arqueiro",  "nome":"Gibao de Couro",     "emoji":"🥋","raridade":"Comum",    "def_bonus":6,  "preco":100,  "desc":"Gibao reforçado. Equilibra defesa e agilidade."},
         {"id":"cota_malha_leve", "nome":"Cota Leve",          "emoji":"🛡️","raridade":"Incomum",  "def_bonus":10, "preco":270,  "desc":"Cota de malha leve. Para arqueiros ageis."},
         {"id":"gibao_escama",    "nome":"Gibao de Escama",    "emoji":"🥋","raridade":"Incomum",  "def_bonus":12, "preco":300,  "desc":"Escamas leves costuradas no couro."},
@@ -179,7 +179,7 @@ ARMADURAS_POR_CLASSE = {
         {"id":"armadura_cacador_l","nome":"Armadura do Cacador Lendario","emoji":"🥋","raridade":"Lendario","def_bonus":48,"preco":0,"desc":"A armadura do maior cacador da historia."},
     ],
     "mago": [
-        {"id":"robe_algodao",    "nome":"Robe de Algodao",    "emoji":"👘","raridade":"Comum",    "def_bonus":2,  "preco":0,    "desc":"Robe magico basico. +5 mana."},
+        {"id":"robe_algodao",    "nome":"Robe de Algodao",    "emoji":"👘","raridade":"Comum",    "def_bonus":2,  "preco":20,   "desc":"Robe magico basico. +5 mana."},
         {"id":"manto_aprendiz",  "nome":"Manto do Aprendiz",  "emoji":"👘","raridade":"Comum",    "def_bonus":3,  "preco":80,   "desc":"Manto de estudante de magia. +10 mana."},
         {"id":"robe_arcano",     "nome":"Robe Arcano",        "emoji":"👘","raridade":"Incomum",  "def_bonus":6,  "preco":220,  "desc":"Robe encantado. +15 mana e +5% dano magico."},
         {"id":"manto_chamas",    "nome":"Manto das Chamas",   "emoji":"👘","raridade":"Incomum",  "def_bonus":7,  "preco":250,  "desc":"Manto de fogo. Resistencia elemental."},
@@ -191,7 +191,7 @@ ARMADURAS_POR_CLASSE = {
         {"id":"robe_lendario",   "nome":"Robe do Mago Supremo","emoji":"👘","raridade":"Lendario","def_bonus":30,"preco":0,"desc":"O robe do maior mago que ja existiu."},
     ],
     "paladino": [
-        {"id":"armadura_couro",  "nome":"Armadura de Couro",  "emoji":"🥋","raridade":"Comum",    "def_bonus":5,  "preco":0,    "desc":"Armadura inicial do paladino."},
+        {"id":"armadura_couro",  "nome":"Armadura de Couro",  "emoji":"🥋","raridade":"Comum",    "def_bonus":5,  "preco":20,   "desc":"Armadura inicial do paladino."},
         {"id":"cota_malha",      "nome":"Cota de Malha",      "emoji":"🛡️","raridade":"Comum",    "def_bonus":9,  "preco":160,  "desc":"Cota de malha abencada."},
         {"id":"armadura_ferro",  "nome":"Armadura de Ferro",  "emoji":"⚙️","raridade":"Incomum",  "def_bonus":14, "preco":360,  "desc":"Armadura de ferro com simbolos sagrados."},
         {"id":"escudo_sagrado",  "nome":"Escudo Sagrado",     "emoji":"🛡️","raridade":"Incomum",  "def_bonus":16, "preco":400,  "desc":"Escudo abencado. Bloqueia magia negra."},
@@ -203,7 +203,7 @@ ARMADURAS_POR_CLASSE = {
         {"id":"armadura_cruzado","nome":"Armadura do Cruzado","emoji":"⚙️","raridade":"Lendario","def_bonus":52,"preco":0,"desc":"A armadura dos grandes cruzados da historia."},
     ],
     "necromante": [
-        {"id":"manto_sombrio",   "nome":"Manto Sombrio",      "emoji":"🧥","raridade":"Comum",    "def_bonus":3,  "preco":0,    "desc":"Manto das trevas. +5% magia negra."},
+        {"id":"manto_sombrio",   "nome":"Manto Sombrio",      "emoji":"🧥","raridade":"Comum",    "def_bonus":3,  "preco":20,   "desc":"Manto das trevas. +5% magia negra."},
         {"id":"robe_osseo",      "nome":"Robe de Ossos",      "emoji":"💀","raridade":"Comum",    "def_bonus":5,  "preco":90,   "desc":"Tecido com ossos pequenos. +10% necromancia."},
         {"id":"manto_sombra",    "nome":"Manto das Sombras",  "emoji":"🧥","raridade":"Incomum",  "def_bonus":8,  "preco":230,  "desc":"Manto que absorve sombras. +15 mana."},
         {"id":"robe_lich",       "nome":"Robe do Lich",       "emoji":"💀","raridade":"Incomum",  "def_bonus":10, "preco":260,  "desc":"Robe de um lich. +20% dreno de vida."},
@@ -215,7 +215,7 @@ ARMADURAS_POR_CLASSE = {
         {"id":"manto_sombrio_l", "nome":"Manto do Necromante Lendario","emoji":"🧥","raridade":"Lendario","def_bonus":45,"preco":0,"desc":"O maior artefato das trevas ja criado."},
     ],
     "dracomante": [
-        {"id":"gibao_escama",    "nome":"Gibao de Escama",    "emoji":"🐉","raridade":"Comum",    "def_bonus":6,  "preco":0,    "desc":"Gibao de escamas de dragao jovem."},
+        {"id":"gibao_escama",    "nome":"Gibao de Escama",    "emoji":"🐉","raridade":"Comum",    "def_bonus":6,  "preco":20,   "desc":"Gibao de escamas de dragao jovem."},
         {"id":"peitoral_escama", "nome":"Peitoral de Escama", "emoji":"🐉","raridade":"Comum",    "def_bonus":8,  "preco":140,  "desc":"Peitoral pesado de escamas."},
         {"id":"armadura_escama", "nome":"Armadura de Escama", "emoji":"🐉","raridade":"Incomum",  "def_bonus":14, "preco":350,  "desc":"Armadura completa de escamas. Resistente ao fogo."},
         {"id":"escudo_dragao",   "nome":"Escudo do Dragao",   "emoji":"🐉","raridade":"Incomum",  "def_bonus":15, "preco":380,  "desc":"Escudo feito de escudos de dragao."},
@@ -227,7 +227,7 @@ ARMADURAS_POR_CLASSE = {
         {"id":"armadura_dragao_l","nome":"Armadura do Dragao Lendario","emoji":"🐉","raridade":"Lendario","def_bonus":56,"preco":0,"desc":"A armadura definitiva de um dracomante."},
     ],
     "arcano": [
-        {"id":"robe_arcano_p",   "nome":"Robe Arcano",        "emoji":"✨","raridade":"Comum",    "def_bonus":2,  "preco":0,    "desc":"Robe de energia arcana. +5 mana."},
+        {"id":"robe_arcano_p",   "nome":"Robe Arcano",        "emoji":"✨","raridade":"Comum",    "def_bonus":2,  "preco":20,   "desc":"Robe de energia arcana. +5 mana."},
         {"id":"manto_arcano",    "nome":"Manto Arcano",       "emoji":"✨","raridade":"Comum",    "def_bonus":4,  "preco":85,   "desc":"Manto de poder arcano. +10 mana."},
         {"id":"robe_singularidade","nome":"Robe da Singularidade","emoji":"🌀","raridade":"Incomum","def_bonus":7,"preco":230,"desc":"Robe que dobra a realidade. +20 mana."},
         {"id":"manto_vazio",     "nome":"Manto do Vazio",     "emoji":"🌀","raridade":"Incomum",  "def_bonus":9,  "preco":260,  "desc":"Manto do vazio absoluto. +25 mana."},
