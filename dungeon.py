@@ -470,7 +470,32 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         linha = ""
         cor   = 0x378ADD
 
-        if acao == "pocao" and val:
+        nivel_p = p["nivel"]
+
+        def _mult_basico_dg(nv):
+            if nv <= 9:    return 1.0
+            elif nv <= 19: return 1.1
+            elif nv <= 29: return 1.2
+            elif nv <= 39: return 1.3
+            elif nv <= 49: return 1.4
+            elif nv <= 59: return 1.5
+            elif nv <= 74: return 1.6
+            else:          return 1.8
+
+        if acao == "atk_basico":
+            from batalha import calc_dano as _cd_dg
+            dano = _cd_dg(p["ataque"], monstro["defesa"], _mult_basico_dg(nivel_p),
+                         bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_m)
+            hp_m = max(0, hp_m - dano)
+            linha = f"⚔️ **Ataque Básico**: **{dano} de dano**! *(sem mana)*"
+            cor   = 0x888780
+
+        elif acao == "defesa_basica":
+            efeitos["defesa_basica"] = 1
+            linha = f"🛡️ **Postura Defensiva!** 60% de chance de reduzir 80% do próximo dano. *(sem mana)*"
+            cor   = 0x378ADD
+
+        elif acao == "pocao" and val:
             pd = POCOES_DEF.get(val)
             if pd:
                 await remover_pocao(p["user_id"], val)
