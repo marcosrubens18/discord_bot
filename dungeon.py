@@ -588,24 +588,62 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         await asyncio.sleep(1.0)
 
         # Monstro ataca
-        sk_m = random.choice(monstro["skills"]); dano_m = calc_dano(monstro["ataque"], p["defesa"])
-        if "esquiva" in efeitos and efeitos["esquiva"]>0:
-            linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**... mas voce **esquivou!** 💨"
-            efeitos["esquiva"] -= 1; cor_m = 0x888780
-        elif "escudo" in efeitos and efeitos["escudo"]>0:
+        sk_m   = random.choice(monstro["skills"])
+        dano_m = calc_dano(monstro["ataque"], p["defesa"], nivel=nivel_p)
+        cor_m  = 0xE24B4A
+
+        if efeitos.get("defesa_basica", 0) > 0:
+            efeitos["defesa_basica"] = 0
+            if random.random() < 0.60:
+                dano_red = max(1, int(dano_m * 0.20))
+                hp_j     = max(0, hp_j - dano_red)
+                linha_m  = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_red} dano** (🛡️ Defesa funcionou! -80%!)"
+                cor_m    = 0x378ADD
+            else:
+                hp_j    = max(0, hp_j - dano_m)
+                linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_m} dano** (❌ Defesa falhou! Dano total!)"
+
+        elif efeitos.get("esquiva", 0) > 0:
+            linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**... mas você **esquivou!** 💨"
+            efeitos["esquiva"] -= 1
+            cor_m = 0x888780
+
+        elif efeitos.get("escudo", 0) > 0:
             linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**... mas o **escudo absorveu!** 💜"
-            efeitos["escudo"] -= 1; cor_m = 0x7F77DD
+            efeitos["escudo"] -= 1
+            cor_m = 0x7F77DD
+
+        elif efeitos.get("armadura", 0) > 0:
+            dano_red = max(1, int(dano_m * 0.65))
+            hp_j     = max(0, hp_j - dano_red)
+            linha_m  = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_red} dano** (🐉 Armadura -35%!)"
+            efeitos["armadura"] -= 1
+            cor_m = 0xE67E22
+
         else:
-            hp_j -= dano_m; hp_j = max(0, hp_j)
-            linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: **{dano_m} dano!**"
-            cor_m = 0xE24B4A
+            hp_j    = max(0, hp_j - dano_m)
+            linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji'] if 'emoji' in sk_m else '⚔️'} {sk_m['nome']}**: **{dano_m} dano!**"
+
+        # Mana regen por rank
+        if nivel_p <= 9:    regen = 3
+        elif nivel_p <= 19: regen = 5
+        elif nivel_p <= 29: regen = 8
+        elif nivel_p <= 39: regen = 12
+        elif nivel_p <= 49: regen = 16
+        elif nivel_p <= 59: regen = 22
+        elif nivel_p <= 74: regen = 30
+        else:               regen = 40
+        mana_j = min(mana_jmx, mana_j + regen)
 
         msg_m = await interaction.followup.send(
-            embed=discord.Embed(title=f"{monstro['emoji']} {monstro['nome']} atacou!", description=f"{linha_m}\n\n{status()}", color=cor_m),
+            embed=discord.Embed(
+                title=f"{monstro['emoji']} {monstro['nome']} atacou!",
+                description=f"{linha_m}\n\n{status()}\n💙 +{regen} mana ({mana_j}/{mana_jmx})",
+                color=cor_m
+            ),
             wait=True
         )
         msgs.append(msg_m)
-        mana_j = min(mana_jmx, mana_j+5)
         turno += 1
         await asyncio.sleep(0.8)
 
