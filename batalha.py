@@ -695,11 +695,31 @@ class BatalhaView(discord.ui.View):
             self.add_item(btn)
         self._max_slots = max_slots
 
+        # Ataque Basico — sempre visivel, sem mana, escala com rank
+        atk_btn = discord.ui.Button(
+            label="⚔️ Ataque Básico",
+            style=discord.ButtonStyle.secondary,
+            row=2,
+            custom_id="atk_basico"
+        )
+        atk_btn.callback = self._atk_basico
+        self.add_item(atk_btn)
+
+        # Defesa — sempre visivel, sem mana, 60% bloqueia 80% do dano
+        def_btn = discord.ui.Button(
+            label="🛡️ Defesa",
+            style=discord.ButtonStyle.secondary,
+            row=2,
+            custom_id="defesa_basica"
+        )
+        def_btn.callback = self._defesa_basica
+        self.add_item(def_btn)
+
         mochila_btn = discord.ui.Button(
             label=f"🎒 Mochila ({len(self._pocoes)})" if self._pocoes else "🎒 Mochila (vazia)",
             style=discord.ButtonStyle.secondary,
             disabled=len(self._pocoes) == 0,
-            row=2,
+            row=3,
             custom_id="mochila"
         )
         mochila_btn.callback = self._abrir_mochila
@@ -707,7 +727,7 @@ class BatalhaView(discord.ui.View):
 
         fugir_btn = discord.ui.Button(
             label="🏃 Fugir", style=discord.ButtonStyle.danger,
-            row=2, custom_id="fugir"
+            row=3, custom_id="fugir"
         )
         fugir_btn.callback = self._fugir
         self.add_item(fugir_btn)
@@ -755,6 +775,24 @@ class BatalhaView(discord.ui.View):
         v.add_item(sel)
         try: await inter.response.send_message("Escolha a pocao:", view=v, ephemeral=True)
         except: pass
+
+    async def _atk_basico(self, inter: discord.Interaction):
+        try: await inter.response.defer()
+        except: pass
+        if inter.user.id != self.user_id or self.acao_feita:
+            return
+        self.acao_feita = True
+        self.acao = ("atk_basico", None)
+        self.stop()
+
+    async def _defesa_basica(self, inter: discord.Interaction):
+        try: await inter.response.defer()
+        except: pass
+        if inter.user.id != self.user_id or self.acao_feita:
+            return
+        self.acao_feita = True
+        self.acao = ("defesa_basica", None)
+        self.stop()
 
     async def _fugir(self, inter: discord.Interaction):
         try: await inter.response.defer()
@@ -876,6 +914,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         await view.wait()
 
         acao, val = view.acao or ("timeout", None)
+        nivel_p = p["nivel"]
         try: await msg_vez.edit(view=None)
         except: pass
 
@@ -897,14 +936,42 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                 except: pass
             return
 
+        elif acao == "atk_basico":
+            # Ataque basico sem mana — escala com rank
+            if nivel_p <= 9:    mult_basico = 1.0
+            elif nivel_p <= 19: mult_basico = 1.1
+            elif nivel_p <= 29: mult_basico = 1.2
+            elif nivel_p <= 39: mult_basico = 1.3
+            elif nivel_p <= 49: mult_basico = 1.4
+            elif nivel_p <= 59: mult_basico = 1.5
+            elif nivel_p <= 74: mult_basico = 1.6
+            else:               mult_basico = 1.8
+            dano = calc_dano(p["ataque"], monstro["defesa"], mult_basico,
+                             bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
+            hp_m = max(0, hp_m - dano)
+            linha_jogador = f"⚔️ **Ataque Básico**: **{dano} de dano**! *(sem custo de mana)*"
+            cor_acao = 0x888780
+
+        elif acao == "defesa_basica":
+            # Defesa: 60% bloqueia 80% do dano no proximo turno
+            add_efeito(efeitos_j, "defesa_basica", 1, valor=0)
+            linha_jogador = f"🛡️ **Postura Defensiva!** 60% de chance de reduzir 80% do dano no próximo ataque. *(sem custo de mana)*"
+            cor_acao = 0x378ADD
+
         elif acao == "timeout":
-            # Auto-usa primeira skill
-            sk = skills[0] if skills else None
-            if sk:
-                dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk)
-                dano = int(dano * passiva.multiplicador_dano())
-                hp_m = max(0, hp_m - dano)
-                linha_jogador = f"⏰ Tempo! {sk['emoji']} **{sk['nome']}** (auto): **{dano} de dano**!"
+            # Auto-usa ataque basico
+            if nivel_p <= 9:    mult_basico = 1.0
+            elif nivel_p <= 19: mult_basico = 1.1
+            elif nivel_p <= 29: mult_basico = 1.2
+            elif nivel_p <= 39: mult_basico = 1.3
+            elif nivel_p <= 49: mult_basico = 1.4
+            elif nivel_p <= 59: mult_basico = 1.5
+            elif nivel_p <= 74: mult_basico = 1.6
+            else:               mult_basico = 1.8
+            dano = calc_dano(p["ataque"], monstro["defesa"], mult_basico,
+                             bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
+            hp_m = max(0, hp_m - dano)
+            linha_jogador = f"⏰ Tempo! ⚔️ **Ataque Básico** (auto): **{dano} de dano**!"
 
         elif acao == "pocao":
             hp_j, mana_j, linha_jogador = aplicar_efeito_pocao(val, hp_j, hp_jmx, mana_j, mana_jmx)
@@ -1075,6 +1142,21 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                 ef_key = "escudo_total" if efeito_ativo(efeitos_j, "escudo_total") else "escudo"
                 efeitos_j[ef_key]["duracao"] -= 1
                 cor_monstro = 0x7F77DD
+
+            elif efeito_ativo(efeitos_j, "defesa_basica"):
+                # Defesa basica: 60% bloqueia 80% do dano, 40% falha e toma dano total
+                efeitos_j["defesa_basica"]["duracao"] = 0
+                if random.random() < 0.60:
+                    dano_m = max(1, int(dano_m * 0.20))  # bloqueia 80%
+                    hp_j   = max(0, hp_j - dano_m)
+                    tomou_dano = True
+                    passiva.apos_tomar_dano()
+                    linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: **{dano_m} de dano** (🛡️ Defesa funcionou! -80% dano!)"
+                else:
+                    hp_j = max(0, hp_j - dano_m)
+                    tomou_dano = True
+                    passiva.apos_tomar_dano()
+                    linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: **{dano_m} de dano** (❌ Defesa falhou! Dano total!)"
 
             elif efeito_ativo(efeitos_j, "defesa"):
                 dano_m = max(1, dano_m // 2)
