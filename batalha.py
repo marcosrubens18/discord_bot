@@ -1099,10 +1099,18 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         if not tomou_dano:
             passiva.fim_turno_sem_dano()
 
-        # Regen de mana por turno — ANTES do embed para poder mostrar
+        # Regen de mana por turno — escala pelo rank
         mana_antes = mana_j
-        regen_mana = 10
-        mana_j     = min(mana_jmx, mana_j + regen_mana)
+        nivel_p    = p["nivel"]
+        if nivel_p <= 9:    regen_mana = 3    # Rank F
+        elif nivel_p <= 19: regen_mana = 5    # Rank E
+        elif nivel_p <= 29: regen_mana = 8    # Rank D
+        elif nivel_p <= 39: regen_mana = 12   # Rank C
+        elif nivel_p <= 49: regen_mana = 16   # Rank B
+        elif nivel_p <= 59: regen_mana = 22   # Rank A
+        elif nivel_p <= 74: regen_mana = 30   # Rank S
+        else:               regen_mana = 40   # Rank SS
+        mana_j = min(mana_jmx, mana_j + regen_mana)
 
         regen_txt = f"\n💙 +{regen_mana} mana regenerada ({mana_j}/{mana_jmx})" if mana_j > mana_antes else ""
 
