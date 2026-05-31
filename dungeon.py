@@ -304,10 +304,33 @@ POCOES_DEF = {
     },
 }
 
-def calc_dano(atk, dfs, mult=1.0, crit=False):
-    base = max(1, atk - dfs//2)
-    d = int(base*mult) + random.randint(-2,3)
-    return max(1, int(d*1.5) if crit else d)
+def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False,
+              nivel=1, hp_max_monstro=None, passiva_mult=1.0):
+    """Calc de dano unificado — mesma logica do batalha.py"""
+    if nivel <= 9:    df, mc = 1.1,  1.10
+    elif nivel <= 19: df, mc = 0.95, 1.25
+    elif nivel <= 29: df, mc = 0.85, 1.45
+    elif nivel <= 39: df, mc = 0.78, 1.60
+    elif nivel <= 49: df, mc = 0.72, 1.70
+    elif nivel <= 59: df, mc = 0.67, 1.75
+    elif nivel <= 74: df, mc = 0.62, 1.80
+    else:             df, mc = 0.58, 1.80
+    mt  = min(mc, mult * min(float(passiva_mult), 1.40))
+    dm  = max(2, int(atk * 0.08))
+    if ignorar_defesa:
+        base = int((atk / df) * mt)
+    else:
+        ae   = max(1, atk - int(dfs * 0.30))
+        base = int((ae / df) * mt)
+    base = max(dm, base)
+    var  = random.randint(-max(1, base//12), max(1, base//12))
+    d    = max(dm, base + var)
+    d    = int(d * min(bonus_atk, 1.10))
+    if crit:
+        d = int(d * 1.25)
+    if hp_max_monstro and hp_max_monstro > 0:
+        d = min(d, max(dm, int(hp_max_monstro * 0.38)))
+    return max(dm, d)
 
 def barra_hp(cur, mx):
     if mx <= 0: return "░░░░░░░░░░"
