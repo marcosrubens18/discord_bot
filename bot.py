@@ -25,6 +25,7 @@ from batalha import (
 from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progresso
 from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
 from eventos import cmd_criar_evento, cmd_eventos, cmd_evento_info, cmd_encerrar_evento, cmd_add_pontos, init_db_eventos
+from anuncios import cmd_anunciar, cmd_anunciar_evento, cmd_agendar_anuncio, CORES
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
 from imagens import (
@@ -253,15 +254,24 @@ async def criar_personagem(interaction: discord.Interaction):
     if guild:
         member = guild.get_member(uid)
         if member:
-            for n in ["Morador da Vila", raca["cargos"]]:
-                c = discord.utils.get(guild.roles, name=n)
-                if c:
-                    try: await member.add_roles(c)
-                    except: pass
+            # Cargo de raca
+            cargo_raca = discord.utils.get(guild.roles, name=raca.get("cargos",""))
+            if cargo_raca:
+                try: await member.add_roles(cargo_raca)
+                except: pass
+            # Cargo base
+            cargo_base = discord.utils.get(guild.roles, name="🏠 Morador da Vila")
+            if not cargo_base:
+                cargo_base = discord.utils.get(guild.roles, name="Morador da Vila")
+            if cargo_base:
+                try: await member.add_roles(cargo_base)
+                except: pass
+            # Remove recem-chegado
             recem = discord.utils.get(guild.roles, name="🌱 Recem-chegado")
             if recem and recem in member.roles:
                 try: await member.remove_roles(recem)
                 except: pass
+            # Cargo de rank/nivel
             await atualizar_todos_cargos(guild, member, 1)
         await criar_canal_privado(guild, member, nome, classe)
 
@@ -925,6 +935,67 @@ async def add_pontos(interaction: discord.Interaction, jogador: discord.Member, 
     await cmd_add_pontos(interaction, jogador, pontos, evento_id)
 
 
+
+# ─── /anunciar ───────────────────────────────────────────────────
+
+@bot.tree.command(name="anunciar", description="[ADMIN] Cria e envia um anuncio formatado")
+@app_commands.describe(
+    canal="Canal onde o anuncio sera enviado",
+    cor="Cor do embed",
+    ping="Cargo a pingar (opcional)"
+)
+@app_commands.choices(cor=[
+    app_commands.Choice(name="Dourado", value="dourado"),
+    app_commands.Choice(name="Roxo", value="roxo"),
+    app_commands.Choice(name="Verde", value="verde"),
+    app_commands.Choice(name="Azul", value="azul"),
+    app_commands.Choice(name="Vermelho", value="vermelho"),
+    app_commands.Choice(name="Laranja", value="laranja"),
+    app_commands.Choice(name="Cinza", value="cinza"),
+    app_commands.Choice(name="Preto", value="preto"),
+])
+@app_commands.checks.has_permissions(administrator=True)
+async def anunciar(interaction: discord.Interaction, canal: discord.TextChannel,
+                   cor: str = "roxo", ping: discord.Role = None):
+    await cmd_anunciar(interaction, canal, cor, ping)
+
+
+# ─── /anunciar-evento ────────────────────────────────────────────
+
+@bot.tree.command(name="anunciar-evento", description="[ADMIN] Anuncia um evento com data e premio")
+@app_commands.describe(
+    canal="Canal do anuncio",
+    ping="Cargo a pingar (opcional)"
+)
+@app_commands.checks.has_permissions(administrator=True)
+async def anunciar_evento(interaction: discord.Interaction, canal: discord.TextChannel,
+                          ping: discord.Role = None):
+    await cmd_anunciar_evento(interaction, canal, ping)
+
+
+# ─── /agendar-anuncio ────────────────────────────────────────────
+
+@bot.tree.command(name="agendar-anuncio", description="[ADMIN] Agenda um anuncio para enviar depois")
+@app_commands.describe(
+    canal="Canal do anuncio",
+    cor="Cor do embed"
+)
+@app_commands.choices(cor=[
+    app_commands.Choice(name="Dourado", value="dourado"),
+    app_commands.Choice(name="Roxo", value="roxo"),
+    app_commands.Choice(name="Verde", value="verde"),
+    app_commands.Choice(name="Azul", value="azul"),
+    app_commands.Choice(name="Vermelho", value="vermelho"),
+    app_commands.Choice(name="Laranja", value="laranja"),
+    app_commands.Choice(name="Cinza", value="cinza"),
+    app_commands.Choice(name="Preto", value="preto"),
+])
+@app_commands.checks.has_permissions(administrator=True)
+async def agendar_anuncio(interaction: discord.Interaction, canal: discord.TextChannel,
+                          cor: str = "dourado"):
+    await cmd_agendar_anuncio(interaction, canal, cor)
+
+
 # ─── /ajuda ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="ajuda", description="Lista todos os comandos do RPG")
@@ -937,6 +1008,7 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Progresso",  value="`/missoes` `/conquistas` `/ranking` `/girar`", inline=False)
     embed.add_field(name="Admin",      value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros` `/set-vida` `/set-mana`", inline=False)
     embed.add_field(name="Eventos",    value="`/criar-evento` `/eventos` `/evento-info` `/encerrar-evento` `/add-pontos`", inline=False)
+    embed.add_field(name="Anuncios",   value="`/anunciar` `/anunciar-evento` `/agendar-anuncio`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
