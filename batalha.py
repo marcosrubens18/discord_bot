@@ -297,7 +297,7 @@ async def init_db_batalha():
 
 # ─── CALCULOS ────────────────────────────────────────────────────
 
-def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False, nivel=1, hp_max_monstro=None):
+def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False, nivel=1, hp_max_monstro=None, passiva_mult=1.0):
     """Dano escalado pelo nivel de forma linear e controlada.
 
     Rank F (Nv1-9):   dano base ATK/4  → mago nv1 ATK10 = 2-5 dano base
