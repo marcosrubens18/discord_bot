@@ -10,7 +10,7 @@ from discord.ext import commands
 from db import get_pool, init_db
 from catalogo import (
     get_rank, CARGOS_RANK, calcular_mana_max,
-    get_armas_classe, get_armaduras_classe, calcular_stats
+    get_armas_classe, get_armaduras_classe
 )
 from utils import atualizar_cargo_nivel, atualizar_cargo_rank, atualizar_todos_cargos
 from setup_cmd import cmd_setup
@@ -34,6 +34,18 @@ from imagens import (
 )
 
 # ─── DADOS ───────────────────────────────────────────────────────
+def calcular_stats(poder_valor, destino_id, nivel=1):
+    hp  = 80 + poder_valor*2 + nivel*5
+    atk = 8  + poder_valor//5 + nivel*2
+    dfs = 5  + poder_valor//6 + nivel*1
+    if destino_id == "prodigio":    atk = int(atk*1.12); dfs = int(dfs*0.95)
+    elif destino_id == "guardiao":  dfs = int(dfs*1.12); atk = int(atk*0.95)
+    elif destino_id == "abencado":  hp=int(hp*1.08); atk=int(atk*1.05); dfs=int(dfs*1.05)
+    elif destino_id == "maldito":   atk=int(atk*0.85); dfs=int(dfs*0.85)
+    elif destino_id == "amaldicoado": atk=random.randint(5,atk+5); dfs=random.randint(3,dfs+3)
+    return hp, atk, dfs
+
+
 
 CLASSES = [
     {"id":"guerreiro","nome":"Guerreiro","emoji":"🗡️","raridade":"Comum","peso":30,"desc":"Combate corpo a corpo. Alta defesa."},
