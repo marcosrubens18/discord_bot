@@ -1096,7 +1096,16 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                 reducao_txt = f" (-10% dragão)" if reducao > 0 else ""
                 linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: **{dano_m} de dano**{reducao_txt}!"
 
-        regen_txt = f"\n💙 +{regen_mana} mana regenerada ({mana_j}/{mana_jmx})" if mana_antes < mana_jmx and mana_antes != mana_j else ""
+        if not tomou_dano:
+            passiva.fim_turno_sem_dano()
+
+        # Regen de mana por turno — ANTES do embed para poder mostrar
+        mana_antes = mana_j
+        regen_mana = 10
+        mana_j     = min(mana_jmx, mana_j + regen_mana)
+
+        regen_txt = f"\n💙 +{regen_mana} mana regenerada ({mana_j}/{mana_jmx})" if mana_j > mana_antes else ""
+
         embed_m = discord.Embed(
             title=f"{monstro['emoji']} {monstro['nome']} age!",
             description=f"{linha_monstro}\n\n{barra_status()}{regen_txt}",
@@ -1104,14 +1113,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         )
         msgs_batalha.append(await interaction.followup.send(embed=embed_m, wait=True))
 
-        if not tomou_dano:
-            passiva.fim_turno_sem_dano()
-
-        # Regen de mana por turno
-        mana_antes  = mana_j
-        regen_mana  = 10
-        mana_j      = min(mana_jmx, mana_j + regen_mana)
-        turno      += 1
+        turno += 1
         await asyncio.sleep(1.0)
 
     # ─── RESULTADO ───────────────────────────────────────────────
