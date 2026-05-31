@@ -1133,15 +1133,16 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         _chance_loot = {"facil":0.15, "medio":0.22, "dificil":0.30, "lendario":0.40}
         _chance = _chance_loot.get(monstro.get("dificuldade","facil"), 0.20)
         loot = [random.choice(monstro["loot"])] if random.random() < _chance else []
+        # 5 moedas fixas por vitoria no treino
         lvlups, nivel_novo, rank_mudou, rank_obj = await salvar_resultado(
-            uid, hp_j, monstro["xp"], 0, True, p["classe_id"], p["nivel"], mana_j
+            uid, hp_j, monstro["xp"], 5, True, p["classe_id"], p["nivel"], mana_j
         )
         if loot:
             await add_loot(uid, loot)
 
         desc = (
             f"🏆 Você derrotou **{monstro['emoji']} {monstro['nome']}**!\n\n"
-            f"✨ **+{monstro['xp']} XP**\n📦 Venda o loot no `/mercado` para ganhar moedas!"
+            f"✨ **+{monstro['xp']} XP** | 💰 **+5 moedas**\n📦 Venda o loot no `/mercado` para mais moedas!"
         )
         if loot:
             desc += f"\n🎁 Loot: {loot[0][4]} **{loot[0][1]}** [{loot[0][3]}]"
