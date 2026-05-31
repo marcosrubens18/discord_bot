@@ -105,14 +105,15 @@ def get_destino(did):
     return next((d for d in DESTINOS if d["id"] == did), None)
 
 def calcular_stats(poder_valor, destino_id, nivel):
-    hp  = 80 + poder_valor*3 + nivel*5
-    atk = 8  + poder_valor//2 + nivel*2
-    dfs = 5  + poder_valor//3 + nivel*1
-    if destino_id == "prodigio":    atk = int(atk*1.25); dfs = int(dfs*0.9)
-    elif destino_id == "guardiao":  dfs = int(dfs*1.25); atk = int(atk*0.9)
-    elif destino_id == "abencado":  hp=int(hp*1.1); atk=int(atk*1.1); dfs=int(dfs*1.1)
-    elif destino_id == "maldito":   atk=int(atk*0.7); dfs=int(dfs*0.7)
-    elif destino_id == "amaldicoado": atk=random.randint(5,atk*2); dfs=random.randint(3,dfs*2)
+    # Poder da diferenca pequena no inicio — cresce com o nivel
+    hp  = 80 + poder_valor*2 + nivel*5
+    atk = 8  + poder_valor//5 + nivel*2   # era //2 — muito alto
+    dfs = 5  + poder_valor//6 + nivel*1   # era //3
+    if destino_id == "prodigio":    atk = int(atk*1.12); dfs = int(dfs*0.95)
+    elif destino_id == "guardiao":  dfs = int(dfs*1.12); atk = int(atk*0.95)
+    elif destino_id == "abencado":  hp=int(hp*1.08); atk=int(atk*1.05); dfs=int(dfs*1.05)
+    elif destino_id == "maldito":   atk=int(atk*0.85); dfs=int(dfs*0.85)
+    elif destino_id == "amaldicoado": atk=random.randint(5,atk+5); dfs=random.randint(3,dfs+3)
     return hp, atk, dfs
 
 def xp_needed(nivel):
