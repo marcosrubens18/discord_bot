@@ -1346,6 +1346,20 @@ async def on_member_join(member: discord.Member):
         await member.send(embed=embed)
     except: pass
 
+@bot.command(name="sync")
+async def sync_cmd(ctx):
+    try:
+        guild_id = int(os.getenv("GUILD_ID", "0"))
+        count = 0
+        if guild_id:
+            s = await bot.tree.sync(guild=discord.Object(id=guild_id))
+            count += len(s)
+        s2 = await bot.tree.sync()
+        count += len(s2)
+        await ctx.send(f"✅ {count} comandos sincronizados!")
+    except Exception as e:
+        await ctx.send(f"❌ Erro: {e}")
+
 if __name__ == "__main__":
     token = os.getenv("DISCORD_TOKEN")
     if not token:
