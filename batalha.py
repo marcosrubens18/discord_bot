@@ -1,1416 +1,1411 @@
-# batalha.py — PostgreSQL — Completo com todos os bugs corrigidos
+# -*- coding: utf-8 -*-
+import sys, io, os, random, asyncio
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
 import discord
-import asyncio
-import random
-from db import get_pool
-from racas import PassivaRacial, get_raca
-from imagens import IMG_VITORIA, IMG_DERROTA, IMG_LEVEL_UP, IMG_MONSTRO
-from catalogo import (
-    get_rank, CARGOS_RANK,
-    get_bonus_arma, get_bonus_armadura,
-    get_ids_armas_classe, get_ids_armaduras_classe,
-    get_skill_by_id, SKILLS_COMPLETAS,
-    calcular_mana_max,
+from discord import app_commands
+from discord.ext import commands
+
+from db import get_pool, init_db
+from catalogo import get_rank, CARGOS_RANK, calcular_mana_max, get_armas_classe, get_armaduras_classe
+from utils import atualizar_cargo_nivel, atualizar_cargo_rank, atualizar_todos_cargos
+from setup_cmd import cmd_setup
+from dungeon import cmd_dungeon
+from hospital import (
+    cmd_hospital, cmd_girar, cmd_set_giros, init_db_hospital,
+    COR_RAR, EMOJI_FICHA
+)
+from batalha import (
+    rodar_pvp, rodar_treino, MONSTROS, SKILLS_POR_CLASSE, BATALHAS_ATIVAS,
+    get_skills_eq, get_skills_desbloq, GerenciarSkillsView,
+    AceitarDueloView, EscolherArenaView, init_db_batalha,
+    ARENAS, LOJA_ITENS, RECEITAS, POCOES
+)
+from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progresso
+from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
+from mercado import cmd_mercador, cmd_mercado_vender
+from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
+from imagens import (
+    IMG_PERFIL, IMG_SETUP, IMG_INVENTARIO, IMG_SKILLS, IMG_AJUDA,
+    IMG_LOJA, IMG_FERREIRO, IMG_HOSPITAL, IMG_MERCADO, IMG_MERCADOR,
+    IMG_MISSOES, IMG_RANKING, IMG_CONQUISTAS, IMG_ROLETA,
+    IMG_BANNER_GERAL, IMG_VITORIA, IMG_DERROTA, IMG_LEVEL_UP, IMG_CLASSE
 )
 
-# ─── CONSTANTES ──────────────────────────────────────────────────
+# ─── CONFIG ──────────────────────────────────────────────────────
 
-EMOJI_CLASSE = {
-    "guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹",
-    "paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"
-}
-COR_RAR = {
-    "Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,
-    "Epico":0x7F77DD,"Lendario":0xD85A30
-}
-
-ARENAS = [
-    {"id":"floresta","nome":"Floresta Sombria", "emoji":"🌲","bonus":"magia +15%","cor":0x1D9E75,"img":"https://i.imgur.com/5Q2xXkN.png"},
-    {"id":"vulcao",  "nome":"Cratera Vulcanica","emoji":"🌋","bonus":"fogo +20%", "cor":0xD85A30,"img":"https://i.imgur.com/6kqJv1R.png"},
-    {"id":"gelo",    "nome":"Pico de Gelo",     "emoji":"❄️","bonus":"def +10%", "cor":0x378ADD,"img":"https://i.imgur.com/3nQpLmZ.png"},
-    {"id":"ruinas",  "nome":"Ruinas Arcanas",   "emoji":"🏚️","bonus":"crit +10%","cor":0x7F77DD,"img":"https://i.imgur.com/8PqWrTz.png"},
-    {"id":"coloseu", "nome":"Coloseu Real",      "emoji":"🏟️","bonus":"neutro",  "cor":0xE4AF3C,"img":"https://i.imgur.com/2LmNxKp.png"},
+CLASSES = [
+    {"id":"guerreiro",  "nome":"Guerreiro",  "emoji":"🗡️","raridade":"Comum",   "peso":30, "desc":"Combate corpo a corpo. Alta defesa e ataques físicos poderosos."},
+    {"id":"arqueiro",   "nome":"Arqueiro",   "emoji":"🏹","raridade":"Comum",   "peso":25, "desc":"Especialista em precisão. Críticos frequentes e esquiva."},
+    {"id":"mago",       "nome":"Mago",       "emoji":"🔮","raridade":"Comum",   "peso":20, "desc":"Mestre da magia. Dano massivo que cresce a cada turno."},
+    {"id":"paladino",   "nome":"Paladino",   "emoji":"⚡","raridade":"Incomum", "peso":12, "desc":"Híbrido sagrado. Cura e combate ao mesmo tempo."},
+    {"id":"necromante", "nome":"Necromante", "emoji":"🌑","raridade":"Raro",    "peso":8,  "desc":"Mestre das trevas. Drena vida e invoca mortos."},
+    {"id":"dracomante", "nome":"Dracomante", "emoji":"🐉","raridade":"Lendario","peso":2,  "desc":"Sangue de dragão. Fogo e resistência absolutos."},
+    {"id":"arcano",     "nome":"Arcano",     "emoji":"✨","raridade":"Epico",   "peso":3,  "desc":"Poder do vazio. Dano arcano que ignora defesa."},
 ]
-
-POCOES = {
-    "pocao_hp_p":  {"nome":"Pocao de Cura P","emoji":"🧪","tipo":"hp",  "valor":30, "preco":50},
-    "pocao_hp_m":  {"nome":"Pocao de Cura M","emoji":"💊","tipo":"hp",  "valor":60, "preco":100},
-    "pocao_hp_g":  {"nome":"Pocao de Cura G","emoji":"❤️","tipo":"hp",  "valor":120,"preco":200},
-    "pocao_mana_p":{"nome":"Pocao de Mana P","emoji":"🔵","tipo":"mana","valor":20, "preco":60},
-    "pocao_mana_m":{"nome":"Pocao de Mana M","emoji":"💙","tipo":"mana","valor":50, "preco":120},
-    "elixir":      {"nome":"Elixir Supremo", "emoji":"✨","tipo":"full","valor":999,"preco":500},
-}
-
-LOJA_ITENS = {
-    "pocoes": [
-        {"id":k,"nome":v["nome"],"emoji":v["emoji"],"raridade":"Comum","preco":v["preco"],
-         "desc":f"Recupera {v['valor']} {'HP' if v['tipo']=='hp' else 'Mana'}"}
-        for k,v in POCOES.items()
-    ],
-}
-
-RECEITAS = [
-    # ── Rank Raro ─────────────────────────────────────────────────
-    {"id":"espada_orc",     "nome":"Espada Orc",         "emoji":"🗡️","tipo":"arma",    "raridade":"Raro",    "desc":"Forjada com metal orc. ATK +20",
-     "materiais":{"dente_orc":2,"minerio_ferro":3},"preco_forja":100},
-    {"id":"cajado_osso2",   "nome":"Cajado Osseo+",      "emoji":"💀","tipo":"arma",    "raridade":"Raro",    "desc":"Amplifica magia negra. Magia +17",
-     "materiais":{"dente_orc":1,"sangue_anciao":1},"preco_forja":200},
-    {"id":"anel_combate",   "nome":"Anel de Combate",    "emoji":"💍","tipo":"acessorio","raridade":"Raro",   "desc":"+10 ATK e +5 DEF permanente",
-     "materiais":{"fragmento_golem":1,"minerio_ferro":2},"preco_forja":150},
-    {"id":"manto_sombra2",  "nome":"Manto das Sombras+", "emoji":"🧥","tipo":"armadura","raridade":"Raro",    "desc":"DEF +20 e +15% esquiva",
-     "materiais":{"muco_troll":2,"essencia_sombria":1},"preco_forja":220},
-    {"id":"pocao_superior", "nome":"Pocao Superior",     "emoji":"🍶","tipo":"pocao",   "raridade":"Raro",    "desc":"Restaura 200 HP instantaneamente",
-     "materiais":{"sangue_anciao":1,"olho_dragao":1},"preco_forja":180},
-    {"id":"lanca_orc",      "nome":"Lanca Orc",          "emoji":"🔱","tipo":"arma",    "raridade":"Raro",    "desc":"Forjada com ossos de orc. ATK +18",
-     "materiais":{"dente_orc":3,"osso_oco":2},"preco_forja":160},
-
-    # ── Rank Epico ────────────────────────────────────────────────
-    {"id":"armadura_escama","nome":"Armadura de Escama", "emoji":"🐉","tipo":"armadura","raridade":"Epico",   "desc":"Escamas de dragao. DEF +25",
-     "materiais":{"escama_dragao":1,"fragmento_golem":2},"preco_forja":300},
-    {"id":"espada_sombria2","nome":"Espada das Trevas",  "emoji":"🗡️","tipo":"arma",    "raridade":"Epico",   "desc":"Drena HP ao acertar. ATK +28",
-     "materiais":{"essencia_sombria":2,"dente_orc":2},"preco_forja":400},
-    {"id":"cajado_vazio2",  "nome":"Cajado do Vazio+",   "emoji":"🌀","tipo":"arma",    "raridade":"Epico",   "desc":"Ignora 20% da defesa. ATK +26",
-     "materiais":{"essencia_sombria":1,"olho_dragao":1,"fragmento_golem":1},"preco_forja":450},
-    {"id":"capa_grifo",     "nome":"Capa do Grifo",      "emoji":"🦅","tipo":"armadura","raridade":"Epico",   "desc":"DEF +30 e +20% velocidade",
-     "materiais":{"pena_grifo":3,"pele_lobo":4},"preco_forja":380},
-
-    # ── Rank Lendario ─────────────────────────────────────────────
-    {"id":"elmo_dragao",    "nome":"Elmo do Dragao",     "emoji":"🪖","tipo":"armadura","raridade":"Lendario","desc":"Protecao maxima. DEF +32",
-     "materiais":{"escama_dragao":2,"olho_dragao":1},"preco_forja":500},
-    {"id":"espada_dragao2", "nome":"Espada do Dragao+",  "emoji":"⚔️","tipo":"arma",    "raridade":"Lendario","desc":"Flamejante eternamente. ATK +40",
-     "materiais":{"escama_dragao":3,"dente_dragao":2},"preco_forja":700},
-    {"id":"armadura_titan", "nome":"Armadura do Titan",  "emoji":"🗿","tipo":"armadura","raridade":"Lendario","desc":"Maxima protecao. DEF +45 +20% HP max",
-     "materiais":{"fragmento_titan":2,"escama_dragao":2,"fragmento_golem":3},"preco_forja":900},
-    {"id":"cajado_lich2",   "nome":"Cetro do Lich+",     "emoji":"💀","tipo":"arma",    "raridade":"Lendario","desc":"Poder necrotico supremo. ATK +47",
-     "materiais":{"essencia_lich":1,"coroa_lich":1},"preco_forja":800},
+PODERES = [
+    {"id":"fraquinho","nome":"Fraquinho",     "emoji":"💀","valor":10},
+    {"id":"mediano",  "nome":"Mediano",       "emoji":"⚖️","valor":18},
+    {"id":"acima",    "nome":"Acima da media","emoji":"📈","valor":26},
+    {"id":"forte",    "nome":"Forte",         "emoji":"💪","valor":35},
+    {"id":"epico",    "nome":"Epico",         "emoji":"⚡","valor":48},
+    {"id":"absurdo",  "nome":"Absurdo",       "emoji":"🔥","valor":65},
 ]
-
-MONSTROS = [
-    # ── FACIL ─────────────────────────────────────────────────────
-    {"id":"goblin","img":"https://i.imgur.com/3NpKzQm.png","nome":"Goblin","emoji":"👺","nivel":1,"hp":50,"ataque":9,"defesa":3,"xp":6,"moedas":0,"dificuldade":"facil",
-     "skills":[{"nome":"Mordida","emoji":"🦷","dano":8},{"nome":"Arranhao","emoji":"💢","dano":5}],
-     "loot":[("pedra_suja","Pedra Suja","material","Comum","🪨","Ingrediente basico")]},
-    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":65,"ataque":14,"defesa":5,"xp":8,"moedas":0,"dificuldade":"facil",
-     "skills":[{"nome":"Mordida Feroz","emoji":"🦷","dano":14},{"nome":"Investida","emoji":"💨","dano":10}],
-     "loot":[("pele_lobo","Pele de Lobo","material","Comum","🐾","Material de armadura")]},
-    {"id":"rato_gigante","img":"https://i.imgur.com/6kqJv1R.png","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":55, "ataque":8,"defesa":3,"xp":6,"moedas":0,"dificuldade":"facil",
-     "skills":[{"nome":"Arranhao Duplo","emoji":"💢","dano":9},{"nome":"Fuga","emoji":"💨","dano":4}],
-     "loot":[("pelo_rato","Pelo de Rato","material","Comum","🐾","Material comum")]},
-    {"id":"goblin_arqueiro","img":"https://i.imgur.com/8PqWrTz.png","nome":"Goblin Arqueiro","emoji":"👺","nivel":4,"hp":60, "ataque":9,"defesa":3,"xp":7,"moedas":0,"dificuldade":"facil",
-     "skills":[{"nome":"Flechada","emoji":"🏹","dano":12},{"nome":"Tiro Rapido","emoji":"🏹","dano":8}],
-     "loot":[("flecha_goblin","Flecha de Goblin","material","Comum","🏹","Material de projétil")]},
-
-    # ── MEDIO ─────────────────────────────────────────────────────
-    {"id":"orc","img":"https://i.imgur.com/2LmNxKp.png","nome":"Orc Guerreiro","emoji":"👹","nivel":7,"hp":280,"ataque":22, "defesa":12,"xp":18,"moedas":0,"dificuldade":"medio",
-     "skills":[{"nome":"Machado","emoji":"🪓","dano":22},{"nome":"Grito de Guerra","emoji":"😤","dano":12}],
-     "loot":[("dente_orc","Dente de Orc","material","Incomum","🦷","Ingrediente alquimico"),("minerio_ferro","Minerio de Ferro","material","Comum","⛏️","Metal bruto")]},
-    {"id":"golem","img":"https://i.imgur.com/3nQpLmZ.png","nome":"Golem de Pedra","emoji":"🗿","nivel":12,"hp":380,"ataque":28, "defesa":22,"xp":22,"moedas":0,"dificuldade":"medio",
-     "skills":[{"nome":"Soco de Pedra","emoji":"👊","dano":30},{"nome":"Terremoto","emoji":"🌋","dano":20}],
-     "loot":[("fragmento_golem","Fragmento de Golem","material","Raro","🪨","Material magico")]},
-    {"id":"esqueleto","img":"https://i.imgur.com/6MqWrZp.png","nome":"Esqueleto Armado","emoji":"💀","nivel":9,"hp":300,"ataque":20,"defesa":12,"xp":18,"moedas":0,"dificuldade":"medio",
-     "skills":[{"nome":"Espada Ossea","emoji":"⚔️","dano":25},{"nome":"Lanca de Osso","emoji":"🔱","dano":18}],
-     "loot":[("osso_oco","Osso Oco","material","Incomum","💀","Material necrotico")]},
-    {"id":"troll_pântano","img":"https://i.imgur.com/4NqKpZm.png","nome":"Troll do Pantano","emoji":"🧌","nivel":11,"hp":350,"ataque":24,"defesa":8,"xp":20,"moedas":0,"dificuldade":"medio",
-     "skills":[{"nome":"Porrada","emoji":"👊","dano":32},{"nome":"Lama Toxica","emoji":"🟢","dano":15}],
-     "loot":[("muco_troll","Muco de Troll","material","Incomum","🟢","Ingrediente alquimico")]},
-
-    # ── DIFICIL ───────────────────────────────────────────────────
-    {"id":"vampiro","img":"https://i.imgur.com/5QrLpKz.png","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":550,"ataque":42, "defesa":22,"xp":40,"moedas":0,"dificuldade":"dificil",
-     "skills":[{"nome":"Drenar Sangue","emoji":"🩸","dano":40},{"nome":"Hipnose","emoji":"👁️","dano":15}],
-     "loot":[("sangue_fresco","Sangue Fresco","material","Incomum","🩸","Ingrediente alquimico"),("sangue_anciao","Sangue Anciao","material","Raro","🩸","Ingrediente raro")]},
-    {"id":"troll_pedra","img":"https://i.imgur.com/8WmKzNp.png","nome":"Troll das Pedras","emoji":"🗿","nivel":22,"hp":620,"ataque":38,"defesa":25,"xp":42,"moedas":0,"dificuldade":"dificil",
-     "skills":[{"nome":"Avalanche","emoji":"🪨","dano":45},{"nome":"Esmagar","emoji":"💥","dano":35}],
-     "loot":[("nucleo_pedra","Nucleo de Pedra","material","Raro","💎","Material magico raro")]},
-    {"id":"bruxa","img":"https://i.imgur.com/4QzXpKn.png","nome":"Bruxa das Trevas","emoji":"🧙","nivel":25,"hp":500,"ataque":42,"defesa":15,"xp":45,"moedas":0,"dificuldade":"dificil",
-     "skills":[{"nome":"Maldicao","emoji":"🩸","dano":38},{"nome":"Bola de Fogo Sombria","emoji":"🔥","dano":50}],
-     "loot":[("essencia_sombria","Essencia Sombria","material","Raro","🌑","Ingrediente sombrio")]},
-    {"id":"grifo","img":"https://i.imgur.com/7RmKpXz.png","nome":"Grifo Selvagem","emoji":"🦅","nivel":28,"hp":580,"ataque":40,"defesa":20,"xp":46,"moedas":0,"dificuldade":"dificil",
-     "skills":[{"nome":"Bico de Aco","emoji":"⚔️","dano":42},{"nome":"Garra Dupla","emoji":"🐾","dano":35}],
-     "loot":[("pena_grifo","Pena de Grifo","material","Raro","🦅","Material de voo")]},
-
-    # ── LENDARIO ──────────────────────────────────────────────────
-    {"id":"dragao","img":"https://i.imgur.com/9WqLpNm.png","nome":"Dragao Jovem","emoji":"🐉","nivel":35,"hp":1200,"ataque":70, "defesa":40,"xp":80,"moedas":0,"dificuldade":"lendario",
-     "skills":[{"nome":"Baforada de Fogo","emoji":"🔥","dano":70},{"nome":"Garra Draconica","emoji":"🐾","dano":55}],
-     "loot":[("escama_dragao_p","Escama de Dragao Pequena","material","Raro","🐉","Fragmento de escama"),("escama_dragao_p","Escama Pequena","material","Raro","🐉","Escama de dragao jovem")]},
-    {"id":"quimera","img":"https://i.imgur.com/3NpKzQm.png","nome":"Quimera Anciao","emoji":"🦁","nivel":40,"hp":1400,"ataque":70,"defesa":40,"xp":90,"moedas":0,"dificuldade":"lendario",
-     "skills":[{"nome":"Rugido do Caos","emoji":"😤","dano":75},{"nome":"Chamas e Gelo","emoji":"❄️","dano":60}],
-     "loot":[("corno_quimera_p","Fragmento de Corno","material","Raro","🦄","Material raro"),("escama_dragao_p","Escama de Dragao Pequena","material","Raro","🐉","Fragmento de escama")]},
-    {"id":"lich","img":"https://i.imgur.com/6MqWrZp.png","nome":"Lich Anciao","emoji":"💀","nivel":45,"hp":1300,"ataque":75,"defesa":30,"xp":95,"moedas":0,"dificuldade":"lendario",
-     "skills":[{"nome":"Toque da Morte","emoji":"☠️","dano":80},{"nome":"Exercito Espectral","emoji":"👻","dano":50}],
-     "loot":[("essencia_sombria_p","Essencia Sombria","material","Raro","💀","Ingrediente sombrio"),("osso_lich","Osso do Lich","material","Raro","💀","Ingrediente raro")]},
-    {"id":"titan","img":"https://i.imgur.com/4NqKpZm.png","nome":"Titan Primordial","emoji":"🗿","nivel":50,"hp":1600,"ataque":85,"defesa":50,"xp":100,"moedas":0,"dificuldade":"lendario",
-     "skills":[{"nome":"Golpe Primordial","emoji":"💥","dano":90},{"nome":"Tremor da Terra","emoji":"🌋","dano":70}],
-     "loot":[("fragmento_titan","Fragmento do Titan","material","Lendario","🗿","Lendario absoluto"),("escama_dragao_p","Escama de Dragao Pequena","material","Raro","🐉","Fragmento de escama")]},
+PESOS_PODER = [20,30,25,15,7,3]
+DESTINOS = [
+    {"id":"equilibrado","nome":"Equilibrado",  "emoji":"⚖️","desc":"Stats balanceados"},
+    {"id":"prodigio",   "nome":"Prodigio",     "emoji":"🔥","desc":"+25% ataque, -10% defesa"},
+    {"id":"maldito",    "nome":"Maldito",      "emoji":"💀","desc":"Fraco mas evolui 2x mais rapido"},
+    {"id":"guardiao",   "nome":"Guardiao",     "emoji":"🛡️","desc":"+25% defesa, -10% ataque"},
+    {"id":"abencado",   "nome":"Abencado",     "emoji":"🌟","desc":"+10% em todos os stats"},
+    {"id":"amaldicoado","nome":"Amaldicado",   "emoji":"☠️","desc":"Stats aleatorios a cada nivel"},
+    {"id":"filho_caos", "nome":"Filho do Caos","emoji":"🌀","desc":"Efeito aleatorio em batalha"},
 ]
+ITEM_INICIAL = {
+    "guerreiro":  ("espada_ferro", "Espada de Ferro","arma","Comum",   "⚔️","Uma espada basica"),
+    "mago":       ("cajado_pinho", "Cajado de Pinho","arma","Comum",   "🪄","Um cajado simples"),
+    "arqueiro":   ("arco_madeira", "Arco de Madeira","arma","Comum",   "🏹","Um arco simples"),
+    "paladino":   ("maca_sagrada", "Maca Sagrada",   "arma","Incomum", "⚡","Uma maca abencada"),
+    "necromante": ("cajado_osso",  "Cajado de Osso", "arma","Raro",    "💀","Feito de ossos"),
+    "dracomante": ("garra_dragao", "Garra de Dragao","arma","Epico",   "🐉","Garra de dragao"),
+    "arcano":     ("orbe_arcano",  "Orbe Arcano",    "arma","Epico",   "✨","Orbe arcano"),
+}
+EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
+
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# ─── BATALHA ATIVA — bloqueia outros comandos ────────────────────
+
+def em_batalha(user_id: int) -> bool:
+    return user_id in BATALHAS_ATIVAS
+
+async def checar_batalha(interaction: discord.Interaction) -> bool:
+    """Retorna True se pode continuar, False se está em batalha."""
+    if em_batalha(interaction.user.id):
+        await interaction.response.send_message(
+            "⚔️ Você está em batalha! Termine ou fuja primeiro antes de usar outros comandos.",
+            ephemeral=True
+        )
+        return False
+    return True
 
 # ─── DB HELPERS ──────────────────────────────────────────────────
 
-async def get_skills_eq(user_id):
+async def get_personagem(user_id):
     pool = await get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT skill_id FROM skills_equipadas WHERE user_id=$1 AND slot!=99 ORDER BY slot",
-            user_id
-        )
-        return [r["skill_id"] for r in rows]
+        return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
-async def get_skills_desbloq(user_id):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT skill_id FROM skills_desbloqueadas WHERE user_id=$1", user_id)
-        return [r["skill_id"] for r in rows]
-
-async def get_pocoes_inv(user_id):
+async def get_inventario(user_id):
     pool = await get_pool()
     async with pool.acquire() as conn:
         return await conn.fetch(
-            "SELECT * FROM inventario WHERE user_id=$1 AND (item_id LIKE 'pocao%' OR item_id='elixir')",
+            "SELECT * FROM inventario WHERE user_id=$1 ORDER BY equipado DESC, tipo, nome",
             user_id
         )
 
-async def get_arma_equipada(user_id):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        return await conn.fetchrow(
-            "SELECT * FROM inventario WHERE user_id=$1 AND tipo='arma' AND equipado=1 LIMIT 1",
-            user_id
-        )
+# ─── HELPERS ─────────────────────────────────────────────────────
 
-async def get_armadura_equipada(user_id):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        return await conn.fetchrow(
-            "SELECT * FROM inventario WHERE user_id=$1 AND tipo='armadura' AND equipado=1 LIMIT 1",
-            user_id
-        )
+def get_classe(cid):
+    return next((c for c in CLASSES if c["id"] == cid), None)
 
-async def add_loot(user_id, loot):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        for it in loot:
-            iid, nome, tipo, rar, emoji, desc = it
-            ex = await conn.fetchrow(
-                "SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2",
-                user_id, iid
+def get_poder(pid):
+    return next((p for p in PODERES if p["id"] == pid), None)
+
+def get_destino(did):
+    return next((d for d in DESTINOS if d["id"] == did), None)
+
+def calcular_stats(poder_valor, destino_id, nivel):
+    # Poder da diferenca pequena no inicio — cresce com o nivel
+    hp  = 80 + poder_valor*2 + nivel*5
+    atk = 8  + poder_valor//5 + nivel*2   # era //2 — muito alto
+    dfs = 5  + poder_valor//6 + nivel*1   # era //3
+    if destino_id == "prodigio":    atk = int(atk*1.12); dfs = int(dfs*0.95)
+    elif destino_id == "guardiao":  dfs = int(dfs*1.12); atk = int(atk*0.95)
+    elif destino_id == "abencado":  hp=int(hp*1.08); atk=int(atk*1.05); dfs=int(dfs*1.05)
+    elif destino_id == "maldito":   atk=int(atk*0.85); dfs=int(dfs*0.85)
+    elif destino_id == "amaldicoado": atk=random.randint(5,atk+5); dfs=random.randint(3,dfs+3)
+    return hp, atk, dfs
+
+def xp_needed(nivel):
+    return 100 + (nivel-1)*50
+
+def sortear_peso(lista, pesos):
+    total = sum(pesos)
+    r = random.random() * total
+    for i, item in enumerate(lista):
+        r -= pesos[i]
+        if r <= 0: return item
+    return lista[-1]
+
+# ─── CARGO DE NIVEL ──────────────────────────────────────────────
+
+# cargo functions moved to utils.py
+
+# ─── CANAL PRIVADO ───────────────────────────────────────────────
+
+async def criar_canal_privado(guild, member, nome_jogador, classe):
+    if not member: return
+    import re
+    nome_canal = re.sub(r'[^a-z0-9-]', '', nome_jogador.lower().replace(' ', '-'))[:32]
+    canal_existente = discord.utils.get(guild.text_channels, name=nome_canal)
+    if canal_existente: return canal_existente
+    categoria = None
+    for nome_cat in ["👤 ─── MEU PERFIL ───", "MEU PERFIL", "Meu Perfil"]:
+        categoria = discord.utils.get(guild.categories, name=nome_cat)
+        if categoria: break
+    everyone = guild.default_role
+    overwrites = {
+        everyone: discord.PermissionOverwrite(read_messages=False),
+        member:   discord.PermissionOverwrite(read_messages=True, send_messages=True),
+    }
+    for cargo_nome in ["🔧 Staff", "⚙️ Admin"]:
+        cargo = discord.utils.get(guild.roles, name=cargo_nome)
+        if cargo:
+            overwrites[cargo] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+    try:
+        canal = await guild.create_text_channel(nome_canal, category=categoria, overwrites=overwrites)
+        emoji_j = EMOJI_CLASSE.get(classe["id"], "⚔️")
+        embed = discord.Embed(
+            title=f"{emoji_j} Bem-vindo ao seu espaco privado, {nome_jogador}!",
+            description="Este canal e so seu.\n\n`/perfil` `/inventario` `/skills` `/setup` `/hospital` `/girar` `/deletar_personagem`",
+            color=0x7F77DD
+        )
+        await canal.send(content=member.mention, embed=embed)
+        return canal
+    except Exception as e:
+        print(f"Erro canal privado: {e}")
+        return None
+
+# ─── /criar_personagem ───────────────────────────────────────────
+
+@bot.tree.command(name="criar_personagem", description="Escolha sua raca e classe para comecar sua jornada!")
+async def criar_personagem(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    uid = interaction.user.id
+    if await get_personagem(uid):
+        await interaction.followup.send("Voce ja tem personagem! Use `/perfil`.", ephemeral=True)
+        return
+
+    # ── PASSO 1: Escolha de Raca ─────────────────────────────────
+    embed_raca = discord.Embed(
+        title="🧬 Passo 1 de 2 — Escolha sua Raça",
+        description=(
+            "Sua **raça** define sua passiva racial exclusiva em batalha.\n"
+            "Raças raras só por roleta — não disponíveis na criação!\n\n"
+            "**Escolha uma das 3 raças básicas:**"
+        ),
+        color=0x7F77DD
+    )
+    for rid in RACAS_BASICAS:
+        r = RACAS[rid]
+        embed_raca.add_field(
+            name=f"{r['emoji']} {r['nome']}",
+            value=f"*{r['passiva_desc']}*",
+            inline=False
+        )
+    embed_raca.set_footer(text="Demônio, Anjo, Draconiano... só por roleta de raça!")
+
+    raca_escolhida = {"id": None}
+
+    # Build race view with fixed buttons
+    class RacaViewFinal(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=120)
+            self.escolha = None
+
+        @discord.ui.button(label="👤 Humano", style=discord.ButtonStyle.primary, custom_id="raca_humano")
+        async def btn_humano(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = "humano"; await inter.response.defer(); self.stop()
+
+        @discord.ui.button(label="🧔 Anão", style=discord.ButtonStyle.primary, custom_id="raca_anao")
+        async def btn_anao(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = "anao"; await inter.response.defer(); self.stop()
+
+        @discord.ui.button(label="👂 Elfo", style=discord.ButtonStyle.primary, custom_id="raca_elfo")
+        async def btn_elfo(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = "elfo"; await inter.response.defer(); self.stop()
+
+    vr = RacaViewFinal()
+    msg = await interaction.followup.send(embed=embed_raca, view=vr, ephemeral=True, wait=True)
+    await vr.wait()
+
+    if not vr.escolha:
+        await msg.edit(content="⏰ Tempo esgotado! Use /criar_personagem novamente.", embed=None, view=None)
+        return
+
+    raca = RACAS[vr.escolha]
+
+    # ── PASSO 2: Escolha de Classe ───────────────────────────────
+    CLASSES_BASICAS = [c for c in CLASSES if c["raridade"] == "Comum"]
+
+    embed_cls = discord.Embed(
+        title="⚔️ Passo 2 de 2 — Escolha sua Classe",
+        description=(
+            "Sua **classe** define suas skills e estilo de combate.\n"
+            "Classes raras (Paladino, Necromante...) só por roleta!\n\n"
+            "**Escolha uma das 3 classes básicas:**"
+        ),
+        color=0xE4AF3C
+    )
+    for c in CLASSES_BASICAS:
+        embed_cls.add_field(name=f"{c['emoji']} {c['nome']}", value=c["desc"], inline=True)
+    embed_cls.set_footer(text=f"Raça escolhida: {raca['emoji']} {raca['nome']}")
+
+    class ClasseView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=120)
+            self.escolha = None
+
+        @discord.ui.button(label="🗡️ Guerreiro", style=discord.ButtonStyle.success, custom_id="cls_guerreiro")
+        async def btn_guerreiro(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = next(c for c in CLASSES if c["id"] == "guerreiro")
+            await inter.response.defer(); self.stop()
+
+        @discord.ui.button(label="🏹 Arqueiro", style=discord.ButtonStyle.success, custom_id="cls_arqueiro")
+        async def btn_arqueiro(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = next(c for c in CLASSES if c["id"] == "arqueiro")
+            await inter.response.defer(); self.stop()
+
+        @discord.ui.button(label="🔮 Mago", style=discord.ButtonStyle.success, custom_id="cls_mago")
+        async def btn_mago(self, inter: discord.Interaction, b):
+            if inter.user.id != uid: return
+            self.escolha = next(c for c in CLASSES if c["id"] == "mago")
+            await inter.response.defer(); self.stop()
+
+    vc = ClasseView()
+    await msg.edit(embed=embed_cls, view=vc)
+    await vc.wait()
+
+    if not vc.escolha:
+        await msg.edit(content="⏰ Tempo esgotado! Use /criar_personagem novamente.", embed=None, view=None)
+        return
+
+    classe = vc.escolha
+
+    # ── PASSO 3: Roletas automaticas ────────────────────────────
+    await msg.edit(
+        embed=discord.Embed(
+            title="🎰 As roletas do destino giram...",
+            description=(
+                f"{raca['emoji']} **{raca['nome']}** + {classe['emoji']} **{classe['nome']}**\n\n"
+                "Sortindo poder, destino e habilidades..."
+            ),
+            color=0x7F77DD
+        ),
+        view=None
+    )
+    await asyncio.sleep(1.5)
+
+    # Sorteios
+    poder   = sortear_peso(PODERES, PESOS_PODER)
+    destino = random.choice(DESTINOS)
+    mana_max = calcular_mana_max(classe["id"], 1, poder["valor"], destino["id"])
+    from racas import get_raca as _gr
+    if raca["id"] == "elfo":
+        mana_max += 20
+
+    skills_cls   = SKILLS_POR_CLASSE.get(classe["id"], [])
+    disponiveis  = [s for s in skills_cls if s["nivel"] <= 5]
+    if len(disponiveis) < 4:
+        disponiveis = skills_cls[:4]
+    random.shuffle(disponiveis)
+    skills_sorteadas = disponiveis[:4]
+
+    hp, atk, dfs = calcular_stats(poder["valor"], destino["id"], 1)
+    if raca["id"] == "anao":
+        dfs += 8
+    nome = interaction.user.display_name
+    # Sem item inicial — jogador começa sem arma/armadura
+    # Objetivo: juntar moedas para comprar na loja
+
+    # Salva no banco
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO personagens
+            (user_id,nome,classe_id,raridade,poder_id,poder_valor,destino_id,skill_id,
+             nivel,xp,hp_max,hp_atual,ataque,defesa,mana_max,mana_atual,moedas,raca_id)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,1,0,$9,$10,$11,$12,$13,$13,50,$14)
+        """, uid, nome, classe["id"], classe["raridade"], poder["id"], poder["valor"],
+            destino["id"], skills_sorteadas[0]["id"] if skills_sorteadas else "",
+            hp, hp, atk, dfs, mana_max, raca["id"])
+
+        for i, sk in enumerate(skills_sorteadas):
+            await conn.execute(
+                "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
+                uid, sk["id"]
             )
-            if ex:
+            await conn.execute(
+                "INSERT INTO skills_equipadas(user_id,skill_id,slot) VALUES($1,$2,$3) ON CONFLICT(user_id,slot) DO UPDATE SET skill_id=EXCLUDED.skill_id",
+                uid, sk["id"], i
+            )
+        # Sem item inicial — inventario começa vazio
+
+    # Embed final
+    from racas import get_raca as get_r
+    cor = COR_RAR.get(classe["raridade"], 0x888780)
+    efinal = discord.Embed(
+        title=f"✅ {nome} entrou em Villa Eldoria!",
+        color=cor
+    )
+    efinal.add_field(name="🧬 Raça",    value=f"{raca['emoji']} {raca['nome']}\n*{raca['passiva_desc']}*", inline=False)
+    efinal.add_field(name="⚔️ Classe",  value=f"{classe['emoji']} {classe['nome']}", inline=True)
+    efinal.add_field(name="💪 Poder",   value=f"{poder['emoji']} {poder['nome']} ({poder['valor']})", inline=True)
+    efinal.add_field(name="🌟 Destino", value=f"{destino['emoji']} {destino['nome']}", inline=True)
+    sk_txt = " | ".join([f"{s['emoji']} {s['nome']}" for s in skills_sorteadas])
+    efinal.add_field(name="⚡ Skills",  value=sk_txt, inline=False)
+    efinal.add_field(name="❤️ HP",      value=str(hp), inline=True)
+    efinal.add_field(name="⚔️ ATK",    value=str(atk), inline=True)
+    efinal.add_field(name="🛡️ DEF",    value=str(dfs), inline=True)
+    efinal.add_field(name="💙 Mana",    value=str(mana_max), inline=True)
+    efinal.set_footer(text="Dica: Use /loja para comprar sua primeira arma! | /perfil para ver sua ficha")
+
+    await msg.edit(embed=efinal, view=None)
+
+    # Cargos
+    guild = interaction.guild
+    if guild:
+        member = guild.get_member(uid)
+        if member:
+            for cn in ["🏠 Morador da Vila", f"{classe['emoji']} {classe['nome']}"]:
+                cargo = discord.utils.get(guild.roles, name=cn)
+                if cargo:
+                    try: await member.add_roles(cargo)
+                    except: pass
+            for nr in ["🌱 Recem-chegado"]:
+                recem = discord.utils.get(guild.roles, name=nr)
+                if recem and recem in member.roles:
+                    try: await member.remove_roles(recem)
+                    except: pass
+            await atualizar_cargo_rank(guild, member, "F")
+            cargo_raca = discord.utils.get(guild.roles, name=raca["cargos"])
+            if cargo_raca:
+                try: await member.add_roles(cargo_raca)
+                except: pass
+        await criar_canal_privado(guild, member, nome, classe)
+
+
+
+# ─── /perfil ─────────────────────────────────────────────────────
+
+@bot.tree.command(name="perfil", description="Mostra a ficha do personagem")
+@app_commands.describe(jogador="Ver perfil de outro jogador (opcional)")
+async def perfil(interaction: discord.Interaction, jogador: discord.Member = None):
+    await interaction.response.defer()
+    alvo = jogador or interaction.user
+    p = await get_personagem(alvo.id)
+    if not p:
+        msg = "Voce ainda nao criou um personagem! Use `/criar_personagem`." if alvo == interaction.user else f"{alvo.display_name} nao tem personagem."
+        await interaction.followup.send(msg, ephemeral=True); return
+
+    cls = get_classe(p["classe_id"]); pod = get_poder(p["poder_id"]); dst = get_destino(p["destino_id"])
+    sks = await get_skills_desbloq(alvo.id); eq = await get_skills_eq(alvo.id)
+    todas = SKILLS_POR_CLASSE.get(p["classe_id"], [])
+    xp_cur = p["xp"]; xp_nxt = xp_needed(p["nivel"])
+    pct = xp_cur / xp_nxt if xp_nxt > 0 else 0
+    barra = "█" * int(pct*10) + "░" * (10-int(pct*10))
+
+    rank_info = get_rank(p["nivel"])
+    raca_p    = get_raca(p["raca_id"] if p["raca_id"] else "humano")
+    embed = discord.Embed(
+        title=f"{cls['emoji'] if cls else '?'} {p['nome']}",
+        description=(
+            f"**Raça:** {raca_p['emoji']} {raca_p['nome']} [{raca_p['raridade']}]\n"
+            f"**Classe:** {cls['nome'] if cls else p['classe_id']} — *{p['raridade']}*\n"
+            f"**Rank:** {rank_info['emoji']} {rank_info['rank']} — {rank_info['nome']}\n"
+            f"**Destino:** {dst['emoji'] if dst else ''} {dst['nome'] if dst else p['destino_id']}\n"
+            f"**Poder:** {pod['nome'] if pod else p['poder_id']} ({p['poder_valor']})"
+        ),
+        color=COR_RAR.get(p["raridade"], 0x888780)
+    )
+    # Barras de HP e XP
+    hp_barra = "█" * int((p["hp_atual"]/p["hp_max"])*10) + "░" * (10-int((p["hp_atual"]/p["hp_max"])*10))
+    mana_at  = p["mana_atual"] or 0
+    mana_mx  = p["mana_max"]   or 100
+    xp_barra = "█" * int((xp_cur/xp_nxt)*10) + "░" * (10-int((xp_cur/xp_nxt)*10))
+
+    # Progresso para proximo rank
+    rank_atual = get_rank(p["nivel"])
+    proximos   = [r for r in [{"rank":"F","nivel_min":1},{"rank":"E","nivel_min":10},{"rank":"D","nivel_min":20},{"rank":"C","nivel_min":30},{"rank":"B","nivel_min":40},{"rank":"A","nivel_min":50},{"rank":"S","nivel_min":60},{"rank":"SS","nivel_min":75}] if r["nivel_min"] > p["nivel"]]
+    prox_rank  = proximos[0] if proximos else None
+    rank_txt   = f"Proximo: Rank {prox_rank['rank']} (Nv {prox_rank['nivel_min']})" if prox_rank else "Rank máximo atingido! 💎"
+
+    embed.add_field(name="📊 Stats",
+        value=(
+            f"❤️ HP `{hp_barra}` {p['hp_atual']}/{p['hp_max']}\n"
+            f"💙 Mana `{hp_barra}` {mana_at}/{mana_mx}\n"
+            f"✨ XP `{xp_barra}` {xp_cur}/{xp_nxt}\n"
+            f"⭐ {rank_atual['emoji']} Rank {rank_atual['rank']} — {rank_txt}"
+        ), inline=False)
+
+    embed.add_field(name="⚔️ Combate",
+        value=f"ATK: **{p['ataque']}** | DEF: **{p['defesa']}** | 🏆 {p['vitorias']}V / {p['derrotas']}D",
+        inline=True)
+    embed.add_field(name="💰 Economia",
+        value=f"**{p['moedas']} moedas** 🪙",
+        inline=True)
+
+    # Itens equipados
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        arma_eq = await conn.fetchrow("SELECT * FROM inventario WHERE user_id=$1 AND tipo='arma' AND equipado=1 LIMIT 1", alvo.id)
+        arm_eq  = await conn.fetchrow("SELECT * FROM inventario WHERE user_id=$1 AND tipo='armadura' AND equipado=1 LIMIT 1", alvo.id)
+
+    equip_txt = (
+        f"⚔️ {arma_eq['emoji']} **{arma_eq['nome']}** [{arma_eq['raridade']}]\n" if arma_eq else "⚔️ Sem arma equipada\n"
+    ) + (
+        f"🛡️ {arm_eq['emoji']} **{arm_eq['nome']}** [{arm_eq['raridade']}]" if arm_eq else "🛡️ Sem armadura equipada"
+    )
+    embed.add_field(name="🎒 Equipamentos", value=equip_txt, inline=False)
+
+    # Skills equipadas
+    todas_sk   = SKILLS_POR_CLASSE.get(p["classe_id"], []) if hasattr(cls, "__class__") else []
+    from catalogo import SKILLS_COMPLETAS
+    todas_sk = SKILLS_COMPLETAS.get(p["classe_id"], [])
+    if eq:
+        sk_txt = " | ".join([f"{next((s['emoji'] for s in todas_sk if s['id']==sid), '⚡')} {next((s['nome'] for s in todas_sk if s['id']==sid), sid)}" for sid in eq[:4]])
+        embed.add_field(name="⚡ Skills equipadas", value=sk_txt or "Nenhuma", inline=False)
+
+    # Skills bloqueadas proximas
+    bloq = [s for s in todas_sk if s["id"] not in sks and s["nivel"] > p["nivel"]]
+    if bloq:
+        proxima = sorted(bloq, key=lambda x: x["nivel"])[0]
+        embed.add_field(name="🔒 Próxima skill", value=f"{proxima['emoji']} **{proxima['nome']}** — Nv {proxima['nivel']}", inline=True)
+
+    img_cls = IMG_CLASSE.get(p['classe_id'], IMG_PERFIL)
+    embed.add_field(name=f"{raca_p['emoji']} Passiva Racial", value=raca_p['passiva_desc'], inline=False)
+    embed.set_image(url=img_cls)
+    embed.set_footer(text=f"ID: {alvo.id} • /setup para equipar • /skills para gerenciar")
+    await interaction.followup.send(embed=embed)
+
+# ─── /inventario ─────────────────────────────────────────────────
+
+@bot.tree.command(name="inventario", description="Mostra seu inventario")
+@app_commands.describe(jogador="Ver inventario de outro jogador (opcional)")
+async def inventario(interaction: discord.Interaction, jogador: discord.Member = None):
+    await interaction.response.defer()
+    alvo = jogador or interaction.user
+    p = await get_personagem(alvo.id)
+    if not p:
+        await interaction.followup.send("Personagem nao encontrado!", ephemeral=True); return
+
+    itens = await get_inventario(alvo.id)
+    cls = get_classe(p["classe_id"])
+    embed = discord.Embed(title=f"{cls['emoji'] if cls else '?'} Inventario de {p['nome']}", color=COR_RAR.get(p["raridade"], 0x888780))
+    if not itens:
+        embed.description = "*Inventario vazio.*"
+    else:
+        eq  = [i for i in itens if i["equipado"] == 1]
+        neq = [i for i in itens if i["equipado"] == 0]
+        if eq:
+            txt = "\n".join([f"{i['emoji']} **{i['nome']}** [{i['raridade']}]\n_{i['descricao']}_" for i in eq])
+            embed.add_field(name="Equipado", value=txt, inline=False)
+        if neq:
+            txt = "\n".join([f"{i['emoji']} **{i['nome']}** [{i['raridade']}] (x{i['quantidade']})" for i in neq])
+            embed.add_field(name="Mochila", value=txt, inline=False)
+    embed.add_field(name="Moedas", value=f"{p['moedas']} 🪙", inline=True)
+    embed.set_image(url=IMG_INVENTARIO)
+    embed.set_footer(text="Use /setup para equipar itens")
+    await interaction.followup.send(embed=embed)
+
+# ─── /setup ──────────────────────────────────────────────────────
+
+@bot.tree.command(name="setup", description="Monte seu setup completo")
+async def setup(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
+    await cmd_setup(interaction)
+
+# ─── /skills ─────────────────────────────────────────────────────
+
+@bot.tree.command(name="skills", description="Veja e gerencie suas skills")
+async def skills_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    p = await get_personagem(interaction.user.id)
+    if not p:
+        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
+
+    desbloq_ids   = await get_skills_desbloq(interaction.user.id)
+    equipadas_ids = await get_skills_eq(interaction.user.id)
+    todas = SKILLS_POR_CLASSE.get(p["classe_id"], [])
+    desbl = [s for s in todas if s["id"] in desbloq_ids]
+    bloq  = [s for s in todas if s["id"] not in desbloq_ids]
+
+    emoji_j = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
+    embed = discord.Embed(
+        title=f"{emoji_j} Skills de {p['nome']} — Nivel {p['nivel']}",
+        description=f"Voce pode equipar ate **4 skills**. Equipadas: **{len(equipadas_ids)}/4**",
+        color=0x7F77DD
+    )
+    if desbl:
+        txt = "\n".join([f"{'🟢' if s['id'] in equipadas_ids else '⚪'} {s['emoji']} **{s['nome']}** — {s['desc']} | 💙{s.get('mana',0)}" for s in desbl])
+        embed.add_field(name="Desbloqueadas", value=txt, inline=False)
+    if bloq:
+        txt = "\n".join([f"🔒 {s['emoji']} {s['nome']} — Nivel {s['nivel']}" for s in bloq])
+        embed.add_field(name="Bloqueadas", value=txt, inline=False)
+    embed.set_footer(text="Dica: use /setup para equipar skills e itens de uma vez!")
+
+    opcoes = [
+        discord.SelectOption(
+            label=f"{s['emoji']} {s['nome']}",
+            value=s["id"],
+            description=f"{s['desc']} | Mana: {s.get('mana',0)}"[:50],
+            default=s["id"] in equipadas_ids
+        ) for s in desbl
+    ]
+    if opcoes:
+        sel = discord.ui.Select(placeholder="Escolha ate 4 skills...", min_values=1, max_values=min(4,len(opcoes)), options=opcoes)
+        async def salvar_skills(inter: discord.Interaction):
+            try: await inter.response.defer()
+            except: pass
+            selecionadas = inter.data["values"][:4]
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await conn.execute("DELETE FROM skills_equipadas WHERE user_id=$1", interaction.user.id)
+                for slot, sid in enumerate(selecionadas):
+                    await conn.execute(
+                        "INSERT INTO skills_equipadas(user_id,skill_id,slot) VALUES($1,$2,$3) ON CONFLICT(user_id,slot) DO UPDATE SET skill_id=EXCLUDED.skill_id",
+                        interaction.user.id, sid, slot
+                    )
+            nomes = [s["nome"] for s in desbl if s["id"] in selecionadas]
+            await inter.followup.send(embed=discord.Embed(title="Skills atualizadas!", description="\n".join([f"• {n}" for n in nomes]), color=0x1D9E75), ephemeral=True)
+        sel.callback = salvar_skills
+        v = discord.ui.View(timeout=60); v.add_item(sel)
+        await interaction.followup.send(embed=embed, view=v, ephemeral=True)
+    else:
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+# ─── /equipar ────────────────────────────────────────────────────
+
+@bot.tree.command(name="equipar", description="Equipa um item do inventario")
+@app_commands.describe(nome_item="Nome do item")
+async def equipar(interaction: discord.Interaction, nome_item: str):
+    await interaction.response.defer(ephemeral=True)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        item = await conn.fetchrow(
+            "SELECT * FROM inventario WHERE user_id=$1 AND LOWER(nome) LIKE $2",
+            interaction.user.id, f"%{nome_item.lower()}%"
+        )
+        if not item:
+            await interaction.followup.send(f"Item '{nome_item}' nao encontrado.", ephemeral=True); return
+        if item["equipado"]:
+            await interaction.followup.send(f"**{item['nome']}** ja esta equipado!", ephemeral=True); return
+        await conn.execute(
+            "UPDATE inventario SET equipado=0 WHERE user_id=$1 AND tipo=$2 AND equipado=1",
+            interaction.user.id, item["tipo"]
+        )
+        await conn.execute("UPDATE inventario SET equipado=1 WHERE id=$1", item["id"])
+    await interaction.followup.send(embed=discord.Embed(title="Item equipado!", description=f"{item['emoji']} **{item['nome']}** equipado!", color=0x1D9E75), ephemeral=True)
+
+# ─── /jogar-fora ─────────────────────────────────────────────────
+
+class ConfirmarDescarte(discord.ui.View):
+    def __init__(self, uid, item_id, nome, emoji):
+        super().__init__(timeout=30)
+        self.uid=uid; self.item_id=item_id; self.nome=nome; self.emoji=emoji
+
+    @discord.ui.button(label="Sim, descartar", style=discord.ButtonStyle.danger)
+    async def confirmar(self, inter: discord.Interaction, b):
+        if inter.user.id != self.uid:
+            await inter.response.send_message("Nao e seu inventario!", ephemeral=True); return
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM inventario WHERE id=$1", self.item_id)
+        await inter.response.edit_message(embed=discord.Embed(description=f"{self.emoji} **{self.nome}** descartado.", color=0x888780), view=None)
+
+    @discord.ui.button(label="Cancelar", style=discord.ButtonStyle.secondary)
+    async def cancelar(self, inter: discord.Interaction, b):
+        await inter.response.edit_message(content="Cancelado.", embed=None, view=None)
+
+@bot.tree.command(name="jogar-fora", description="Descarta um item do inventario")
+@app_commands.describe(nome_item="Nome do item")
+async def jogar_fora(interaction: discord.Interaction, nome_item: str):
+    await interaction.response.defer(ephemeral=True)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        item = await conn.fetchrow(
+            "SELECT * FROM inventario WHERE user_id=$1 AND LOWER(nome) LIKE $2",
+            interaction.user.id, f"%{nome_item.lower()}%"
+        )
+    if not item:
+        await interaction.followup.send(f"Item '{nome_item}' nao encontrado.", ephemeral=True); return
+    if item["equipado"]:
+        await interaction.followup.send("Desequipe o item antes de descartar!", ephemeral=True); return
+    await interaction.followup.send(
+        embed=discord.Embed(title="Tem certeza?", description=f"Descartar **{item['emoji']} {item['nome']}**?", color=0xE24B4A),
+        view=ConfirmarDescarte(interaction.user.id, item["id"], item["nome"], item["emoji"]),
+        ephemeral=True
+    )
+
+# ─── /dar ────────────────────────────────────────────────────────
+
+@bot.tree.command(name="dar", description="Da um item para outro jogador")
+@app_commands.describe(jogador="Quem vai receber", nome_item="Nome do item")
+async def dar(interaction: discord.Interaction, jogador: discord.Member, nome_item: str):
+    await interaction.response.defer()
+    if jogador.id == interaction.user.id:
+        await interaction.followup.send("Nao pode dar pra si mesmo!", ephemeral=True); return
+    if not await get_personagem(jogador.id):
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        item = await conn.fetchrow(
+            "SELECT * FROM inventario WHERE user_id=$1 AND LOWER(nome) LIKE $2",
+            interaction.user.id, f"%{nome_item.lower()}%"
+        )
+        if not item:
+            await interaction.followup.send(f"Item '{nome_item}' nao encontrado.", ephemeral=True); return
+        if item["equipado"]:
+            await interaction.followup.send("Desequipe o item antes de dar!", ephemeral=True); return
+        await conn.execute("DELETE FROM inventario WHERE id=$1", item["id"])
+        await conn.execute(
+            "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+            jogador.id, item["item_id"], item["nome"], item["tipo"], item["raridade"], item["emoji"], item["descricao"]
+        )
+    await interaction.followup.send(embed=discord.Embed(
+        title="Item transferido!",
+        description=f"{interaction.user.mention} deu **{item['emoji']} {item['nome']}** para {jogador.mention}!",
+        color=0x1D9E75
+    ))
+
+# ─── /set-item ───────────────────────────────────────────────────
+
+@bot.tree.command(name="set-item", description="[ADMIN] Adiciona item ao inventario de um jogador")
+@app_commands.describe(jogador="Jogador que vai receber o item")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_item(interaction: discord.Interaction, jogador: discord.Member):
+    await interaction.response.defer(ephemeral=True)
+    if not await get_personagem(jogador.id):
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
+
+    CATALOGO = [
+        {"id":"pocao_hp_p",     "nome":"Pocao de Cura P",     "emoji":"🧪","tipo":"pocao",   "raridade":"Comum",   "desc":"Recupera 30 HP"},
+        {"id":"pocao_hp_m",     "nome":"Pocao de Cura M",     "emoji":"💊","tipo":"pocao",   "raridade":"Comum",   "desc":"Recupera 60 HP"},
+        {"id":"pocao_hp_g",     "nome":"Pocao de Cura G",     "emoji":"❤️","tipo":"pocao",   "raridade":"Comum",   "desc":"Recupera 120 HP"},
+        {"id":"pocao_mana_p",   "nome":"Pocao de Mana P",     "emoji":"🔵","tipo":"pocao",   "raridade":"Comum",   "desc":"Recupera 20 Mana"},
+        {"id":"pocao_mana_m",   "nome":"Pocao de Mana M",     "emoji":"💙","tipo":"pocao",   "raridade":"Comum",   "desc":"Recupera 50 Mana"},
+        {"id":"elixir",         "nome":"Elixir Supremo",      "emoji":"✨","tipo":"pocao",   "raridade":"Epico",   "desc":"HP e Mana full"},
+        {"id":"espada_prata",   "nome":"Espada de Prata",     "emoji":"⚔️","tipo":"arma",    "raridade":"Incomum", "desc":"Dano +5"},
+        {"id":"cajado_magico",  "nome":"Cajado Magico",       "emoji":"🪄","tipo":"arma",    "raridade":"Raro",    "desc":"Magia +10"},
+        {"id":"arco_elfico",    "nome":"Arco Elfico",         "emoji":"🏹","tipo":"arma",    "raridade":"Raro",    "desc":"Critico +15%"},
+        {"id":"lanca_sagrada",  "nome":"Lanca Sagrada",       "emoji":"🔱","tipo":"arma",    "raridade":"Epico",   "desc":"Sagrado +20"},
+        {"id":"espada_orc",     "nome":"Espada Orc",          "emoji":"🗡️","tipo":"arma",    "raridade":"Raro",    "desc":"Forjada com metal orc"},
+        {"id":"cajado_osso2",   "nome":"Cajado Osseo+",       "emoji":"💀","tipo":"arma",    "raridade":"Raro",    "desc":"Amplifica magia negra"},
+        {"id":"armadura_couro", "nome":"Armadura de Couro",   "emoji":"🥋","tipo":"armadura","raridade":"Comum",   "desc":"Defesa +3"},
+        {"id":"cota_malha",     "nome":"Cota de Malha",       "emoji":"🛡️","tipo":"armadura","raridade":"Incomum", "desc":"Defesa +8"},
+        {"id":"armadura_plena", "nome":"Armadura Plena",      "emoji":"⚙️","tipo":"armadura","raridade":"Raro",    "desc":"Defesa +15"},
+        {"id":"armadura_escama","nome":"Armadura de Escama",  "emoji":"🐉","tipo":"armadura","raridade":"Epico",   "desc":"Escamas de dragao"},
+        {"id":"elmo_dragao",    "nome":"Elmo do Dragao",      "emoji":"🪖","tipo":"armadura","raridade":"Lendario","desc":"Protecao maxima"},
+        {"id":"dente_orc",      "nome":"Dente de Orc",        "emoji":"🦷","tipo":"material","raridade":"Incomum", "desc":"Ingrediente alquimico"},
+        {"id":"fragmento_golem","nome":"Fragmento de Golem",  "emoji":"🪨","tipo":"material","raridade":"Raro",    "desc":"Material magico"},
+        {"id":"escama_dragao",  "nome":"Escama de Dragao",    "emoji":"🐉","tipo":"material","raridade":"Lendario","desc":"Material lendario"},
+        {"id":"sangue_anciao",  "nome":"Sangue Anciao",       "emoji":"🩸","tipo":"material","raridade":"Raro",    "desc":"Pocao rara"},
+        {"id":"olho_dragao",    "nome":"Olho de Dragao",      "emoji":"👁️","tipo":"material","raridade":"Epico",   "desc":"Ingrediente raro"},
+    ]
+
+    embed = discord.Embed(title=f"Dar item para {jogador.display_name}", description="Escolha o item e a quantidade:", color=0x7F77DD)
+    item_sel = {"id": None}; qtd_sel = {"v": 1}
+    opcoes1 = [discord.SelectOption(label=f"{it['emoji']} {it['nome']}", value=it["id"], description=f"{it['tipo'].title()} | {it['raridade']}"[:100]) for it in CATALOGO[:25]]
+    opcoes_qtd = [discord.SelectOption(label=f"{i}x", value=str(i)) for i in [1,2,3,5,10,20,50]]
+    btn = discord.ui.Button(label="Confirmar", style=discord.ButtonStyle.success, disabled=True, row=2)
+    s1 = discord.ui.Select(placeholder="Escolha o item...", options=opcoes1, row=0)
+    sq = discord.ui.Select(placeholder="Quantidade...", options=opcoes_qtd, row=1)
+
+    async def on_s1(inter):
+        item_sel["id"] = s1.values[0]; btn.disabled = False
+        await inter.response.edit_message(view=v)
+    async def on_sq(inter):
+        qtd_sel["v"] = int(sq.values[0])
+        await inter.response.edit_message(view=v)
+    async def on_btn(inter):
+        if inter.user.id != interaction.user.id: return
+        iid = item_sel["id"]; qtd = qtd_sel["v"]
+        it = next((i for i in CATALOGO if i["id"] == iid), None)
+        if not it: return
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            for _ in range(qtd):
+                ex = await conn.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", jogador.id, iid)
+                if ex:
+                    await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
+                else:
+                    await conn.execute(
+                        "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                        jogador.id, iid, it["nome"], it["tipo"], it["raridade"], it["emoji"], it["desc"]
+                    )
+        await inter.response.edit_message(
+            embed=discord.Embed(title="Item adicionado!", description=f"{it['emoji']} **{it['nome']}** x{qtd} para {jogador.mention}!", color=COR_RAR.get(it["raridade"], 0x888780)),
+            view=None
+        )
+        await asyncio.sleep(3)
+        try:
+            msg = await inter.original_response()
+            await msg.delete()
+        except: pass
+
+    s1.callback = on_s1; sq.callback = on_sq; btn.callback = on_btn
+    v = discord.ui.View(timeout=120)
+    v.add_item(s1); v.add_item(sq); v.add_item(btn)
+    await interaction.followup.send(embed=embed, view=v, ephemeral=True)
+
+# ─── /set-moedas ─────────────────────────────────────────────────
+
+@bot.tree.command(name="set-moedas", description="[ADMIN] Define ou adiciona moedas")
+@app_commands.describe(jogador="Alvo", quantidade="Quantidade", modo="adicionar ou definir")
+@app_commands.choices(modo=[
+    app_commands.Choice(name="adicionar", value="adicionar"),
+    app_commands.Choice(name="definir",   value="definir"),
+])
+@app_commands.checks.has_permissions(administrator=True)
+async def set_moedas(interaction: discord.Interaction, jogador: discord.Member, quantidade: int, modo: str = "adicionar"):
+    await interaction.response.defer(ephemeral=True)
+    p = await get_personagem(jogador.id)
+    if not p:
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
+    novo = quantidade if modo == "definir" else p["moedas"] + quantidade
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE personagens SET moedas=$1 WHERE user_id=$2", novo, jogador.id)
+    await interaction.followup.send(embed=discord.Embed(title="Moedas atualizadas!", description=f"{jogador.mention} agora tem **{novo} 🪙**", color=0xE4AF3C), ephemeral=True)
+
+# ─── /treinar ────────────────────────────────────────────────────
+
+@bot.tree.command(name="treinar", description="Batalha contra um monstro para ganhar XP")
+@app_commands.choices(dificuldade=[
+    app_commands.Choice(name="Facil — Goblin/Lobo",        value="facil"),
+    app_commands.Choice(name="Medio — Orc/Golem",          value="medio"),
+    app_commands.Choice(name="Dificil — Vampiro",          value="dificil"),
+    app_commands.Choice(name="Lendario — Dragao (nv 25+)", value="lendario"),
+])
+async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
+    await interaction.response.defer()
+    p = await get_personagem(interaction.user.id)
+    if not p:
+        await interaction.followup.send("Crie seu personagem com `/criar_personagem`!", ephemeral=True); return
+    if dificuldade == "lendario" and p["nivel"] < 25:
+        await interaction.followup.send(f"Precisa ser nivel 25+! (Seu nivel: {p['nivel']})", ephemeral=True); return
+
+    view_arena = EscolherArenaView(interaction.user.id)
+    await interaction.followup.send("Escolha a arena:", view=view_arena, wait=True)
+    await view_arena.wait()
+    arena = view_arena.arena or random.choice(ARENAS)
+
+    monstros = [m for m in MONSTROS if m["dificuldade"] == dificuldade]
+    if not monstros: monstros = [MONSTROS[0]]
+    monstro = dict(random.choice(monstros))
+    escala = max(1.0, p["nivel"] / max(1, monstro["nivel"]))
+    if escala > 1.2:
+        monstro["hp"]     = int(monstro["hp"]     * min(escala, 2.0))
+        monstro["ataque"] = int(monstro["ataque"] * min(escala, 1.5))
+        monstro["xp"]     = int(monstro["xp"]     * min(escala, 2.0))
+        monstro["moedas"] = int(monstro["moedas"] * min(escala, 2.0))
+
+    await rodar_treino(interaction, p, monstro, arena)
+
+# ─── /desafiar ───────────────────────────────────────────────────
+
+@bot.tree.command(name="desafiar", description="Desafia outro jogador para um duelo PvP")
+@app_commands.describe(jogador="Jogador que voce quer desafiar")
+async def desafiar(interaction: discord.Interaction, jogador: discord.Member):
+    if not await checar_batalha(interaction): return
+    await interaction.response.defer()
+    if jogador.id == interaction.user.id:
+        await interaction.followup.send("Nao pode se desafiar!", ephemeral=True); return
+    if jogador.bot:
+        await interaction.followup.send("Use `/treinar` para batalhar contra monstros!", ephemeral=True); return
+    p1 = await get_personagem(interaction.user.id)
+    p2 = await get_personagem(jogador.id)
+    if not p1:
+        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
+    if not p2:
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
+
+    arena = random.choice(ARENAS)
+    view_d = AceitarDueloView(interaction.user.id, jogador.id)
+    desc = (
+        f"{interaction.user.mention} desafia {jogador.mention} para um duelo!\n\n"
+        f"**{p1['nome']}** (Nv {p1['nivel']}) vs **{p2['nome']}** (Nv {p2['nivel']})\n\n"
+        f"{arena['emoji']} Arena sorteada: **{arena['nome']}** — {arena['bonus']}\n\n"
+        f"{jogador.mention}, voce aceita?"
+    )
+    embed_d = discord.Embed(title="Desafio de Duelo!", description=desc, color=0xD85A30)
+    embed_d.set_footer(text="Expira em 5 minutos.")
+    msg_d = await interaction.followup.send(embed=embed_d, view=view_d, wait=True)
+    await view_d.wait()
+
+    if view_d.resposta is None:
+        await msg_d.edit(embed=discord.Embed(title="Desafio expirado.", color=0x888780), view=None); return
+    if not view_d.resposta:
+        await msg_d.edit(embed=discord.Embed(title="Desafio recusado.", color=0x888780), view=None); return
+
+    await msg_d.edit(embed=discord.Embed(title=f"Duelo aceito! Arena: {arena['emoji']} {arena['nome']}", color=0x1D9E75), view=None)
+    canal_batalha = discord.utils.get(interaction.guild.text_channels, name="🥊┃arena-pública") or interaction.channel
+    await asyncio.sleep(1)
+    await rodar_pvp(canal_batalha, p1, p2, interaction.user, jogador, arena)
+
+# ─── /dungeon ────────────────────────────────────────────────────
+
+@bot.tree.command(name="dungeon", description="Entre em uma dungeon e enfrente os chefes")
+@app_commands.describe(rank="Rank da dungeon")
+@app_commands.choices(rank=[
+    app_commands.Choice(name="Rank F — Nivel 1+",  value="F"),
+    app_commands.Choice(name="Rank E — Nivel 5+",  value="E"),
+    app_commands.Choice(name="Rank D — Nivel 10+", value="D"),
+    app_commands.Choice(name="Rank C — Nivel 20+", value="C"),
+    app_commands.Choice(name="Rank B — Nivel 30+", value="B"),
+    app_commands.Choice(name="Rank A — Nivel 40+", value="A"),
+    app_commands.Choice(name="Rank S — Nivel 50+", value="S"),
+])
+async def dungeon(interaction: discord.Interaction, rank: str):
+    await cmd_dungeon(interaction, rank)
+
+# ─── /hospital ───────────────────────────────────────────────────
+
+@bot.tree.command(name="hospital", description="Restaura seu HP e Mana pagando moedas")
+async def hospital(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
+    await cmd_hospital(interaction)
+
+# ─── /girar ──────────────────────────────────────────────────────
+
+@bot.tree.command(name="girar", description="Use seus giros de roleta acumulados")
+async def girar(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
+    await cmd_girar(interaction)
+
+
+# ─── /set-nivel ──────────────────────────────────────────────────
+
+@bot.tree.command(name="set-nivel", description="[ADMIN] Define o nivel de um jogador")
+@app_commands.describe(jogador="Jogador alvo", nivel="Nivel desejado (1-100)")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_nivel(interaction: discord.Interaction, jogador: discord.Member, nivel: int):
+    await interaction.response.defer(ephemeral=True)
+
+    if nivel < 1 or nivel > 100:
+        await interaction.followup.send("Nivel deve ser entre 1 e 100!", ephemeral=True)
+        return
+
+    p = await get_personagem(jogador.id)
+    if not p:
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True)
+        return
+
+    # Calcula novos stats baseados no nivel
+    nivel_diff = nivel - p["nivel"]
+    hp_max_novo  = max(50, p["hp_max"]  + nivel_diff * 5)
+    atk_novo     = max(5,  p["ataque"]  + nivel_diff * 2)
+    dfs_novo     = max(3,  p["defesa"]  + nivel_diff * 1)
+    mana_max_novo = calcular_mana_max(p["classe_id"], nivel, p["poder_valor"], p["destino_id"])
+
+    # XP zerado no nivel novo (comeca do zero no nivel definido)
+    xp_needed = 100 + (nivel - 1) * 50
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE personagens
+            SET nivel=$1, xp=0, hp_max=$2, hp_atual=$3,
+                ataque=$4, defesa=$5, mana_max=$6, mana_atual=$7
+            WHERE user_id=$8
+        """, nivel, hp_max_novo, hp_max_novo, atk_novo, dfs_novo, mana_max_novo, mana_max_novo, jogador.id)
+
+        # Desbloqueia skills do nivel
+        from catalogo import SKILLS_COMPLETAS
+        for sk in SKILLS_COMPLETAS.get(p["classe_id"], []):
+            if sk["nivel"] <= nivel:
                 await conn.execute(
-                    "UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1",
-                    ex["id"]
+                    "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
+                    jogador.id, sk["id"]
                 )
+
+    # Atualiza cargos
+    rank_obj = get_rank(nivel)
+    guild = interaction.guild
+    if guild:
+        member = guild.get_member(jogador.id)
+        if member:
+            await atualizar_todos_cargos(guild, member, nivel)
+
+    embed = discord.Embed(
+
+        title="✅ Nivel atualizado!",
+        description=(
+            f"{jogador.mention} agora e **Nivel {nivel}**!\n\n"
+            f"❤️ HP: **{hp_max_novo}** | ⚔️ ATK: **{atk_novo}** | 🛡️ DEF: **{dfs_novo}**\n"
+            f"💙 Mana: **{mana_max_novo}**\n"
+            f"🏅 Rank: {rank_obj['emoji']} **{rank_obj['rank']}** — {rank_obj['nome']}\n\n"
+            f"Todas as skills ate Nv {nivel} foram desbloqueadas!"
+        ),
+        color=0xE4AF3C
+    )
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+
+
+
+
+# ─── /set-giros ──────────────────────────────────────────────────
+
+@bot.tree.command(name="set-giros", description="[ADMIN] Da giros de roleta para um jogador")
+@app_commands.describe(jogador="Jogador que vai receber os giros")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_giros(interaction: discord.Interaction, jogador: discord.Member):
+    await cmd_set_giros(interaction, jogador)
+
+# ─── /loja ───────────────────────────────────────────────────────
+
+@bot.tree.command(name="loja", description="Compre itens da loja — armas, armaduras e pocoes da sua classe")
+@app_commands.choices(categoria=[
+    app_commands.Choice(name="⚔️ Armas da minha classe",     value="armas"),
+    app_commands.Choice(name="🛡️ Armaduras da minha classe", value="armaduras"),
+    app_commands.Choice(name="🧪 Pocoes e Elixires",         value="pocoes"),
+])
+async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
+    if not await checar_batalha(interaction): return
+    await interaction.response.defer(ephemeral=True)
+    p = await get_personagem(interaction.user.id)
+    if not p:
+        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
+
+    rank_info = get_rank(p["nivel"])
+
+    LOJA_RARIDADES = ["Comum", "Incomum"]  # Raro+ só por dungeon/ferreiro/roleta
+
+    if categoria == "armas":
+        itens_cat = get_armas_classe(p["classe_id"])
+        itens = [
+            {"id":i["id"],"nome":i["nome"],"emoji":i["emoji"],
+             "raridade":i["raridade"],"preco":i["preco"],"desc":i["desc"],"tipo":"arma"}
+            for i in itens_cat if i["preco"] > 0 and i["raridade"] in LOJA_RARIDADES
+        ]
+    elif categoria == "armaduras":
+        itens_cat = get_armaduras_classe(p["classe_id"])
+        itens = [
+            {"id":i["id"],"nome":i["nome"],"emoji":i["emoji"],
+             "raridade":i["raridade"],"preco":i["preco"],"desc":i["desc"],"tipo":"armadura"}
+            for i in itens_cat if i["preco"] > 0 and i["raridade"] in LOJA_RARIDADES
+        ]
+    else:
+        itens = list(LOJA_ITENS.get("pocoes", []))
+
+    COR_RAR_LOJA = {"Comum":"⬜","Incomum":"🟩","Raro":"🟦","Epico":"🟪","Lendario":"🟧"}
+    classe_nome = p["classe_id"].title()
+    titulo_cat = f"⚔️ Armas — {classe_nome} (Comum/Incomum)" if categoria=="armas" else (f"🛡️ Armaduras — {classe_nome} (Comum/Incomum)" if categoria=="armaduras" else "🧪 Pocoes e Elixires")
+
+    embed = discord.Embed(
+        title=f"🏪 Loja — {titulo_cat}",
+        description=(
+            f"Jogador: **{p['nome']}** {rank_info['emoji']} Rank {rank_info['rank']} — Nv {p['nivel']}\n"
+            f"Moedas: **{p['moedas']} 🪙** | Classe: **{classe_nome}**\n\n"
+            "⚠️ Itens Raro+ só obtidos em Dungeons, Ferreiro e Roletas!" if categoria in ('armas','armaduras') else ""
+        ),
+        color=0xE4AF3C
+    )
+    for it in itens[:15]:
+        rar_emoji = COR_RAR_LOJA.get(it['raridade'], "⬜")
+        embed.add_field(
+            name=f"{rar_emoji} {it['emoji']} {it['nome']}",
+            value=f"*{it['desc']}*\n**{it['preco']} 🪙** | {it['raridade']}",
+            inline=True
+        )
+
+    if not itens:
+        embed.description += "\n\n*Nenhum item disponivel para compra nesta categoria.*"
+        await interaction.followup.send(embed=embed, ephemeral=True); return
+
+    opcoes = [
+        discord.SelectOption(
+            label=f"{it['emoji']} {it['nome']} — {it['preco']} 🪙",
+            value=it["id"],
+            description=f"{it['raridade']} | {it['desc'][:50]}"
+        ) for it in itens[:25]
+    ]
+    sel = discord.ui.Select(placeholder="Selecione o item para comprar...", options=opcoes)
+
+    async def comprar(inter: discord.Interaction):
+        if inter.user.id != interaction.user.id: return
+        item_def = next((i for i in itens if i["id"] == sel.values[0]), None)
+        if not item_def: return
+        p2 = await get_personagem(inter.user.id)
+        if p2["moedas"] < item_def["preco"]:
+            await inter.response.send_message(f"Moedas insuficientes! Precisa de **{item_def['preco']} 🪙**", ephemeral=True); return
+        tipo = item_def.get("tipo", "pocao")
+        db_pool = await get_pool()
+        async with db_pool.acquire() as conn:
+            await conn.execute("UPDATE personagens SET moedas=moedas-$1 WHERE user_id=$2", item_def["preco"], inter.user.id)
+            ex = await conn.fetchrow("SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", inter.user.id, item_def["id"])
+            if ex:
+                await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
             else:
                 await conn.execute(
                     "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
-                    user_id, iid, nome, tipo, rar, emoji, desc
+                    inter.user.id, item_def["id"], item_def["nome"], tipo, item_def["raridade"], item_def["emoji"], item_def["desc"]
                 )
-
-async def remover_pocao(user_id, item_id):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2",
-            user_id, item_id
-        )
-        if row:
-            if row["quantidade"] > 1:
-                await conn.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=$1", row["id"])
-            else:
-                await conn.execute("DELETE FROM inventario WHERE id=$1", row["id"])
-
-async def desbloquear_skills_nivel(conn, user_id, classe_id, nivel):
-    """Desbloqueia skills da classe pelo nivel atual."""
-    skills = SKILLS_COMPLETAS.get(classe_id, [])
-    for s in skills:
-        if s["nivel"] <= nivel:
-            await conn.execute(
-                "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
-                user_id, s["id"]
-            )
-
-async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe_id, nivel_atual, mana_atual_batalha=None):
-    """Salva resultado e retorna (levelups, nivel_novo, rank_mudou, rank_novo)."""
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        p = await conn.fetchrow(
-            "SELECT xp, nivel, hp_max, hp_atual, ataque, defesa, mana_max, mana_atual, poder_valor, destino_id FROM personagens WHERE user_id=$1",
-            user_id
-        )
-        if not p:
-            return 0, nivel_atual, False, None
-
-        # Bonus de XP racial (Humano +15%)
-        from racas import get_raca as _get_raca
-        _raca = _get_raca(p.get("raca_id", "humano")) if "raca_id" in p.keys() else {"bonus_xp": 0.0}
-        _bonus_xp = _raca.get("bonus_xp", 0.0) if isinstance(_raca, dict) else 0.0
-        xp_ganho  = int(xp_ganho * (1.0 + _bonus_xp))
-        novo_xp = p["xp"] + xp_ganho
-        nv      = p["nivel"]
-        levelups = 0
-        rank_antes = get_rank(nv)["rank"]
-
-        # Calcula level ups
-        needed = 100 + (nv - 1) * 50
-        while novo_xp >= needed:
-            novo_xp -= needed
-            nv      += 1
-            needed   = 100 + (nv - 1) * 50
-            levelups += 1
-
-        # Atualiza stats por nivel
-        hp_max_novo  = p["hp_max"]  + levelups * 5
-        atk_novo     = p["ataque"]  + levelups * 2
-        dfs_novo     = p["defesa"]  + levelups * 1
-        mana_max_novo = calcular_mana_max(classe_id, nv, p["poder_valor"], p["destino_id"])
-        mana_novo    = min(p["mana_atual"] + levelups * 10, mana_max_novo)
-        hp_final     = max(1, min(hp, hp_max_novo))
-
-        # Mana nao restaura apos batalha — persiste o que sobrou
-        # So recupera pelo hospital ou pocoes
-        # Garante que nao passa do maximo nem fica negativa
-        mana_salvar = max(0, min(p["mana_atual"], mana_max_novo))
-
-        await conn.execute("""
-            UPDATE personagens
-            SET hp_atual=$1, hp_max=$2, xp=$3, nivel=$4,
-                ataque=$5, defesa=$6, mana_max=$7, mana_atual=$8,
-                moedas=moedas+$9, vitorias=vitorias+$10, derrotas=derrotas+$11
-            WHERE user_id=$12
-        """,
-            hp_final, hp_max_novo, novo_xp, nv,
-            atk_novo, dfs_novo, mana_max_novo, mana_salvar,
-            moedas_ganhas,
-            1 if vitoria else 0,
-            0 if vitoria else 1,
-            user_id
-        )
-
-        # Desbloqueia skills pelo novo nivel
-        await desbloquear_skills_nivel(conn, user_id, classe_id, nv)
-
-        rank_novo_obj = get_rank(nv)
-        rank_mudou = rank_novo_obj["rank"] != rank_antes
-
-        return levelups, nv, rank_mudou, rank_novo_obj
-
-async def init_db_batalha():
-    pass  # tabelas criadas no db.py
-
-# ─── CALCULOS ────────────────────────────────────────────────────
-
-def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False, nivel=1, hp_max_monstro=None, passiva_mult=1.0):
-    """Dano escalado pelo nivel de forma linear e controlada.
-
-    Rank F (Nv1-9):   dano base ATK/4  → mago nv1 ATK10 = 2-5 dano base
-    Rank E (Nv10-19): dano base ATK/3
-    Rank D (Nv20-29): dano base ATK/2.5
-    Rank C (Nv30-39): dano base ATK/2
-    Rank B (Nv40-49): dano base ATK/1.8
-    Rank A (Nv50-59): dano base ATK/1.5
-    Rank S (Nv60+):   dano base ATK/1.2
-
-    Skills multiplicam em cima desse base (max x2.0).
-    HP monstro cap: nenhum hit passa de 35% do HP.
-    """
-    # Divisor decresce conforme sobe de nivel — Rank F é bem fraco
-    div_forca = 1.0  # overridden above
-
-    # Divisor e cap por rank — alvo: 5-8 hits para matar
-    if nivel <= 9:
-        div_forca = 1.1   # Rank F
-        mult_cap  = 1.15
-    elif nivel <= 19:
-        div_forca = 0.95  # Rank E
-        mult_cap  = 1.35
-    elif nivel <= 29:
-        div_forca = 0.85  # Rank D
-        mult_cap  = 1.55
-    elif nivel <= 39:
-        div_forca = 0.78  # Rank C
-        mult_cap  = 1.70
-    elif nivel <= 49:
-        div_forca = 0.72  # Rank B
-        mult_cap  = 1.80
-    elif nivel <= 59:
-        div_forca = 0.67  # Rank A
-        mult_cap  = 1.80
-    elif nivel <= 74:
-        div_forca = 0.62  # Rank S
-        mult_cap  = 1.80
-    else:
-        div_forca = 0.58  # Rank SS
-        mult_cap  = 1.80
-    mult_real  = min(mult_cap, mult)
-    dano_minimo = max(2, int(atk * 0.10))  # min 10% ATK
-
-    if ignorar_defesa:
-        base = int((atk / div_forca) * mult_real)
-    else:
-        atk_efetivo = max(1, atk - int(dfs * 0.35))
-        base = int((atk_efetivo / div_forca) * mult_real)
-
-    base = max(dano_minimo, base)
-
-    # Variacao pequena +/- 10%
-    variacao = random.randint(-max(1, base // 10), max(1, base // 10))
-    dano = max(dano_minimo, base + variacao)
-
-    # Bonus de afinidade (max +15%)
-    dano = int(dano * min(bonus_atk, 1.15))
-
-    # Critico: +30%
-    if crit:
-        dano = int(dano * 1.30)
-
-    # Cap por HP do monstro: nunca passa de 35% do HP por hit
-    if hp_max_monstro:
-        cap = max(dano_minimo, int(hp_max_monstro * 0.35))
-        dano = min(cap, dano)
-
-    return max(dano_minimo, dano)
-
-def barra_hp(cur, mx):
-    if mx <= 0: return "░░░░░░░░░░"
-    p = max(0.0, cur / mx)
-    f = int(p * 10)
-    char = "█" if p > 0.6 else ("▓" if p > 0.3 else "▒")
-    return char * f + "░" * (10 - f)
-
-def get_skill_resolv(classe_id, skill_id):
-    """Resolve skill pelo catalogo novo, fallback para antigo."""
-    sk = get_skill_by_id(skill_id)
-    if sk:
-        return sk
-    # Fallback
-    for s in SKILLS_COMPLETAS.get(classe_id, []):
-        if s["id"] == skill_id:
-            return dict(s, classe_origem=classe_id)
-    return None
-
-def calcular_bonus_equip(classe_id, arma, armadura):
-    """Retorna (bonus_atk_mult, bonus_dfs_mult) com base na afinidade."""
-    bonus_atk = 1.0
-    bonus_dfs = 1.0
-    if arma:
-        arma_id = arma["item_id"]
-        _, compat = get_bonus_arma(arma_id, classe_id)
-        if compat is True:
-            bonus_atk = 1.15
-        elif compat is False:
-            bonus_atk = 0.85
-    if armadura:
-        arm_id = armadura["item_id"]
-        _, compat = get_bonus_armadura(arm_id, classe_id)
-        if compat is True:
-            bonus_dfs = 1.10
-        elif compat is False:
-            bonus_dfs = 0.90
-    return bonus_atk, bonus_dfs
-
-def aplicar_efeito_pocao(item_id, hp, hp_max, mana, mana_max):
-    """Aplica pocao e retorna (hp_novo, mana_nova, descricao)."""
-    poc = POCOES.get(item_id)
-    if not poc:
-        return hp, mana, "Pocao desconhecida."
-    if poc["tipo"] == "hp":
-        ganho   = min(poc["valor"], hp_max - hp)
-        hp_novo = hp + ganho
-        return hp_novo, mana, f"{poc['emoji']} {poc['nome']} usada! +{ganho} HP ❤️"
-    elif poc["tipo"] == "mana":
-        ganho    = min(poc["valor"], mana_max - mana)
-        mana_nova = mana + ganho
-        return hp, mana_nova, f"{poc['emoji']} {poc['nome']} usada! +{ganho} Mana 💙"
-    else:  # full
-        return hp_max, mana_max, f"{poc['emoji']} Elixir Supremo! HP e Mana restaurados! ✨"
-
-# ─── PASSIVA DE CLASSE ───────────────────────────────────────────
-
-class Passiva:
-    def __init__(self, classe_id):
-        self.classe_id = classe_id
-        self.turno     = 0
-        self.bonus_dreno    = 1.0
-        self.bonus_mag_acum = 0.0
-        self.arcano_turnos  = 0
-        self.arcano_acum    = 0.0
-
-    def inicio_turno(self, hp_j, hp_jmx):
-        self.turno += 1
-        cura = 0
-        if self.classe_id == "paladino" and hp_jmx > 0 and (hp_j / hp_jmx) < 0.30:
-            cura = 15
-        if self.classe_id == "mago":
-            self.bonus_mag_acum = min(0.40, self.bonus_mag_acum + 0.08)
-        return cura
-
-    def apos_critico(self):
-        return 8 if self.classe_id == "arqueiro" else 0
-
-    def apos_dreno(self):
-        if self.classe_id == "necromante":
-            self.bonus_dreno = min(2.0, self.bonus_dreno + 0.10)
-        return self.bonus_dreno
-
-    def apos_tomar_dano(self):
-        if self.classe_id == "arcano":
-            self.arcano_acum  = 0.0
-            self.arcano_turnos = 0
-
-    def fim_turno_sem_dano(self):
-        if self.classe_id == "arcano":
-            self.arcano_turnos += 1
-            self.arcano_acum = min(0.50, self.arcano_turnos * 0.10)
-
-    def bonus_defesa_fixa(self):
-        if self.classe_id == "guerreiro":
-            return min(30, (self.turno // 3) * 3)
-        return 0
-
-    def reducao_dano(self):
-        return 0.10 if self.classe_id == "dracomante" else 0.0
-
-    def imune_status(self, status):
-        return self.classe_id == "dracomante" and status in ("queimadura", "veneno")
-
-    def multiplicador_dano(self):
-        if self.classe_id == "mago":
-            return 1.0 + self.bonus_mag_acum
-        if self.classe_id == "arcano":
-            return 1.0 + self.arcano_acum
-        return 1.0
-
-    def desc_passiva(self):
-        if self.classe_id == "guerreiro":
-            return f"🗡️ DEF passiva: +{self.bonus_defesa_fixa()}"
-        if self.classe_id == "arqueiro":
-            return "🏹 Crítico recupera 8 mana"
-        if self.classe_id == "mago":
-            return f"🔮 Dano mágico +{int(self.bonus_mag_acum*100)}%"
-        if self.classe_id == "paladino":
-            return "⚡ Cura auto 15 HP/turno se HP<30%"
-        if self.classe_id == "necromante":
-            return f"🌑 Dreno x{self.bonus_dreno:.1f}"
-        if self.classe_id == "dracomante":
-            return "🐉 -10% dano, imune veneno/queimadura"
-        if self.classe_id == "arcano":
-            return f"✨ Dano arcano +{int(self.arcano_acum*100)}%"
-        return ""
-
-# ─── PROCESSAMENTO DE EFEITOS ─────────────────────────────────────
-
-def processar_efeitos_turno(efeitos):
-    """
-    Processa efeitos no inicio do turno.
-    Retorna (dano_de_efeito, msg_efeito, efeitos_atualizados).
-    """
-    dano_total = 0
-    msgs = []
-    novos_efeitos = {}
-
-    for ef, dados in efeitos.items():
-        if isinstance(dados, dict):
-            duracao = dados.get("duracao", 0)
-            valor   = dados.get("valor", 0)
-        else:
-            duracao = dados
-            valor   = 0
-
-        if duracao <= 0:
-            continue
-
-        duracao -= 1
-
-        if ef == "veneno":
-            dano_total += valor
-            msgs.append(f"☠️ Veneno causou **{valor}** de dano!")
-        elif ef == "queimadura":
-            dano_total += valor
-            msgs.append(f"🔥 Queimadura causou **{valor}** de dano!")
-        elif ef == "regeneracao":
-            msgs.append(f"💚 Regeneracao: +{valor} HP!")
-        elif ef in ("defesa", "escudo", "esquiva", "escudo_total", "armadura", "reflexo",
-                    "buff_ataque", "buff_all", "berserker", "congelar", "paralisia",
-                    "atordoado", "confusao", "terror", "enfraquecer"):
-            pass  # so decrementamos duracao
-
-        if duracao > 0:
-            novos_efeitos[ef] = {"duracao": duracao, "valor": valor}
-
-    return dano_total, msgs, novos_efeitos
-
-def efeito_ativo(efeitos, nome):
-    ef = efeitos.get(nome)
-    if ef is None:
-        return False
-    if isinstance(ef, dict):
-        return ef.get("duracao", 0) > 0
-    return ef > 0
-
-def add_efeito(efeitos, nome, duracao, valor=0):
-    efeitos[nome] = {"duracao": duracao, "valor": valor}
-
-# ─── VIEWS ───────────────────────────────────────────────────────
-
-class EscolherArenaView(discord.ui.View):
-    def __init__(self, user_id):
-        super().__init__(timeout=30)
-        self.user_id = user_id
-        self.arena   = None  # nenhuma pre-selecionada
-        opcoes = [
-            discord.SelectOption(
-                label=f"{a['emoji']} {a['nome']}",
-                value=a["id"],
-                description=f"Bonus: {a['bonus']}",
-                default=False
-            ) for a in ARENAS
-        ]
-        sel = discord.ui.Select(
-            placeholder="🏟️ Escolha uma arena...",
-            options=opcoes,
-            min_values=1,
-            max_values=1
-        )
-        sel.callback = self._escolher
-        self.add_item(sel)
-
-    async def _escolher(self, inter: discord.Interaction):
-        if inter.user.id != self.user_id:
-            await inter.response.defer()
-            return
-        self.arena = next(a for a in ARENAS if a["id"] == inter.data["values"][0])
+        try: await atualizar_progresso(inter.user.id, "moedas_gastas", item_def["preco"])
+        except: pass
+        rar_e = COR_RAR_LOJA.get(item_def["raridade"], "⬜")
         await inter.response.edit_message(
             embed=discord.Embed(
-                title=f"{self.arena['emoji']} Arena: {self.arena['nome']}",
-                description=f"Bonus: **{self.arena['bonus']}**",
-                color=self.arena["cor"]
-            ),
-            view=None
-        )
-        self.stop()
-
-    async def on_timeout(self):
-        if not self.arena:
-            self.arena = random.choice(ARENAS)
-        self.stop()
-
-
-class AceitarDueloView(discord.ui.View):
-    def __init__(self, desafiante_id, desafiado_id):
-        super().__init__(timeout=300)
-        self.desafiante_id = desafiante_id
-        self.desafiado_id  = desafiado_id
-        self.resposta      = None
-
-    @discord.ui.button(label="✅ Aceitar", style=discord.ButtonStyle.success)
-    async def aceitar(self, inter: discord.Interaction, b):
-        if inter.user.id != self.desafiado_id:
-            await inter.response.send_message("Nao e voce que foi desafiado!", ephemeral=True)
-            return
-        self.resposta = True
-        await inter.response.defer()
-        self.stop()
-
-    @discord.ui.button(label="❌ Recusar", style=discord.ButtonStyle.danger)
-    async def recusar(self, inter: discord.Interaction, b):
-        if inter.user.id not in (self.desafiado_id, self.desafiante_id):
-            await inter.response.send_message("Nao e sua batalha!", ephemeral=True)
-            return
-        self.resposta = False
-        await inter.response.defer()
-        self.stop()
-
-
-class GerenciarSkillsView(discord.ui.View):
-    def __init__(self, user_id, skills, skills_eq):
-        super().__init__(timeout=60)
-        self.user_id = user_id
-        self.skills  = skills
-        opcoes = [
-            discord.SelectOption(
-                label=f"{s['emoji']} {s['nome']} (Nv{s['nivel']})",
-                value=s["id"],
-                description=s["desc"][:50],
-                default=s["id"] in skills_eq
-            ) for s in skills[:25]
-        ]
-        if opcoes:
-            sel = discord.ui.Select(
-                placeholder="Selecione até 4 skills...",
-                min_values=1, max_values=min(4, len(opcoes)),
-                options=opcoes
-            )
-            sel.callback = self._sel
-            self.add_item(sel)
-
-    async def _sel(self, inter: discord.Interaction):
-        if inter.user.id != self.user_id:
-            await inter.response.send_message("Nao e seu personagem!", ephemeral=True)
-            return
-        selecionadas = inter.data["values"][:4]
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            await conn.execute("DELETE FROM skills_equipadas WHERE user_id=$1", self.user_id)
-            for slot, sid in enumerate(selecionadas):
-                await conn.execute(
-                    "INSERT INTO skills_equipadas(user_id,skill_id,slot) VALUES($1,$2,$3) ON CONFLICT(user_id,slot) DO UPDATE SET skill_id=EXCLUDED.skill_id",
-                    self.user_id, sid, slot
-                )
-        nomes = [s["nome"] for s in self.skills if s["id"] in selecionadas]
-        await inter.response.edit_message(
-            embed=discord.Embed(
-                title="Skills atualizadas!",
-                description="\n".join([f"• {n}" for n in nomes]),
+                title="✅ Compra realizada!",
+                description=f"{rar_e} {item_def['emoji']} **{item_def['nome']}** adicionado ao inventario!\n\n-{item_def['preco']} 🪙 | Saldo restante: {p2['moedas']-item_def['preco']} 🪙",
                 color=0x1D9E75
             ),
             view=None
         )
 
+    sel.callback = comprar
+    embed.set_image(url=IMG_LOJA)
+    embed.set_image(url=IMG_FERREIRO)
+    v = discord.ui.View(timeout=60); v.add_item(sel)
+    await interaction.followup.send(embed=embed, view=v, ephemeral=True)
 
-class BatalhaView(discord.ui.View):
-    def __init__(self, user_id, skills, pocoes, nivel=1):
-        super().__init__(timeout=None)
-        self.user_id    = user_id
-        self.acao       = None
-        self.acao_feita = False
-        self._pocoes    = list(pocoes) if pocoes else []
-        self._skills    = list(skills) if skills else []
+# ─── /ferreiro ───────────────────────────────────────────────────
 
-        # Slots de skill por rank
-        if nivel <= 9:    max_slots = 2   # Rank F
-        elif nivel <= 19: max_slots = 3   # Rank E
-        else:             max_slots = 4   # Rank D+
+@bot.tree.command(name="ferreiro", description="Forje itens usando materiais coletados")
+async def ferreiro(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
+    await interaction.response.defer(ephemeral=True)
+    p = await get_personagem(interaction.user.id)
+    if not p:
+        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
 
-        for i, sk in enumerate(skills[:max_slots]):
-            mana_txt = f" ({sk.get('mana',0)}💙)" if sk.get("mana", 0) > 0 else ""
-            btn = discord.ui.Button(
-                label=f"{sk['emoji']} {sk['nome']}{mana_txt}",
-                style=discord.ButtonStyle.primary,
-                row=i // 2,
-                custom_id=f"skill_{i}"
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("SELECT item_id, quantidade FROM inventario WHERE user_id=$1 AND tipo='material'", interaction.user.id)
+    inv = {r["item_id"]: r["quantidade"] for r in rows}
+
+    embed = discord.Embed(title="Ferreiro", description=f"Suas moedas: **{p['moedas']} 🪙**\nEscolha uma receita:", color=0x888780)
+    for r in RECEITAS:
+        mats = " | ".join([f"{qty}x {mid}" for mid, qty in r["materiais"].items()])
+        tem = all(inv.get(mid, 0) >= qty for mid, qty in r["materiais"].items())
+        embed.add_field(name=f"{'✅' if tem else '❌'} {r['emoji']} {r['nome']} [{r['raridade']}]", value=f"{r['desc']}\nMateriais: {mats}\nForja: {r['preco_forja']} 🪙", inline=False)
+
+    opcoes = [discord.SelectOption(label=f"{r['emoji']} {r['nome']} — {r['preco_forja']} 🪙", value=r["id"], description=r["desc"][:50]) for r in RECEITAS]
+    sel = discord.ui.Select(placeholder="Escolha uma receita...", options=opcoes)
+
+    async def forjar(inter: discord.Interaction):
+        if inter.user.id != interaction.user.id: return
+        rec = next((r for r in RECEITAS if r["id"] == sel.values[0]), None)
+        if not rec: return
+        p2 = await get_personagem(inter.user.id)
+        pool2 = await get_pool()
+        async with pool2.acquire() as conn:
+            rows2 = await conn.fetch("SELECT item_id, quantidade FROM inventario WHERE user_id=$1 AND tipo='material'", inter.user.id)
+            inv2 = {r["item_id"]: r["quantidade"] for r in rows2}
+            falta = [f"{qty}x {mid}" for mid, qty in rec["materiais"].items() if inv2.get(mid, 0) < qty]
+            if falta:
+                await inter.response.send_message(f"Faltam materiais: {', '.join(falta)}", ephemeral=True); return
+            if p2["moedas"] < rec["preco_forja"]:
+                await inter.response.send_message(f"Precisa de {rec['preco_forja']} 🪙!", ephemeral=True); return
+            for mid, qty in rec["materiais"].items():
+                row = await conn.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", inter.user.id, mid)
+                if row:
+                    if row["quantidade"] > qty:
+                        await conn.execute("UPDATE inventario SET quantidade=quantidade-$1 WHERE id=$2", qty, row["id"])
+                    else:
+                        await conn.execute("DELETE FROM inventario WHERE id=$1", row["id"])
+            await conn.execute("UPDATE personagens SET moedas=moedas-$1 WHERE user_id=$2", rec["preco_forja"], inter.user.id)
+            await conn.execute(
+                "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                inter.user.id, rec["id"], rec["nome"], rec["tipo"], rec["raridade"], rec["emoji"], rec["desc"]
             )
-            btn.callback = self._fazer_skill(i)
-            self.add_item(btn)
-        self._max_slots = max_slots
-
-        mochila_btn = discord.ui.Button(
-            label=f"🎒 Mochila ({len(self._pocoes)})" if self._pocoes else "🎒 Mochila (vazia)",
-            style=discord.ButtonStyle.secondary,
-            disabled=len(self._pocoes) == 0,
-            row=2,
-            custom_id="mochila"
-        )
-        mochila_btn.callback = self._abrir_mochila
-        self.add_item(mochila_btn)
-
-        fugir_btn = discord.ui.Button(
-            label="🏃 Fugir", style=discord.ButtonStyle.danger,
-            row=2, custom_id="fugir"
-        )
-        fugir_btn.callback = self._fugir
-        self.add_item(fugir_btn)
-
-    def _fazer_skill(self, idx):
-        async def callback(inter: discord.Interaction):
-            try: await inter.response.defer()
-            except: pass
-            if inter.user.id != self.user_id or self.acao_feita:
-                return
-            self.acao_feita = True
-            self.acao = ("skill", idx)
-            self.stop()
-        return callback
-
-    async def _abrir_mochila(self, inter: discord.Interaction):
-        if inter.user.id != self.user_id or self.acao_feita:
-            try: await inter.response.defer()
-            except: pass
-            return
-        if not self._pocoes:
-            try: await inter.response.send_message("Mochila vazia!", ephemeral=True)
-            except: pass
-            return
-        opcoes = [
-            discord.SelectOption(
-                label=f"{p['emoji']} {p['nome']} (x{p['quantidade']})",
-                value=p["item_id"]
-            ) for p in self._pocoes[:10]
-        ]
-        sel = discord.ui.Select(placeholder="Qual pocao usar?", options=opcoes)
-        parent = self
-
-        async def usar(inter2: discord.Interaction):
-            try: await inter2.response.defer()
-            except: pass
-            if inter2.user.id != parent.user_id or parent.acao_feita:
-                return
-            parent.acao_feita = True
-            parent.acao = ("pocao", inter2.data["values"][0])
-            parent.stop()
-
-        sel.callback = usar
-        v = discord.ui.View(timeout=20)
-        v.add_item(sel)
-        try: await inter.response.send_message("Escolha a pocao:", view=v, ephemeral=True)
-        except: pass
-
-    async def _fugir(self, inter: discord.Interaction):
-        try: await inter.response.defer()
-        except: pass
-        if inter.user.id != self.user_id or self.acao_feita:
-            return
-        self.acao_feita = True
-        self.acao = ("fugir", None)
-        self.stop()
-
-
-# ─── ENGINE DE TREINO ────────────────────────────────────────────
-
-async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
-    uid = p["user_id"]
-
-    # Skills
-    ids_eq = await get_skills_eq(uid)
-    if not ids_eq:
-        ids_eq = []
-    skills = [get_skill_resolv(p["classe_id"], sid) for sid in ids_eq if get_skill_resolv(p["classe_id"], sid)]
-    if not skills:
-        default = SKILLS_COMPLETAS.get(p["classe_id"], [])
-        skills = default[:4]
-
-    # Equipamento
-    arma     = await get_arma_equipada(uid)
-    armadura = await get_armadura_equipada(uid)
-    bonus_atk, bonus_dfs = calcular_bonus_equip(p["classe_id"], arma, armadura)
-
-    arma_txt     = f"{arma['emoji']} {arma['nome']}" if arma else "Sem arma"
-    armadura_txt = f"{armadura['emoji']} {armadura['nome']}" if armadura else "Sem armadura"
-    compat_arma  = "✅ +15%" if bonus_atk > 1 else ("❌ -15%" if bonus_atk < 1 else "—")
-    compat_arm   = "✅ +10%" if bonus_dfs > 1 else ("❌ -10%" if bonus_dfs < 1 else "—")
-
-    # Stats iniciais
-    hp_j    = p["hp_atual"]
-    hp_jmx  = p["hp_max"]
-    mana_j  = p["mana_atual"] if p["mana_atual"] else 100
-    mana_jmx = p["mana_max"]  if p["mana_max"]  else 100
-    hp_m    = monstro["hp"]
-    hp_mmx  = monstro["hp"]
-    turno   = 1
-    efeitos_j  = {}   # efeitos no jogador
-    efeitos_m  = {}   # efeitos no monstro
-    passiva       = Passiva(p["classe_id"])
-    passiva_racial = PassivaRacial(p.get("raca_id", "humano"))
-    ressuscitou   = False
-    tomou_dano    = False
-    emoji_j = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
-    msgs_batalha = []
-
-    def barra_status():
-        ef_txt = ""
-        ativos = [k for k, v in efeitos_j.items() if (v["duracao"] if isinstance(v,dict) else v) > 0]
-        if ativos:
-            ef_txt = f"\n🔮 Efeitos: {', '.join(ativos)}"
-        return (
-            f"{emoji_j} **{p['nome']}** ❤️`{barra_hp(hp_j,hp_jmx)}`**{hp_j}/{hp_jmx}** 💙{mana_j}/{mana_jmx}{ef_txt}\n"
-            f"{monstro['emoji']} **{monstro['nome']}** ❤️`{barra_hp(hp_m,hp_mmx)}`**{hp_m}/{hp_mmx}**"
+        await inter.response.edit_message(
+            embed=discord.Embed(title="Item forjado!", description=f"{rec['emoji']} **{rec['nome']}** [{rec['raridade']}] adicionado!", color=COR_RAR.get(rec["raridade"], 0x888780)),
+            view=None
         )
 
-    # Embed inicial
-    img_monstro = monstro.get("img", IMG_MONSTRO.get(monstro.get("id",""), IMG_MONSTRO["default"]))
-    embed_ini = discord.Embed(
-        title=f"⚔️ Batalha iniciada — {arena['emoji']} {arena['nome']}",
-        description=(
-            f"**{emoji_j} {p['nome']}** vs **{monstro['emoji']} {monstro['nome']}**\n\n"
-            f"{barra_status()}\n\n"
-            f"⚔️ {arma_txt} {compat_arma} | 🛡️ {armadura_txt} {compat_arm}"
-        ),
-        color=arena["cor"]
+    sel.callback = forjar
+    v = discord.ui.View(timeout=60); v.add_item(sel)
+    await interaction.followup.send(embed=embed, view=v, ephemeral=True)
+
+# ─── /missoes ────────────────────────────────────────────────────
+
+@bot.tree.command(name="missoes", description="Veja suas missoes diarias e progresso")
+async def missoes(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
+    await cmd_missoes(interaction)
+
+# ─── /ranking ────────────────────────────────────────────────────
+
+@bot.tree.command(name="ranking", description="Veja o ranking do servidor")
+async def ranking(interaction: discord.Interaction):
+    await cmd_ranking(interaction)
+
+# ─── /deletar_personagem ─────────────────────────────────────────
+
+class ConfirmarDelete(discord.ui.View):
+    def __init__(self, uid, nome, classe_id):
+        super().__init__(timeout=30)
+        self.uid = uid; self.nome = nome; self.classe_id = classe_id
+
+    @discord.ui.button(label="Sim, DELETAR tudo", style=discord.ButtonStyle.danger)
+    async def confirmar(self, inter: discord.Interaction, b):
+        if inter.user.id != self.uid:
+            await inter.response.send_message("Nao e voce!", ephemeral=True); return
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM personagens WHERE user_id=$1",          self.uid)
+            await conn.execute("DELETE FROM inventario WHERE user_id=$1",            self.uid)
+            await conn.execute("DELETE FROM skills_desbloqueadas WHERE user_id=$1",  self.uid)
+            await conn.execute("DELETE FROM skills_equipadas WHERE user_id=$1",      self.uid)
+            await conn.execute("DELETE FROM giros WHERE user_id=$1",                 self.uid)
+            await conn.execute("DELETE FROM missoes_diarias WHERE user_id=$1",       self.uid)
+        guild = inter.guild
+        if guild:
+            member = guild.get_member(self.uid)
+            if member:
+                for cn in ["Guerreiro","Arqueiro","Mago","Paladino","Necromante","Dracomante","Arcano"]:
+                    cargo = discord.utils.get(guild.roles, name=cn)
+                    if cargo and cargo in member.roles:
+                        try: await member.remove_roles(cargo)
+                        except: pass
+                recem = discord.utils.get(guild.roles, name="🌱 Recem-chegado")
+                if recem:
+                    try: await member.add_roles(recem)
+                    except: pass
+        await inter.response.edit_message(
+            embed=discord.Embed(title="Personagem deletado.", description=f"**{self.nome}** foi removido.\nUse `/criar_personagem` para comecar de novo.", color=0x888780),
+            view=None
+        )
+
+    @discord.ui.button(label="Cancelar", style=discord.ButtonStyle.secondary)
+    async def cancelar(self, inter: discord.Interaction, b):
+        await inter.response.edit_message(embed=discord.Embed(description="Acao cancelada.", color=0x1D9E75), view=None)
+
+@bot.tree.command(name="deletar_personagem", description="Deleta seu personagem PERMANENTEMENTE")
+async def deletar_personagem(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    p = await get_personagem(interaction.user.id)
+    if not p:
+        await interaction.followup.send("Voce nao tem personagem!", ephemeral=True); return
+    embed = discord.Embed(
+        title="ATENCAO — Acao irreversivel!",
+        description=f"Voce esta prestes a deletar **{p['nome']}** (Nv {p['nivel']}).\n\nIsso apaga tudo: personagem, inventario, skills, giros e missoes.\n\n**Esta acao NAO pode ser desfeita.**",
+        color=0xE24B4A
     )
-    embed_ini.set_image(url=arena["img"])
-    embed_ini.set_thumbnail(url=img_monstro)
-    msgs_batalha.append(await interaction.followup.send(embed=embed_ini, wait=True))
+    await interaction.followup.send(embed=embed, view=ConfirmarDelete(interaction.user.id, p["nome"], p["classe_id"]), ephemeral=True)
 
-    # ─── LOOP DE BATALHA ─────────────────────────────────────────
 
-    while hp_j > 0 and hp_m > 0:
 
-        # 1. Efeitos de status no jogador (veneno, queimadura etc)
-        dano_ef, msgs_ef, efeitos_j = processar_efeitos_turno(efeitos_j)
-        if dano_ef > 0:
-            hp_j = max(0, hp_j - dano_ef)
-        # Efeitos no monstro
-        dano_ef_m, msgs_ef_m, efeitos_m = processar_efeitos_turno(efeitos_m)
-        if dano_ef_m > 0:
-            hp_m = max(0, hp_m - dano_ef_m)
+# ─── /mercador ───────────────────────────────────────────────────
 
-        # 2. Passiva inicio de turno
-        tomou_dano = False
-        cura_passiva = passiva.inicio_turno(hp_j, hp_jmx)
-        if cura_passiva > 0:
-            hp_j = min(hp_jmx, hp_j + cura_passiva)
+@bot.tree.command(name="mercador", description="Visite o Mercador Sombrio e troque itens por poderes especiais")
+async def mercador(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
+    await cmd_mercador(interaction)
 
-        if hp_m <= 0:
-            break
 
-        # 3. Pocoes disponíveis
-        pocoes = await get_pocoes_inv(uid)
-        view   = BatalhaView(uid, skills, pocoes, nivel=p["nivel"])
+# ─── /mercado ────────────────────────────────────────────────────
 
-        passiva_txt = passiva.desc_passiva()
-        embed_vez = discord.Embed(
-            title=f"🎮 Turno {turno} — Sua vez!",
-            description=barra_status() + (f"\n{passiva_txt}" if passiva_txt else ""),
-            color=0x7F77DD
-        )
-        if msgs_ef:
-            embed_vez.add_field(name="Efeitos de status", value="\n".join(msgs_ef), inline=False)
-        if msgs_ef_m:
-            embed_vez.add_field(name="Efeitos no inimigo", value="\n".join(msgs_ef_m), inline=False)
+@bot.tree.command(name="mercado", description="Venda itens do seu inventario por moedas")
+async def mercado(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
+    await cmd_mercado_vender(interaction)
 
-        msg_vez = await interaction.followup.send(embed=embed_vez, view=view, wait=True)
-        msgs_batalha.append(msg_vez)
-        await view.wait()
 
-        acao, val = view.acao or ("timeout", None)
-        try: await msg_vez.edit(view=None)
-        except: pass
+# ─── /conquistas ─────────────────────────────────────────────────
 
-        # 4. Processa acao
-        linha_jogador = ""
-        cor_acao = arena["cor"]
+@bot.tree.command(name="conquistas", description="Veja suas conquistas e progresso")
+async def conquistas(interaction: discord.Interaction):
+    await cmd_conquistas(interaction)
 
-        if acao == "fugir":
-            embed_fuga = discord.Embed(
-                title="🏃 Você fugiu!",
-                description=f"Voce escapou de **{monstro['emoji']} {monstro['nome']}**!\nNenhuma recompensa.",
-                color=0x888780
-            )
-            embed_fuga.set_image(url=arena["img"])
-            await interaction.followup.send(embed=embed_fuga)
-            for m in msgs_batalha:
-                try: await m.delete()
-                except: pass
-            return
 
-        elif acao == "timeout":
-            # Auto-usa primeira skill
-            sk = skills[0] if skills else None
-            if sk:
-                dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk)
-                dano = int(dano * passiva.multiplicador_dano())
-                hp_m = max(0, hp_m - dano)
-                linha_jogador = f"⏰ Tempo! {sk['emoji']} **{sk['nome']}** (auto): **{dano} de dano**!"
+# ─── /ajuda ──────────────────────────────────────────────────────
 
-        elif acao == "pocao":
-            hp_j, mana_j, linha_jogador = aplicar_efeito_pocao(val, hp_j, hp_jmx, mana_j, mana_jmx)
-            await remover_pocao(uid, val)
-            cor_acao = 0x2ecc71
+@bot.tree.command(name="ajuda", description="Lista todos os comandos e como jogar")
+async def ajuda(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="📖 Guia de Comandos — Villa Eldoria RPG",
+        description=(
+            "Bem-vindo ao Villa Eldoria RPG!\n"
+            "Veja os canais de tutorial para guias detalhados.\n"
+            "Use `/conquistas` para ver suas metas!\n"
+        ),
+        color=0x7F77DD
+    )
+    embed.add_field(
+        name="👤 Personagem",
+        value=(
+            "`/criar_personagem` — Cria seu personagem com 7 roletas\n"
+            "`/perfil` — Veja seus stats, rank, equipamentos e skills\n"
+            "`/skills` — Gerencie suas skills equipadas\n"
+            "`/setup` — Monte seu setup completo (arma+armadura+skills)\n"
+            "`/deletar_personagem` — Deleta seu personagem"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="🎒 Inventário",
+        value=(
+            "`/inventario` — Veja todos seus itens\n"
+            "`/equipar [item]` — Equipa um item pelo nome\n"
+            "`/jogar-fora [item]` — Descarta um item\n"
+            "`/dar [@jogador] [item]` — Doa um item para outro jogador"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="⚔️ Batalha",
+        value=(
+            "`/treinar [dificuldade]` — Batalha vs monstros (fácil/médio/difícil/lendário)\n"
+            "`/desafiar [@jogador]` — Desafia outro jogador para PvP\n"
+            "`/dungeon [rank]` — Entre em uma dungeon (F/E/D/C/B/A/S/SS)"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="💰 Economia",
+        value=(
+            "`/loja [categoria]` — Compre armas, armaduras ou poções\n"
+            "`/ferreiro` — Forje itens com materiais de dungeon\n"
+            "`/hospital` — Restaure HP e Mana (pago)\n"
+            "`/girar` — Use fichas de roleta para ganhar itens\n"
+            "`/mercado` — Venda itens por moedas (preço justo)\n"
+            "`/mercador` — Troque materiais por itens exclusivos 🕵️"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="📊 Progresso",
+        value=(
+            "`/missoes` — Missões diárias com recompensas\n"
+            "`/conquistas` — 22 conquistas com XP e fichas\n"
+            "`/ranking` — Top 10 por vitórias, nível e moedas"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="⚙️ Admin",
+        value=(
+            "`/set-item [@jogador]` — Dá item a um jogador\n"
+            "`/set-moedas [@jogador] [qtd]` — Define/adiciona moedas\n"
+            "`/set-nivel [@jogador] [nivel]` — Define nível (1-100)\n"
+            "`/set-giros [@jogador]` — Dá fichas de roleta"
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="📚 Tutoriais Detalhados",
+        value=(
+            "Veja os canais de tutorial para guias completos:\n"
+            "• `#como-jogar` `#tutorial-batalha` `#tutorial-dungeon`\n"
+            "• `#tutorial-roletas` `#tutorial-economia`\n"
+            "• `#tutorial-missoes` `#tutorial-conquistas`"
+        ),
+        inline=False
+    )
+    embed.set_image(url=IMG_AJUDA)
+    embed.set_footer(text="Villa Eldoria RPG • Ranks: F→E→D→C→B→A→S→SS • Nível máx: 100")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        elif acao == "skill":
-            sk = skills[val] if val < len(skills) else skills[0]
-            custo = sk.get("mana", 0)
-            efeito = sk.get("efeito")
 
-            if mana_j < custo:
-                linha_jogador = f"⚠️ Mana insuficiente para **{sk['nome']}**! Ataque basico."
-                dano = calc_dano(p["ataque"], monstro["defesa"], 1.0, bonus_atk=bonus_atk)
-                hp_m = max(0, hp_m - dano)
-                linha_jogador += f" **{dano} de dano**."
-            else:
-                mana_j -= custo
-
-                if efeito == "cura":
-                    cura = int(hp_jmx * 0.35)
-                    hp_j = min(hp_jmx, hp_j + cura)
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: +{cura} HP! ❤️"
-                    cor_acao = 0x2ecc71
-
-                elif efeito == "cura_grande":
-                    cura = int(hp_jmx * 0.60)
-                    hp_j = min(hp_jmx, hp_j + cura)
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: +{cura} HP! ❤️"
-                    cor_acao = 0x2ecc71
-
-                elif efeito in ("defesa", "escudo", "esquiva", "escudo_total", "armadura", "reflexo"):
-                    nomes_ef = {
-                        "defesa":     "Postura defensiva! -50% dano por 1 turno.",
-                        "escudo":     "Escudo arcano! Absorve próximo ataque.",
-                        "esquiva":    "Esquiva pronta! Evitará próximo ataque.",
-                        "escudo_total": "Escudo total! Bloqueia próximos 2 ataques.",
-                        "armadura":   "Escamas! -35% dano por 3 turnos.",
-                        "reflexo":    "Campo de força! Reflete 40% do dano por 2 turnos.",
-                    }
-                    duracao = 2 if efeito in ("escudo_total",) else (3 if efeito == "armadura" else 1)
-                    add_efeito(efeitos_j, efeito, duracao)
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**! {nomes_ef.get(efeito,'Efeito ativo!')}"
-                    cor_acao = 0x7F77DD
-
-                elif efeito == "dreno":
-                    mult_dreno = passiva.apos_dreno()
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
-                    roubo = int(dano // 2 * mult_dreno)
-                    hp_m  = max(0, hp_m - dano)
-                    hp_j  = min(hp_jmx, hp_j + roubo)
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** e drenou **+{roubo} HP**! (x{mult_dreno:.1f})"
-                    cor_acao = 0x1D9E75
-
-                elif efeito in ("buff_ataque", "buff_all", "berserker"):
-                    add_efeito(efeitos_j, efeito, 3)
-                    bonus_txt = "+35% ATK" if efeito == "buff_ataque" else ("+25% ATK e DEF" if efeito == "buff_all" else "+60% ATK com regeneração")
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: {bonus_txt} por 3 turnos! 🔥"
-                    cor_acao = 0xD85A30
-
-                elif efeito in ("queimadura", "veneno"):
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk)
-                    dano = int(dano * passiva.multiplicador_dano())
-                    hp_m = max(0, hp_m - dano)
-                    if not passiva.imune_status(efeito):
-                        add_efeito(efeitos_m, efeito, 3, valor=max(5, dano // 4))
-                    emoji_ef = "🔥" if efeito == "queimadura" else "☠️"
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano**! {emoji_ef} Inimigo ficou com {efeito}!"
-                    cor_acao = 0xD85A30
-
-                elif efeito in ("atordoar", "paralisia", "congelar"):
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx, passiva_mult=passiva.multiplicador_dano())
-                    hp_m = max(0, hp_m - dano)
-                    if random.random() < 0.40:
-                        add_efeito(efeitos_m, "atordoado", 1)
-                        linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** + inimigo **atordoado** por 1 turno! 💫"
-                    else:
-                        linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano**! (não atordoou)"
-                    cor_acao = 0xE4AF3C
-
-                elif efeito in ("hits2", "hits3", "hits4", "hits5"):
-                    n_hits = int(efeito.replace("hits", ""))
-                    dano_total = 0
-                    cap_por_hit = int(hp_mmx * 0.20) if hp_mmx else 999
-                    for _ in range(n_hits):
-                        d = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 0.6), bonus_atk=bonus_atk, nivel=p["nivel"], passiva_mult=passiva.multiplicador_dano())
-                        dano_total += min(d, cap_por_hit)
-                    dano_total = min(dano_total, int(hp_mmx * 0.70) if hp_mmx else dano_total)
-                    hp_m = max(0, hp_m - dano_total)
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: {n_hits} golpes → **{dano_total} de dano total**!"
-                    cor_acao = 0xD85A30
-
-                elif efeito == "ignorar_defesa":
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, ignorar_defesa=True, nivel=p["nivel"], hp_max_monstro=hp_mmx, passiva_mult=passiva.multiplicador_dano())
-                    hp_m = max(0, hp_m - dano)
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** (ignora defesa)! 🔱"
-                    cor_acao = 0x7F77DD
-
-                elif efeito == "critico_bonus":
-                    crit = random.random() < 0.55
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), crit=crit, bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx, passiva_mult=passiva.multiplicador_dano())
-                    hp_m = max(0, hp_m - dano)
-                    if crit:
-                        mana_j = min(mana_jmx, mana_j + passiva.apos_critico())
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano**{'💥 CRÍTICO!' if crit else ''}!"
-                    cor_acao = 0xE4AF3C if crit else arena["cor"]
-
-                elif efeito == "instakill_chance":
-                    if random.random() < 0.20:
-                        hp_m = 0
-                        linha_jogador = f"{sk['emoji']} **{sk['nome']}**: 💀 **MORTE INSTANTÂNEA!**"
-                        cor_acao = 0x7F77DD
-                    else:
-                        dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
-                        hp_m = max(0, hp_m - dano)
-                        linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** (não instakill)"
-
-                else:
-                    # Dano normal
-                    crit = random.random() < 0.15
-                    mult = sk.get("dano", 1.0) * passiva.multiplicador_dano()
-                    dano = calc_dano(p["ataque"], monstro["defesa"], mult, crit=crit, bonus_atk=bonus_atk)
-                    hp_m = max(0, hp_m - dano)
-                    if crit:
-                        mana_j = min(mana_jmx, mana_j + passiva.apos_critico())
-                    critico_txt = " **💥 CRÍTICO!**" if crit else ""
-                    passiva_bonus_txt = f" *(passiva +{int((passiva.multiplicador_dano()-1)*100)}%)*" if passiva.multiplicador_dano() > 1.0 else ""
-                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano**{critico_txt}{passiva_bonus_txt}!"
-                    cor_acao = 0xD85A30 if crit else arena["cor"]
-
-        embed_acao = discord.Embed(
-            title=f"⚔️ {emoji_j} {p['nome']} age!",
-            description=f"{linha_jogador}\n\n{barra_status()}",
-            color=cor_acao
-        )
-        msgs_batalha.append(await interaction.followup.send(embed=embed_acao, wait=True))
-
-        if hp_m <= 0:
-            break
-
-        await asyncio.sleep(1.2)
-
-        # ─── TURNO DO MONSTRO ─────────────────────────────────────
-
-        # Verifica se atordoado
-        if efeito_ativo(efeitos_m, "atordoado"):
-            linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** está **atordoado** e não pode atacar! 💫"
-            cor_monstro   = 0x888780
-        else:
-            sk_m     = random.choice(monstro["skills"])
-            # Bonus defesa passiva guerreiro
-            def_total = int(p["defesa"] * bonus_dfs) + passiva.bonus_defesa_fixa()
-            # Buff_all e armadura reduzem dano
-            if efeito_ativo(efeitos_j, "armadura") or efeito_ativo(efeitos_j, "buff_all"):
-                def_total = int(def_total * 1.35)
-            dano_m_base = calc_dano(monstro["ataque"], def_total)
-            reducao = passiva.reducao_dano()
-            dano_m  = max(1, int(dano_m_base * (1.0 - reducao)))
-            cor_monstro = 0xE24B4A
-
-            if efeito_ativo(efeitos_j, "esquiva"):
-                linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**... mas você **esquivou!** 💨"
-                efeitos_j["esquiva"]["duracao"] = 0
-                cor_monstro = 0x888780
-
-            elif efeito_ativo(efeitos_j, "escudo") or efeito_ativo(efeitos_j, "escudo_total"):
-                linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**... mas o **escudo absorveu!** 💜"
-                ef_key = "escudo_total" if efeito_ativo(efeitos_j, "escudo_total") else "escudo"
-                efeitos_j[ef_key]["duracao"] -= 1
-                cor_monstro = 0x7F77DD
-
-            elif efeito_ativo(efeitos_j, "defesa"):
-                dano_m = max(1, dano_m // 2)
-                hp_j   = max(0, hp_j - dano_m)
-                tomou_dano = True
-                passiva.apos_tomar_dano()
-                efeitos_j["defesa"]["duracao"] -= 1
-                linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: **{dano_m} de dano** (bloqueado -50%! 🛡️)"
-
-            elif efeito_ativo(efeitos_j, "reflexo"):
-                refletido = int(dano_m * 0.40)
-                hp_m = max(0, hp_m - refletido)
-                hp_j = max(0, hp_j - (dano_m - refletido))
-                tomou_dano = True
-                passiva.apos_tomar_dano()
-                efeitos_j["reflexo"]["duracao"] -= 1
-                linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: {dano_m} dano! Refletiu **{refletido}** de volta! 🔮"
-
-            else:
-                hp_j -= dano_m
-                hp_j  = max(0, hp_j)
-                tomou_dano = True
-                passiva.apos_tomar_dano()
-                reducao_txt = f" (-10% dragão)" if reducao > 0 else ""
-                linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: **{dano_m} de dano**{reducao_txt}!"
-
-        if not tomou_dano:
-            passiva.fim_turno_sem_dano()
-
-        # Regen de mana por turno — escala pelo rank
-        mana_antes = mana_j
-        nivel_p    = p["nivel"]
-        if nivel_p <= 9:    regen_mana = 3    # Rank F
-        elif nivel_p <= 19: regen_mana = 5    # Rank E
-        elif nivel_p <= 29: regen_mana = 8    # Rank D
-        elif nivel_p <= 39: regen_mana = 12   # Rank C
-        elif nivel_p <= 49: regen_mana = 16   # Rank B
-        elif nivel_p <= 59: regen_mana = 22   # Rank A
-        elif nivel_p <= 74: regen_mana = 30   # Rank S
-        else:               regen_mana = 40   # Rank SS
-        mana_j = min(mana_jmx, mana_j + regen_mana)
-
-        regen_txt = f"\n💙 +{regen_mana} mana regenerada ({mana_j}/{mana_jmx})" if mana_j > mana_antes else ""
-
-        embed_m = discord.Embed(
-            title=f"{monstro['emoji']} {monstro['nome']} age!",
-            description=f"{linha_monstro}\n\n{barra_status()}{regen_txt}",
-            color=cor_monstro
-        )
-        msgs_batalha.append(await interaction.followup.send(embed=embed_m, wait=True))
-
-        turno += 1
-        await asyncio.sleep(1.0)
-
-    # ─── RESULTADO ───────────────────────────────────────────────
-
-    vitoria = hp_m <= 0
-
-    if vitoria:
-        # Chance de loot por dificuldade — treino dropa pouco
-        _chance_loot = {"facil":0.15, "medio":0.22, "dificil":0.30, "lendario":0.40}
-        _chance = _chance_loot.get(monstro.get("dificuldade","facil"), 0.20)
-        loot = [random.choice(monstro["loot"])] if random.random() < _chance else []
-        # 5 moedas fixas por vitoria no treino
-        lvlups, nivel_novo, rank_mudou, rank_obj = await salvar_resultado(
-            uid, hp_j, monstro["xp"], 5, True, p["classe_id"], p["nivel"], mana_j
-        )
-        if loot:
-            await add_loot(uid, loot)
-
-        desc = (
-            f"🏆 Você derrotou **{monstro['emoji']} {monstro['nome']}**!\n\n"
-            f"✨ **+{monstro['xp']} XP** | 💰 **+5 moedas**\n📦 Venda o loot no `/mercado` para mais moedas!"
-        )
-        if loot:
-            desc += f"\n🎁 Loot: {loot[0][4]} **{loot[0][1]}** [{loot[0][3]}]"
-        if lvlups:
-            rank_txt = f"\n🏅 **Novo rank: {rank_obj['emoji']} {rank_obj['rank']}!**" if rank_mudou else ""
-            desc += f"\n\n🎉 **LEVEL UP! Nível {nivel_novo}!** (+{lvlups} nível{'' if lvlups==1 else 's'}){rank_txt}"
-            desc += f"\n+{lvlups*5} HP máx | +{lvlups*2} ATK | +{lvlups} DEF"
-
-        # Missoes
-        try:
-            from missoes import atualizar_progresso
-            recomps = await atualizar_progresso(uid, "vitorias_treino")
-            if monstro["dificuldade"] in ("dificil","lendario"):
-                await atualizar_progresso(uid, "treino_hard")
-            if loot:
-                await atualizar_progresso(uid, "loots_coletados")
-            await atualizar_progresso(uid, "skills_usadas")
-            for rm in recomps:
-                desc += f"\n\n🎯 **Missão concluída!** {rm['descricao']}\n+{rm['xp']} XP | +{rm['moedas']} 🪙"
-        except Exception:
-            pass
-
-        # Conquistas
-        try:
-            from conquistas import verificar_conquistas
-            from db import get_pool as _gp
-            _pool = await _gp()
-            async with _pool.acquire() as _conn:
-                _p2 = await _conn.fetchrow("SELECT vitorias, moedas FROM personagens WHERE user_id=$1", uid)
-            cqs_vit = await verificar_conquistas(uid, "vitorias", _p2["vitorias"] if _p2 else 0)
-            cqs_mon = await verificar_conquistas(uid, "moedas",   _p2["moedas"]   if _p2 else 0)
-            cqs_rnk = await verificar_conquistas(uid, "rank",     nivel_novo)
-            for cq in (cqs_vit + cqs_mon + cqs_rnk):
-                desc += f"\n\n🏆 **Conquista desbloqueada!** {cq['emoji']} {cq['nome']}\n+{cq['xp']} XP | +{cq['moedas']} 🪙"
-        except Exception:
-            pass
-
-        # Atualiza cargos em todo level up
-        if lvlups:
-            try:
-                from utils import atualizar_todos_cargos
-                guild  = interaction.guild
-                member = guild.get_member(uid) if guild else None
-                if member:
-                    await atualizar_todos_cargos(guild, member, nivel_novo)
-            except Exception:
-                pass
-
-        cor    = 0x1D9E75
-        titulo = "🏆 Vitória!"
-
-    else:
-        lvlups, nivel_novo, rank_mudou, rank_obj = await salvar_resultado(
-            uid, 10, 0, 0, False, p["classe_id"], p["nivel"], mana_j
-        )
-        desc = (
-            f"Você foi derrotado por **{monstro['emoji']} {monstro['nome']}**...\n\n"
-            f"❤️ HP restaurado para **10** | 😴 Acordou na cidade\n\n"
-            f"*Use /hospital para se recuperar antes da próxima batalha!*"
-        )
-        cor    = 0xE24B4A
-        titulo = "💀 Você foi derrotado!"
-
-    # Envia resultado ANTES de apagar mensagens
-    fim = discord.Embed(title=titulo, description=desc, color=cor)
-    fim.set_image(url=arena["img"])
-    msg_fim = await interaction.followup.send(embed=fim, wait=True)
-
-    await asyncio.sleep(1.5)
-
-    # Apaga mensagens da batalha
-    for m in msgs_batalha:
-        try: await m.delete()
-        except: pass
-
-    # Auto-deleta resultado apos 5 minutos
-    await asyncio.sleep(300)
-    try: await msg_fim.delete()
+async def auto_delete(msg, segundos=300):
+    """Deleta mensagem apos X segundos."""
+    await asyncio.sleep(segundos)
+    try: await msg.delete()
     except: pass
 
+# ─── EVENTOS ─────────────────────────────────────────────────────
 
-# ─── ENGINE PVP ──────────────────────────────────────────────────
+@bot.event
+async def on_ready():
+    print(f"Bot conectado: {bot.user}")
 
-async def rodar_pvp(channel, p1, p2, m1, m2, arena):
-    uid1, uid2 = p1["user_id"], p2["user_id"]
+    # ── SYNC PRIMEIRO (antes de qualquer coisa) ──────────────────
+    try:
+        guild_id = int(os.getenv("GUILD_ID", "0"))
+        print(f"GUILD_ID lido: {guild_id}")
 
-    # Skills
-    async def pegar_skills(p, uid):
-        ids = await get_skills_eq(uid)
-        sks = [get_skill_resolv(p["classe_id"], sid) for sid in ids if get_skill_resolv(p["classe_id"], sid)]
-        if not sks:
-            sks = SKILLS_COMPLETAS.get(p["classe_id"], [])[:4]
-        return sks
+        if guild_id:
+            guild_obj = discord.Object(id=guild_id)
+            # Copia todos os comandos para o servidor e sincroniza
+            bot.tree.copy_global_to(guild=guild_obj)
+            synced = await bot.tree.sync(guild=guild_obj)
+            print(f"✅ {len(synced)} comandos sincronizados no servidor!")
+            for cmd in synced:
+                print(f"   /{cmd.name}")
+        else:
+            print("AVISO: GUILD_ID nao definido, sincronizando globalmente...")
+            synced = await bot.tree.sync()
+            print(f"✅ {len(synced)} comandos globais sincronizados!")
+    except Exception as e:
+        import traceback
+        print(f"ERRO SYNC: {e}")
+        traceback.print_exc()
 
-    skills1 = await pegar_skills(p1, uid1)
-    skills2 = await pegar_skills(p2, uid2)
+    # ── BANCO DE DADOS ───────────────────────────────────────────
+    try:
+        await init_db()
+        await init_db_batalha()
+        await init_db_hospital()
+        await init_db_missoes()
+        await init_conquistas()
+        print("✅ Banco de dados OK!")
+    except Exception as e:
+        print(f"ERRO banco: {e}")
 
-    arma1     = await get_arma_equipada(uid1)
-    armadura1 = await get_armadura_equipada(uid1)
-    arma2     = await get_arma_equipada(uid2)
-    armadura2 = await get_armadura_equipada(uid2)
+    print(f"✅ Bot pronto!")
 
-    bonus_atk1, bonus_dfs1 = calcular_bonus_equip(p1["classe_id"], arma1, armadura1)
-    bonus_atk2, bonus_dfs2 = calcular_bonus_equip(p2["classe_id"], arma2, armadura2)
-
-    hp1  = p1["hp_atual"]; hp1mx  = p1["hp_max"]
-    hp2  = p2["hp_atual"]; hp2mx  = p2["hp_max"]
-    mana1 = p1["mana_atual"] or 100; mana1mx = p1["mana_max"] or 100
-    mana2 = p2["mana_atual"] or 100; mana2mx = p2["mana_max"] or 100
-    turno = 1
-    efeitos1 = {}; efeitos2 = {}
-    passiva1 = Passiva(p1["classe_id"]); passiva2 = Passiva(p2["classe_id"])
-    msgs = []
-    e1 = EMOJI_CLASSE.get(p1["classe_id"], "⚔️")
-    e2 = EMOJI_CLASSE.get(p2["classe_id"], "⚔️")
-
-    def barra_status_pvp():
-        return (
-            f"{e1} **{p1['nome']}** ❤️`{barra_hp(hp1,hp1mx)}`**{hp1}/{hp1mx}** 💙{mana1}/{mana1mx}\n"
-            f"{e2} **{p2['nome']}** ❤️`{barra_hp(hp2,hp2mx)}`**{hp2}/{hp2mx}** 💙{mana2}/{mana2mx}"
-        )
-
-    embed_ini = discord.Embed(
-        title=f"⚔️ Duelo PvP — {arena['emoji']} {arena['nome']}",
-        description=f"**{m1.mention}** vs **{m2.mention}**\n\n{barra_status_pvp()}",
-        color=arena["cor"]
-    )
-    embed_ini.set_image(url=arena["img"])
-    msgs.append(await channel.send(embed=embed_ini))
-
-    # PvP simplificado — turnos alternados automáticos
-    for t in range(1, 21):
-        if hp1 <= 0 or hp2 <= 0:
-            break
-
-        # Turno p1
-        pocoes1 = await get_pocoes_inv(uid1)
-        view1 = BatalhaView(uid1, skills1, pocoes1)
-        embed_v1 = discord.Embed(
-            title=f"🎮 Turno {t} — {e1} {p1['nome']}, sua vez!",
-            description=barra_status_pvp(),
+@bot.event
+async def on_member_join(member: discord.Member):
+    for nome_cargo in ["🌱 Recem-chegado"]:
+        cargo = discord.utils.get(member.guild.roles, name=nome_cargo)
+        if cargo:
+            try: await member.add_roles(cargo)
+            except: pass
+    try:
+        embed = discord.Embed(
+            title="⚔️ Bem-vindo a Villa Eldoria!",
+            description=(
+                f"Ola **{member.display_name}**!\n\n"
+                "Use `/criar_personagem` no canal **#criar-personagem** para comecar sua jornada!\n\n"
+                "**7 classes disponíveis:**\n"
+                "🗡️ Guerreiro | 🏹 Arqueiro | 🔮 Mago | ⚡ Paladino\n"
+                "🌑 Necromante | ✨ Arcano | 🐉 Dracomante\n\n"
+                "**Sistema de Ranks:** F → E → D → C → B → A → S → SS\n"
+                "Bom jogo!"
+            ),
             color=0x7F77DD
         )
-        msg_v1 = await channel.send(content=m1.mention, embed=embed_v1, view=view1)
-        msgs.append(msg_v1)
-        await view1.wait()
+        await member.send(embed=embed)
+    except: pass
 
-        try: await msg_v1.edit(view=None)
+@bot.command(name="sync")
+async def sync_cmd(ctx):
+    try:
+        guild_id = int(os.getenv("GUILD_ID", "0"))
+        count = 0
+        if guild_id:
+            s = await bot.tree.sync(guild=discord.Object(id=guild_id))
+            count += len(s)
+        s2 = await bot.tree.sync()
+        count += len(s2)
+        await ctx.send(f"✅ {count} comandos sincronizados!")
+    except Exception as e:
+        await ctx.send(f"❌ Erro: {e}")
+
+if __name__ == "__main__":
+    token = os.getenv("DISCORD_TOKEN")
+    if not token:
+        try:
+            with open("config.txt") as f:
+                for linha in f:
+                    if linha.startswith("DISCORD_TOKEN="):
+                        token = linha.split("=",1)[1].strip()
         except: pass
-
-        acao1, val1 = view1.acao or ("timeout", None)
-        if acao1 == "skill" and val1 is not None:
-            sk = skills1[val1] if val1 < len(skills1) else skills1[0]
-            if mana1 >= sk.get("mana", 0):
-                mana1 -= sk.get("mana", 0)
-                dano = calc_dano(p1["ataque"], p2["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk1)
-                dano = int(dano * passiva1.multiplicador_dano())
-                hp2  = max(0, hp2 - dano)
-                linha = f"{e1} {sk['emoji']} **{sk['nome']}**: **{dano} de dano**!"
-            else:
-                linha = f"{e1} Mana insuficiente! Ataque básico."
-                dano = calc_dano(p1["ataque"], p2["defesa"], bonus_atk=bonus_atk1)
-                hp2  = max(0, hp2 - dano)
-                linha += f" **{dano} de dano**."
-        elif acao1 == "pocao" and val1:
-            hp1, mana1, linha = aplicar_efeito_pocao(val1, hp1, hp1mx, mana1, mana1mx)
-            await remover_pocao(uid1, val1)
-        elif acao1 == "fugir":
-            embed_f = discord.Embed(title=f"{e1} {p1['nome']} fugiu!", description="Vitória de **" + p2['nome'] + "** por abandono!", color=0x888780)
-            await channel.send(embed=embed_f)
-            for m in msgs:
-                try: await m.delete()
-                except: pass
-            return
-        else:
-            sk = skills1[0]
-            dano = calc_dano(p1["ataque"], p2["defesa"], bonus_atk=bonus_atk1)
-            hp2  = max(0, hp2 - dano)
-            linha = f"⏰ Auto: {sk['emoji']} **{dano} de dano**!"
-
-        mana1 = min(mana1mx, mana1 + 5)
-        embed_a1 = discord.Embed(
-            title=f"{e1} {p1['nome']} age!", description=f"{linha}\n\n{barra_status_pvp()}", color=arena["cor"]
-        )
-        msgs.append(await channel.send(embed=embed_a1))
-
-        if hp2 <= 0:
-            break
-
-        await asyncio.sleep(1.0)
-
-        # Turno p2
-        pocoes2 = await get_pocoes_inv(uid2)
-        view2 = BatalhaView(uid2, skills2, pocoes2)
-        embed_v2 = discord.Embed(
-            title=f"🎮 Turno {t} — {e2} {p2['nome']}, sua vez!",
-            description=barra_status_pvp(),
-            color=0xD85A30
-        )
-        msg_v2 = await channel.send(content=m2.mention, embed=embed_v2, view=view2)
-        msgs.append(msg_v2)
-        await view2.wait()
-
-        try: await msg_v2.edit(view=None)
-        except: pass
-
-        acao2, val2 = view2.acao or ("timeout", None)
-        if acao2 == "skill" and val2 is not None:
-            sk = skills2[val2] if val2 < len(skills2) else skills2[0]
-            if mana2 >= sk.get("mana", 0):
-                mana2 -= sk.get("mana", 0)
-                dano = calc_dano(p2["ataque"], p1["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk2)
-                dano = int(dano * passiva2.multiplicador_dano())
-                hp1  = max(0, hp1 - dano)
-                linha = f"{e2} {sk['emoji']} **{sk['nome']}**: **{dano} de dano**!"
-            else:
-                dano = calc_dano(p2["ataque"], p1["defesa"], bonus_atk=bonus_atk2)
-                hp1  = max(0, hp1 - dano)
-                linha = f"{e2} Mana insuficiente! Ataque básico: **{dano} de dano**."
-        elif acao2 == "pocao" and val2:
-            hp2, mana2, linha = aplicar_efeito_pocao(val2, hp2, hp2mx, mana2, mana2mx)
-            await remover_pocao(uid2, val2)
-        elif acao2 == "fugir":
-            embed_f = discord.Embed(title=f"{e2} {p2['nome']} fugiu!", description=f"Vitória de **{p1['nome']}** por abandono!", color=0x888780)
-            await channel.send(embed=embed_f)
-            for m in msgs:
-                try: await m.delete()
-                except: pass
-            return
-        else:
-            dano = calc_dano(p2["ataque"], p1["defesa"], bonus_atk=bonus_atk2)
-            hp1  = max(0, hp1 - dano)
-            linha = f"⏰ Auto: **{dano} de dano**!"
-
-        mana2 = min(mana2mx, mana2 + 5)
-        embed_a2 = discord.Embed(
-            title=f"{e2} {p2['nome']} age!", description=f"{linha}\n\n{barra_status_pvp()}", color=arena["cor"]
-        )
-        msgs.append(await channel.send(embed=embed_a2))
-        await asyncio.sleep(1.0)
-
-    # Resultado PvP
-    if hp1 > hp2:
-        venc, perd, mv, mp = p1, p2, m1, m2
-        hp_v = hp1
-    else:
-        venc, perd, mv, mp = p2, p1, m2, m1
-        hp_v = hp2
-
-    xp_v = 80; mo_v = 60
-    await salvar_resultado(venc["user_id"], hp_v, xp_v, mo_v, True, venc["classe_id"], venc["nivel"])
-    await salvar_resultado(perd["user_id"], 10, 20, 0, False, perd["classe_id"], perd["nivel"])
-
-    fim = discord.Embed(
-        title=f"🏆 {venc['nome']} vence o duelo!",
-        description=(
-            f"{mv.mention} derrotou {mp.mention}!\n\n"
-            f"+{xp_v} XP | +{mo_v} 🪙 para o vencedor\n"
-            f"+20 XP para o derrotado"
-        ),
-        color=0xE4AF3C
-    )
-    fim.set_image(url=IMG_VITORIA)
-    await channel.send(embed=fim)
-
-    await asyncio.sleep(1.5)
-
-    for m in msgs:
-        try: await m.delete()
-        except: pass
-
-# ─── SKILLS_POR_CLASSE (compatibilidade) ─────────────────────────
-SKILLS_POR_CLASSE = SKILLS_COMPLETAS
+    if not token:
+        print("ERRO: Token nao encontrado.")
+        exit(1)
+    bot.run(token)
