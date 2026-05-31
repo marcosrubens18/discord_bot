@@ -3,7 +3,7 @@ import discord
 from discord import app_commands
 import asyncio, random
 from db import get_pool
-from catalogo import get_rank, CARGOS_RANK
+from catalogo import get_rank, CARGOS_RANK, SKILLS_COMPLETAS
 from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA, IMG_DUNGEON_MONSTRO
 from utils import atualizar_todos_cargos
 from batalha import calc_dano, BATALHAS_ATIVAS
@@ -12,50 +12,7 @@ from batalha import calc_dano, BATALHAS_ATIVAS
 EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
 COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
 
-SKILLS_POR_CLASSE = {
-    "guerreiro": [
-        {"id":"golpe_basico","nome":"Golpe Basico","nivel":1,"emoji":"⚔️","dano":1.0,"mana":0,"desc":"Ataque simples"},
-        {"id":"escudo","nome":"Escudo","nivel":5,"emoji":"🛡️","dano":0,"mana":10,"desc":"Defesa +50%","efeito":"defesa"},
-        {"id":"golpe_brutal","nome":"Golpe Brutal","nivel":10,"emoji":"💥","dano":2.0,"mana":20,"desc":"Dano dobrado"},
-        {"id":"furia","nome":"Furia","nivel":35,"emoji":"🔥","dano":1.5,"mana":30,"desc":"ULTIMATE","efeito":"buff_ataque"},
-    ],
-    "mago": [
-        {"id":"bola_fogo","nome":"Bola de Fogo","nivel":1,"emoji":"🔥","dano":1.3,"mana":15,"desc":"Dano magico"},
-        {"id":"escudo_arcano","nome":"Escudo Arcano","nivel":5,"emoji":"💜","dano":0,"mana":20,"desc":"Absorve 1 ataque","efeito":"escudo"},
-        {"id":"raio","nome":"Raio","nivel":10,"emoji":"⚡","dano":1.6,"mana":25,"desc":"Dano alto"},
-        {"id":"sobrecarga","nome":"Sobrecarga","nivel":35,"emoji":"✨","dano":3.0,"mana":50,"desc":"ULTIMATE"},
-    ],
-    "arqueiro": [
-        {"id":"tiro_preciso","nome":"Tiro Preciso","nivel":1,"emoji":"🎯","dano":1.0,"mana":0,"desc":"+30% critico"},
-        {"id":"esquiva","nome":"Esquiva","nivel":5,"emoji":"💨","dano":0,"mana":15,"desc":"Evita 1 ataque","efeito":"esquiva"},
-        {"id":"tiro_multiplo","nome":"Tiro Multiplo","nivel":10,"emoji":"🏹","dano":0.6,"mana":20,"desc":"2 ataques"},
-        {"id":"chuva_flechas","nome":"Chuva Flechas","nivel":35,"emoji":"☄️","dano":0.4,"mana":40,"desc":"ULTIMATE"},
-    ],
-    "paladino": [
-        {"id":"golpe_sagrado","nome":"Golpe Sagrado","nivel":1,"emoji":"⚡","dano":1.2,"mana":10,"desc":"Fisico+magico"},
-        {"id":"cura","nome":"Cura","nivel":5,"emoji":"💚","dano":0,"mana":25,"desc":"Recupera 30% HP","efeito":"cura"},
-        {"id":"aura_sagrada","nome":"Aura Sagrada","nivel":10,"emoji":"🌟","dano":0,"mana":30,"desc":"+stats","efeito":"buff_all"},
-        {"id":"juizo_final","nome":"Juizo Final","nivel":35,"emoji":"☀️","dano":2.5,"mana":50,"desc":"ULTIMATE"},
-    ],
-    "necromante": [
-        {"id":"drenar_vida","nome":"Drenar Vida","nivel":1,"emoji":"🌑","dano":1.1,"mana":10,"desc":"Rouba HP","efeito":"dreno"},
-        {"id":"invocar_morto","nome":"Invocar Morto","nivel":8,"emoji":"💀","dano":0.8,"mana":20,"desc":"Esqueleto ataca"},
-        {"id":"maldicao","nome":"Maldicao","nivel":15,"emoji":"🩸","dano":0.7,"mana":15,"desc":"Veneno"},
-        {"id":"exercito","nome":"Exercito Morto","nivel":35,"emoji":"☠️","dano":2.0,"mana":50,"desc":"ULTIMATE"},
-    ],
-    "dracomante": [
-        {"id":"baforada","nome":"Baforada","nivel":1,"emoji":"🔥","dano":1.4,"mana":15,"desc":"Fogo continuo"},
-        {"id":"escamas","nome":"Escamas","nivel":10,"emoji":"🐉","dano":0,"mana":20,"desc":"-30% dano","efeito":"armadura"},
-        {"id":"forma_menor","nome":"Forma Menor","nivel":20,"emoji":"🌋","dano":0,"mana":35,"desc":"+30% stats","efeito":"buff_all"},
-        {"id":"dragao_eterno","nome":"Dragao Eterno","nivel":42,"emoji":"💎","dano":3.5,"mana":60,"desc":"ULTIMATE"},
-    ],
-    "arcano": [
-        {"id":"faisca","nome":"Faisca Arcana","nivel":1,"emoji":"✨","dano":1.2,"mana":10,"desc":"Arcano puro"},
-        {"id":"campo_forca","nome":"Campo de Forca","nivel":5,"emoji":"🔮","dano":0,"mana":20,"desc":"Reflete 20%","efeito":"reflexo"},
-        {"id":"distorcao","nome":"Distorcao","nivel":10,"emoji":"🌀","dano":0.5,"mana":15,"desc":"Confunde"},
-        {"id":"singularidade","nome":"Singularidade","nivel":35,"emoji":"⭐","dano":4.0,"mana":60,"desc":"ULTIMATE"},
-    ],
-}
+# Usa SKILLS_COMPLETAS do catalogo (completo com todas as skills)
 
 # ─── RANKS DE DUNGEON ────────────────────────────────────────────
 
@@ -341,14 +298,14 @@ def barra_hp(cur, mx):
     return c*f + "░"*(10-f)
 
 def get_skill(classe_id, skill_id):
-    for s in SKILLS_POR_CLASSE.get(classe_id,[]):
+    for s in SKILLS_COMPLETAS.get(classe_id,[]):
         if s["id"] == skill_id: return s
     return None
 
 def get_skills_jogador(p, ids):
     skills = [get_skill(p["classe_id"],sid) for sid in ids if get_skill(p["classe_id"],sid)]
     if not skills:
-        cls = SKILLS_POR_CLASSE.get(p["classe_id"],[])
+        cls = SKILLS_COMPLETAS.get(p["classe_id"],[])
         skills = cls[:4] if cls else []
     return skills
 
@@ -681,7 +638,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
     ids_eq = await get_skills_eq(p["user_id"])
     skills = get_skills_jogador(p, ids_eq)
     if not skills:
-        cls = SKILLS_POR_CLASSE.get(p["classe_id"], [])
+        cls = SKILLS_COMPLETAS.get(p["classe_id"], [])
         skills = cls[:4] if cls else []
 
     hp_j    = p["hp_atual"]
