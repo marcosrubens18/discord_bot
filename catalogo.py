@@ -33,14 +33,17 @@ def get_rank(nivel):
 # ─── MANA BASE POR CLASSE ────────────────────────────────────────
 # mana_max = base_classe + nivel * mult_nivel + poder_valor * mult_poder
 
+# Mana inicial baixa — cresce com nivel
+# Nivel 1: guerreiro ~25, mago ~45
+# Nivel 50: guerreiro ~75, mago ~170
 MANA_CLASSE = {
-    "guerreiro":  {"base": 60,  "mult_nivel": 1.5, "mult_poder": 0.3},
-    "arqueiro":   {"base": 70,  "mult_nivel": 1.8, "mult_poder": 0.4},
-    "mago":       {"base": 120, "mult_nivel": 3.5, "mult_poder": 0.8},
-    "paladino":   {"base": 90,  "mult_nivel": 2.5, "mult_poder": 0.5},
-    "necromante": {"base": 100, "mult_nivel": 2.8, "mult_poder": 0.6},
-    "dracomante": {"base": 80,  "mult_nivel": 2.0, "mult_poder": 0.5},
-    "arcano":     {"base": 130, "mult_nivel": 4.0, "mult_poder": 1.0},
+    "guerreiro":  {"base": 20,  "mult_nivel": 1.1, "mult_poder": 0.2},
+    "arqueiro":   {"base": 25,  "mult_nivel": 1.3, "mult_poder": 0.2},
+    "mago":       {"base": 40,  "mult_nivel": 2.6, "mult_poder": 0.5},
+    "paladino":   {"base": 30,  "mult_nivel": 1.8, "mult_poder": 0.3},
+    "necromante": {"base": 30,  "mult_nivel": 2.0, "mult_poder": 0.4},
+    "dracomante": {"base": 25,  "mult_nivel": 1.5, "mult_poder": 0.3},
+    "arcano":     {"base": 45,  "mult_nivel": 3.0, "mult_poder": 0.6},
 }
 
 MANA_DESTINO = {
