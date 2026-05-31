@@ -90,10 +90,10 @@ RECEITAS = [
 
 MONSTROS = [
     # ── FACIL ─────────────────────────────────────────────────────
-    {"id":"goblin","img":"https://i.imgur.com/3NpKzQm.png","nome":"Goblin","emoji":"👺","nivel":1,"hp":50,"ataque":9,"defesa":3,"xp":6,"moedas":0,"dificuldade":"facil",
+    {"id":"goblin","img":"https://i.imgur.com/3NpKzQm.png","nome":"Goblin","emoji":"👺","nivel":1,"hp":50,"ataque":22,"defesa":2,"xp":6,"moedas":0,"dificuldade":"facil",
      "skills":[{"nome":"Mordida","emoji":"🦷","dano":8},{"nome":"Arranhao","emoji":"💢","dano":5}],
      "loot":[("pedra_suja","Pedra Suja","material","Comum","🪨","Ingrediente basico")]},
-    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":65,"ataque":14,"defesa":5,"xp":8,"moedas":0,"dificuldade":"facil",
+    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":65,"ataque":28,"defesa":3,"xp":8,"moedas":0,"dificuldade":"facil",
      "skills":[{"nome":"Mordida Feroz","emoji":"🦷","dano":14},{"nome":"Investida","emoji":"💨","dano":10}],
      "loot":[("pele_lobo","Pele de Lobo","material","Comum","🐾","Material de armadura")]},
     {"id":"rato_gigante","img":"https://i.imgur.com/6kqJv1R.png","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":55, "ataque":8,"defesa":3,"xp":6,"moedas":0,"dificuldade":"facil",
@@ -104,10 +104,10 @@ MONSTROS = [
      "loot":[("flecha_goblin","Flecha de Goblin","material","Comum","🏹","Material de projétil")]},
 
     # ── MEDIO ─────────────────────────────────────────────────────
-    {"id":"orc","img":"https://i.imgur.com/2LmNxKp.png","nome":"Orc Guerreiro","emoji":"👹","nivel":7,"hp":280,"ataque":22, "defesa":12,"xp":18,"moedas":0,"dificuldade":"medio",
+    {"id":"orc","img":"https://i.imgur.com/2LmNxKp.png","nome":"Orc Guerreiro","emoji":"👹","nivel":7,"hp":280,"ataque":40,"defesa":8,"xp":18,"moedas":0,"dificuldade":"medio",
      "skills":[{"nome":"Machado","emoji":"🪓","dano":22},{"nome":"Grito de Guerra","emoji":"😤","dano":12}],
      "loot":[("dente_orc","Dente de Orc","material","Incomum","🦷","Ingrediente alquimico"),("minerio_ferro","Minerio de Ferro","material","Comum","⛏️","Metal bruto")]},
-    {"id":"golem","img":"https://i.imgur.com/3nQpLmZ.png","nome":"Golem de Pedra","emoji":"🗿","nivel":12,"hp":380,"ataque":28, "defesa":22,"xp":22,"moedas":0,"dificuldade":"medio",
+    {"id":"golem","img":"https://i.imgur.com/3nQpLmZ.png","nome":"Golem de Pedra","emoji":"🗿","nivel":12,"hp":380,"ataque":52,"defesa":15,"xp":22,"moedas":0,"dificuldade":"medio",
      "skills":[{"nome":"Soco de Pedra","emoji":"👊","dano":30},{"nome":"Terremoto","emoji":"🌋","dano":20}],
      "loot":[("fragmento_golem","Fragmento de Golem","material","Raro","🪨","Material magico")]},
     {"id":"esqueleto","img":"https://i.imgur.com/6MqWrZp.png","nome":"Esqueleto Armado","emoji":"💀","nivel":9,"hp":300,"ataque":20,"defesa":12,"xp":18,"moedas":0,"dificuldade":"medio",
@@ -118,7 +118,7 @@ MONSTROS = [
      "loot":[("muco_troll","Muco de Troll","material","Incomum","🟢","Ingrediente alquimico")]},
 
     # ── DIFICIL ───────────────────────────────────────────────────
-    {"id":"vampiro","img":"https://i.imgur.com/5QrLpKz.png","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":550,"ataque":42, "defesa":22,"xp":40,"moedas":0,"dificuldade":"dificil",
+    {"id":"vampiro","img":"https://i.imgur.com/5QrLpKz.png","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":550,"ataque":75,"defesa":14,"xp":40,"moedas":0,"dificuldade":"dificil",
      "skills":[{"nome":"Drenar Sangue","emoji":"🩸","dano":40},{"nome":"Hipnose","emoji":"👁️","dano":15}],
      "loot":[("sangue_fresco","Sangue Fresco","material","Incomum","🩸","Ingrediente alquimico"),("sangue_anciao","Sangue Anciao","material","Raro","🩸","Ingrediente raro")]},
     {"id":"troll_pedra","img":"https://i.imgur.com/8WmKzNp.png","nome":"Troll das Pedras","emoji":"🗿","nivel":22,"hp":620,"ataque":38,"defesa":25,"xp":42,"moedas":0,"dificuldade":"dificil",
@@ -132,7 +132,7 @@ MONSTROS = [
      "loot":[("pena_grifo","Pena de Grifo","material","Raro","🦅","Material de voo")]},
 
     # ── LENDARIO ──────────────────────────────────────────────────
-    {"id":"dragao","img":"https://i.imgur.com/9WqLpNm.png","nome":"Dragao Jovem","emoji":"🐉","nivel":35,"hp":1200,"ataque":70, "defesa":40,"xp":80,"moedas":0,"dificuldade":"lendario",
+    {"id":"dragao","img":"https://i.imgur.com/9WqLpNm.png","nome":"Dragao Jovem","emoji":"🐉","nivel":35,"hp":1200,"ataque":120,"defesa":20,"xp":80,"moedas":0,"dificuldade":"lendario",
      "skills":[{"nome":"Baforada de Fogo","emoji":"🔥","dano":70},{"nome":"Garra Draconica","emoji":"🐾","dano":55}],
      "loot":[("escama_dragao_p","Escama de Dragao Pequena","material","Raro","🐉","Fragmento de escama"),("escama_dragao_p","Escama Pequena","material","Raro","🐉","Escama de dragao jovem")]},
     {"id":"quimera","img":"https://i.imgur.com/3NpKzQm.png","nome":"Quimera Anciao","emoji":"🦁","nivel":40,"hp":1400,"ataque":70,"defesa":40,"xp":90,"moedas":0,"dificuldade":"lendario",
