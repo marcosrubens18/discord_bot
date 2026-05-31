@@ -486,9 +486,8 @@ async def desafiar(interaction: discord.Interaction, jogador: discord.Member):
     app_commands.Choice(name="Rank SS (Nv 75+)", value="SS"),
 ])
 async def dungeon(interaction: discord.Interaction, rank: str = "F"):
-    await interaction.response.defer()
     if interaction.user.id in BATALHAS_ATIVAS:
-        await interaction.followup.send("Voce ja esta em batalha!", ephemeral=True); return
+        await interaction.response.send_message("Voce ja esta em batalha!", ephemeral=True); return
     await cmd_dungeon(interaction, rank)
 
 # ─── /hospital ───────────────────────────────────────────────────
