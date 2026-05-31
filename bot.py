@@ -24,6 +24,7 @@ from batalha import (
 )
 from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progresso
 from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
+from eventos import cmd_criar_evento, cmd_eventos, cmd_evento_info, cmd_encerrar_evento, cmd_add_pontos, init_db_eventos
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
 from imagens import (
@@ -332,9 +333,36 @@ async def inventario(interaction: discord.Interaction, jogador: discord.Member =
     embed.add_field(name="Armas",   value=fmt(armas)  if armas  else "—", inline=True)
     embed.add_field(name="Armaduras",value=fmt(armdrs) if armdrs else "—",inline=True)
     if mats: embed.add_field(name="Materiais", value=fmt(mats), inline=False)
-    embed.set_footer(text=f"Moedas: {p['moedas']} 🪙 | Use /setup para equipar itens")
+    embed.set_footer(text=f"Moedas: {p['moedas']} 🪙")
     if IMG_INVENTARIO: embed.set_image(url=IMG_INVENTARIO)
-    await interaction.followup.send(embed=embed, ephemeral=True)
+
+    # Botoes de equipar para armas e armaduras
+    equipaveis = armas + armdrs
+    if equipaveis and alvo.id == interaction.user.id:
+        opcoes = [discord.SelectOption(
+            label=f"{i['emoji']} {i['nome'][:40]}",
+            value=str(i["id"]),
+            description=f"{i['tipo'].title()} | {i['raridade']}",
+            default=bool(i.get("equipado"))
+        ) for i in equipaveis[:25]]
+
+        class EquiparView(discord.ui.View):
+            def __init__(self): super().__init__(timeout=60)
+            @discord.ui.select(placeholder="Equipar item...", options=opcoes)
+            async def sel(self, inter: discord.Interaction, s):
+                if inter.user.id != interaction.user.id: return
+                item_id = int(s.values[0])
+                item_row = next((i for i in equipaveis if i["id"]==item_id), None)
+                if not item_row: await inter.response.send_message("Item nao encontrado!", ephemeral=True); return
+                pool2 = await get_pool()
+                async with pool2.acquire() as conn2:
+                    await conn2.execute("UPDATE inventario SET equipado=0 WHERE user_id=$1 AND tipo=$2", inter.user.id, item_row["tipo"])
+                    await conn2.execute("UPDATE inventario SET equipado=1 WHERE id=$1", item_id)
+                await inter.response.send_message(f"Equipado: {item_row['emoji']} **{item_row['nome']}**!", ephemeral=True)
+
+        await interaction.followup.send(embed=embed, view=EquiparView(), ephemeral=True)
+    else:
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ─── /setup ──────────────────────────────────────────────────────
 
@@ -713,6 +741,41 @@ async def set_item(interaction: discord.Interaction, jogador: discord.Member, ca
             jogador.id, it["id"], it["nome"], it["tipo"], it["raridade"], it["emoji"], it["desc"])
     await interaction.followup.send(f"Dado {it['emoji']} **{it['nome']}** x{qtd} para {jogador.mention}!", ephemeral=True)
 
+
+# ─── /set-vida ───────────────────────────────────────────────────
+
+@bot.tree.command(name="set-vida", description="[ADMIN] Define o HP de um jogador")
+@app_commands.describe(jogador="Jogador alvo", quantidade="HP a definir (0 = HP max)")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_vida(interaction: discord.Interaction, jogador: discord.Member, quantidade: int = 0):
+    await interaction.response.defer(ephemeral=True)
+    p = await get_personagem(jogador.id)
+    if not p:
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
+    novo_hp = p["hp_max"] if quantidade <= 0 else min(quantidade, p["hp_max"])
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        await conn.execute("UPDATE personagens SET hp_atual=$1 WHERE user_id=$2", novo_hp, jogador.id)
+    await interaction.followup.send(f"HP de {jogador.display_name} definido para **{novo_hp}/{p['hp_max']}** ❤️", ephemeral=True)
+
+
+# ─── /set-mana ───────────────────────────────────────────────────
+
+@bot.tree.command(name="set-mana", description="[ADMIN] Define a mana de um jogador")
+@app_commands.describe(jogador="Jogador alvo", quantidade="Mana a definir (0 = mana max)")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_mana(interaction: discord.Interaction, jogador: discord.Member, quantidade: int = 0):
+    await interaction.response.defer(ephemeral=True)
+    p = await get_personagem(jogador.id)
+    if not p:
+        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
+    nova_mana = p["mana_max"] if quantidade <= 0 else min(quantidade, p["mana_max"])
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        await conn.execute("UPDATE personagens SET mana_atual=$1 WHERE user_id=$2", nova_mana, jogador.id)
+    await interaction.followup.send(f"Mana de {jogador.display_name} definida para **{nova_mana}/{p['mana_max']}** 💙", ephemeral=True)
+
+
 # ─── /set-moedas ─────────────────────────────────────────────────
 
 @bot.tree.command(name="set-moedas", description="[ADMIN] Define ou adiciona moedas")
@@ -799,6 +862,69 @@ async def deletar_personagem(interaction: discord.Interaction):
         await conn.execute("DELETE FROM personagens WHERE user_id=$1", interaction.user.id)
     await interaction.followup.send("Personagem deletado. Use /criar_personagem para recomecar.", ephemeral=True)
 
+
+# ─── /criar-evento ───────────────────────────────────────────────
+
+@bot.tree.command(name="criar-evento", description="[ADMIN] Cria um novo evento no servidor")
+@app_commands.describe(
+    tipo="Tipo do evento",
+    premio_tipo="Tipo de premio",
+    premio_valor="Valor do premio (moedas: 5000 | ficha: 3 | cargo: Nome do Cargo | classe: dracomante | item: id|nome|tipo|raridade|emoji|desc)",
+    canal="Canal onde o evento sera anunciado"
+)
+@app_commands.choices(tipo=[
+    app_commands.Choice(name="Torneio de Batalha",  value="batalha"),
+    app_commands.Choice(name="Corrida de Dungeon",  value="dungeon"),
+    app_commands.Choice(name="Coleta de Materiais", value="coleta"),
+    app_commands.Choice(name="Corrida de Nivel",    value="nivel"),
+    app_commands.Choice(name="Evento Livre",        value="livre"),
+])
+@app_commands.choices(premio_tipo=[
+    app_commands.Choice(name="Moedas",           value="moedas"),
+    app_commands.Choice(name="XP",               value="xp"),
+    app_commands.Choice(name="Fichas de Roleta", value="ficha"),
+    app_commands.Choice(name="Item especifico",  value="item"),
+    app_commands.Choice(name="Cargo exclusivo",  value="cargo"),
+    app_commands.Choice(name="Classe especial",  value="classe"),
+])
+@app_commands.checks.has_permissions(administrator=True)
+async def criar_evento(interaction: discord.Interaction, tipo: str, premio_tipo: str, premio_valor: str, canal: discord.TextChannel):
+    await cmd_criar_evento(interaction, tipo, premio_tipo, premio_valor, canal)
+
+
+# ─── /eventos ────────────────────────────────────────────────────
+
+@bot.tree.command(name="eventos", description="Lista os eventos ativos no servidor")
+async def eventos(interaction: discord.Interaction):
+    await cmd_eventos(interaction)
+
+
+# ─── /evento-info ────────────────────────────────────────────────
+
+@bot.tree.command(name="evento-info", description="Detalhes de um evento e ranking de participantes")
+@app_commands.describe(evento_id="ID do evento (0 = evento ativo atual)")
+async def evento_info(interaction: discord.Interaction, evento_id: int = 0):
+    await cmd_evento_info(interaction, evento_id)
+
+
+# ─── /encerrar-evento ────────────────────────────────────────────
+
+@bot.tree.command(name="encerrar-evento", description="[ADMIN] Encerra evento e entrega premio ao 1o lugar")
+@app_commands.describe(evento_id="ID do evento a encerrar")
+@app_commands.checks.has_permissions(administrator=True)
+async def encerrar_evento(interaction: discord.Interaction, evento_id: int):
+    await cmd_encerrar_evento(interaction, evento_id)
+
+
+# ─── /add-pontos ─────────────────────────────────────────────────
+
+@bot.tree.command(name="add-pontos", description="[ADMIN] Adiciona pontos a um participante do evento")
+@app_commands.describe(jogador="Jogador alvo", pontos="Pontos a adicionar", evento_id="ID do evento (0 = atual)")
+@app_commands.checks.has_permissions(administrator=True)
+async def add_pontos(interaction: discord.Interaction, jogador: discord.Member, pontos: int, evento_id: int = 0):
+    await cmd_add_pontos(interaction, jogador, pontos, evento_id)
+
+
 # ─── /ajuda ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="ajuda", description="Lista todos os comandos do RPG")
@@ -809,7 +935,8 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Batalha",    value="`/treinar` `/desafiar` `/dungeon`", inline=False)
     embed.add_field(name="Economia",   value="`/loja` `/ferreiro` `/hospital` `/mercado` `/mercador`", inline=False)
     embed.add_field(name="Progresso",  value="`/missoes` `/conquistas` `/ranking` `/girar`", inline=False)
-    embed.add_field(name="Admin",      value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros`", inline=False)
+    embed.add_field(name="Admin",      value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros` `/set-vida` `/set-mana`", inline=False)
+    embed.add_field(name="Eventos",    value="`/criar-evento` `/eventos` `/evento-info` `/encerrar-evento` `/add-pontos`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
