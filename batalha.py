@@ -536,16 +536,21 @@ class EscolherArenaView(discord.ui.View):
     def __init__(self, user_id):
         super().__init__(timeout=30)
         self.user_id = user_id
-        self.arena   = random.choice(ARENAS)
+        self.arena   = None  # nenhuma pre-selecionada
         opcoes = [
             discord.SelectOption(
                 label=f"{a['emoji']} {a['nome']}",
                 value=a["id"],
                 description=f"Bonus: {a['bonus']}",
-                default=a["id"] == self.arena["id"]
+                default=False
             ) for a in ARENAS
         ]
-        sel = discord.ui.Select(placeholder="Escolha a arena (ou deixe aleatório)...", options=opcoes)
+        sel = discord.ui.Select(
+            placeholder="🏟️ Escolha uma arena...",
+            options=opcoes,
+            min_values=1,
+            max_values=1
+        )
         sel.callback = self._escolher
         self.add_item(sel)
 
@@ -565,6 +570,8 @@ class EscolherArenaView(discord.ui.View):
         self.stop()
 
     async def on_timeout(self):
+        if not self.arena:
+            self.arena = random.choice(ARENAS)
         self.stop()
 
 
@@ -1065,9 +1072,10 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                 reducao_txt = f" (-10% dragão)" if reducao > 0 else ""
                 linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: **{dano_m} de dano**{reducao_txt}!"
 
+        regen_txt = f"\n💙 +{regen_mana} mana ({mana_j}/{mana_jmx})" if mana_antes < mana_jmx else ""
         embed_m = discord.Embed(
             title=f"{monstro['emoji']} {monstro['nome']} age!",
-            description=f"{linha_monstro}\n\n{barra_status()}",
+            description=f"{linha_monstro}\n\n{barra_status()}{regen_txt}",
             color=cor_monstro
         )
         msgs_batalha.append(await interaction.followup.send(embed=embed_m, wait=True))
@@ -1075,7 +1083,10 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         if not tomou_dano:
             passiva.fim_turno_sem_dano()
 
-        mana_j = min(mana_jmx, mana_j + 5)
+        # Regen de mana por turno
+        mana_antes = mana_j
+        regen_mana = 10
+        mana_j = min(mana_jmx, mana_j + regen_mana)
         turno += 1
         await asyncio.sleep(1.0)
 
