@@ -945,7 +945,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
 
                 elif efeito == "dreno":
                     mult_dreno = passiva.apos_dreno()
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk)
+                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
                     roubo = int(dano // 2 * mult_dreno)
                     hp_m  = max(0, hp_m - dano)
                     hp_j  = min(hp_jmx, hp_j + roubo)
@@ -969,8 +969,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                     cor_acao = 0xD85A30
 
                 elif efeito in ("atordoar", "paralisia", "congelar"):
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk)
-                    dano = int(dano * passiva.multiplicador_dano())
+                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx, passiva_mult=passiva.multiplicador_dano())
                     hp_m = max(0, hp_m - dano)
                     if random.random() < 0.40:
                         add_efeito(efeitos_m, "atordoado", 1)
@@ -982,25 +981,24 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                 elif efeito in ("hits2", "hits3", "hits4", "hits5"):
                     n_hits = int(efeito.replace("hits", ""))
                     dano_total = 0
+                    cap_por_hit = int(hp_mmx * 0.20) if hp_mmx else 999
                     for _ in range(n_hits):
-                        d = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 0.6), bonus_atk=bonus_atk)
-                        dano_total += d
-                    dano_total = int(dano_total * passiva.multiplicador_dano())
+                        d = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 0.6), bonus_atk=bonus_atk, nivel=p["nivel"], passiva_mult=passiva.multiplicador_dano())
+                        dano_total += min(d, cap_por_hit)
+                    dano_total = min(dano_total, int(hp_mmx * 0.70) if hp_mmx else dano_total)
                     hp_m = max(0, hp_m - dano_total)
                     linha_jogador = f"{sk['emoji']} **{sk['nome']}**: {n_hits} golpes → **{dano_total} de dano total**!"
                     cor_acao = 0xD85A30
 
                 elif efeito == "ignorar_defesa":
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, ignorar_defesa=True)
-                    dano = int(dano * passiva.multiplicador_dano())
+                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, ignorar_defesa=True, nivel=p["nivel"], hp_max_monstro=hp_mmx, passiva_mult=passiva.multiplicador_dano())
                     hp_m = max(0, hp_m - dano)
                     linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** (ignora defesa)! 🔱"
                     cor_acao = 0x7F77DD
 
                 elif efeito == "critico_bonus":
                     crit = random.random() < 0.55
-                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), crit=crit, bonus_atk=bonus_atk)
-                    dano = int(dano * passiva.multiplicador_dano())
+                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), crit=crit, bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx, passiva_mult=passiva.multiplicador_dano())
                     hp_m = max(0, hp_m - dano)
                     if crit:
                         mana_j = min(mana_jmx, mana_j + passiva.apos_critico())
@@ -1013,7 +1011,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                         linha_jogador = f"{sk['emoji']} **{sk['nome']}**: 💀 **MORTE INSTANTÂNEA!**"
                         cor_acao = 0x7F77DD
                     else:
-                        dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk)
+                        dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
                         hp_m = max(0, hp_m - dano)
                         linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** (não instakill)"
 
