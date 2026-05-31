@@ -227,7 +227,7 @@ async def desbloquear_skills_nivel(conn, user_id, classe_id, nivel):
                 user_id, s["id"]
             )
 
-async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe_id, nivel_atual):
+async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe_id, nivel_atual, mana_atual_batalha=None):
     """Salva resultado e retorna (levelups, nivel_novo, rank_mudou, rank_novo)."""
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -1134,7 +1134,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         _chance = _chance_loot.get(monstro.get("dificuldade","facil"), 0.20)
         loot = [random.choice(monstro["loot"])] if random.random() < _chance else []
         lvlups, nivel_novo, rank_mudou, rank_obj = await salvar_resultado(
-            uid, hp_j, monstro["xp"], 0, True, p["classe_id"], p["nivel"]
+            uid, hp_j, monstro["xp"], 0, True, p["classe_id"], p["nivel"], mana_j
         )
         if loot:
             await add_loot(uid, loot)
@@ -1195,7 +1195,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
 
     else:
         lvlups, nivel_novo, rank_mudou, rank_obj = await salvar_resultado(
-            uid, 10, 0, 0, False, p["classe_id"], p["nivel"]
+            uid, 10, 0, 0, False, p["classe_id"], p["nivel"], mana_j
         )
         desc = (
             f"Você foi derrotado por **{monstro['emoji']} {monstro['nome']}**...\n\n"
