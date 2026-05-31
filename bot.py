@@ -833,3 +833,79 @@ async def set_item(interaction: discord.Interaction, jogador: discord.Member,
     await interaction.followup.send(embed=embed, view=v, ephemeral=True)
 
 
+
+# ─── SYNC MANUAL ─────────────────────────────────────────────────
+
+@bot.command(name="sync")
+async def sync_cmd(ctx):
+    try:
+        guild_id = int(os.getenv("GUILD_ID", "0"))
+        count = 0
+        if guild_id:
+            s = await bot.tree.sync(guild=discord.Object(id=guild_id))
+            count += len(s)
+        s2 = await bot.tree.sync()
+        count += len(s2)
+        await ctx.send(f"✅ {count} comandos sincronizados!")
+    except Exception as e:
+        await ctx.send(f"❌ Erro: {e}")
+
+# ─── EVENTOS ─────────────────────────────────────────────────────
+
+@bot.event
+async def on_ready():
+    print(f"Bot conectado: {bot.user}")
+    try:
+        guild_id = int(os.getenv("GUILD_ID", "0"))
+        print(f"GUILD_ID: {guild_id}")
+        if guild_id:
+            guild_obj = discord.Object(id=guild_id)
+            bot.tree.copy_global_to(guild=guild_obj)
+            synced = await bot.tree.sync(guild=guild_obj)
+            print(f"✅ {len(synced)} comandos sincronizados no servidor!")
+            for cmd in synced:
+                print(f"   /{cmd.name}")
+        else:
+            synced = await bot.tree.sync()
+            print(f"✅ {len(synced)} comandos globais!")
+    except Exception as e:
+        import traceback
+        print(f"ERRO SYNC: {e}")
+        traceback.print_exc()
+    try:
+        await init_db()
+        await init_db_batalha()
+        await init_db_hospital()
+        await init_db_missoes()
+        await init_conquistas()
+        print("✅ Banco OK!")
+    except Exception as e:
+        print(f"ERRO banco: {e}")
+    print(f"✅ Bot pronto!")
+
+@bot.event
+async def on_member_join(member: discord.Member):
+    for nome_cargo in ["🌱 Recem-chegado"]:
+        cargo = discord.utils.get(member.guild.roles, name=nome_cargo)
+        if cargo:
+            try:
+                await member.add_roles(cargo)
+            except Exception:
+                pass
+
+# ─── MAIN ────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    token = os.getenv("DISCORD_TOKEN")
+    if not token:
+        try:
+            with open("config.txt") as f:
+                for linha in f:
+                    if linha.startswith("DISCORD_TOKEN="):
+                        token = linha.split("=", 1)[1].strip()
+        except Exception:
+            pass
+    if not token:
+        print("ERRO: Token nao encontrado.")
+        exit(1)
+    bot.run(token)
