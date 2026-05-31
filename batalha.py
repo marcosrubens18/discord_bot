@@ -868,7 +868,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         ),
         color=arena["cor"]
     )
-    embed_ini.set_image(url=arena["img"])
+    if arena.get("img"): embed_ini.set_image(url=arena["img"])
     embed_ini.set_thumbnail(url=img_monstro)
     msgs_batalha.append(await interaction.followup.send(embed=embed_ini, wait=True))
 
@@ -1357,7 +1357,7 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena):
         description=f"**{m1.mention}** vs **{m2.mention}**\n\n{barra_status_pvp()}",
         color=arena["cor"]
     )
-    embed_ini.set_image(url=arena["img"])
+    if arena.get("img"): embed_ini.set_image(url=arena["img"])
     msgs.append(await channel.send(embed=embed_ini))
 
     # PvP simplificado — turnos alternados automáticos
