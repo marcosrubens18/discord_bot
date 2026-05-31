@@ -90,13 +90,13 @@ MONSTROS = [
     {"id":"goblin","img":"https://i.imgur.com/3NpKzQm.png","nome":"Goblin","emoji":"👺","nivel":1,"hp":120,"ataque":6,"defesa":2,"xp":25,"moedas":12,"dificuldade":"facil",
      "skills":[{"nome":"Mordida","emoji":"🦷","dano":8},{"nome":"Arranhao","emoji":"💢","dano":5}],
      "loot":[("pedra_suja","Pedra Suja","material","Comum","🪨","Ingrediente basico")]},
-    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":90, "ataque":13,"defesa":5,"xp":38,"moedas":20,"dificuldade":"facil",
+    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":65, "ataque":14, "defesa":5,"xp":38,"moedas":20,"dificuldade":"facil",
      "skills":[{"nome":"Mordida Feroz","emoji":"🦷","dano":14},{"nome":"Investida","emoji":"💨","dano":10}],
      "loot":[("pele_lobo","Pele de Lobo","material","Comum","🐾","Material de armadura")]},
-    {"id":"rato_gigante","img":"https://i.imgur.com/6kqJv1R.png","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":75, "ataque":8,"defesa":3,"xp":30,"moedas":15,"dificuldade":"facil",
+    {"id":"rato_gigante","img":"https://i.imgur.com/6kqJv1R.png","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":55, "ataque":8,"defesa":3,"xp":30,"moedas":15,"dificuldade":"facil",
      "skills":[{"nome":"Arranhao Duplo","emoji":"💢","dano":9},{"nome":"Fuga","emoji":"💨","dano":4}],
      "loot":[("pelo_rato","Pelo de Rato","material","Comum","🐾","Material comum")]},
-    {"id":"goblin_arqueiro","img":"https://i.imgur.com/8PqWrTz.png","nome":"Goblin Arqueiro","emoji":"👺","nivel":4,"hp":85, "ataque":9,"defesa":3,"xp":35,"moedas":18,"dificuldade":"facil",
+    {"id":"goblin_arqueiro","img":"https://i.imgur.com/8PqWrTz.png","nome":"Goblin Arqueiro","emoji":"👺","nivel":4,"hp":60, "ataque":9,"defesa":3,"xp":35,"moedas":18,"dificuldade":"facil",
      "skills":[{"nome":"Flechada","emoji":"🏹","dano":12},{"nome":"Tiro Rapido","emoji":"🏹","dano":8}],
      "loot":[("flecha_goblin","Flecha de Goblin","material","Comum","🏹","Material de projétil")]},
 
@@ -312,23 +312,41 @@ def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=Fals
     HP monstro cap: nenhum hit passa de 35% do HP.
     """
     # Divisor decresce conforme sobe de nivel — Rank F é bem fraco
-    if nivel <= 9:    divisor = 2.2   # Rank F  — fraco mas jogavel
-    elif nivel <= 19: divisor = 1.9   # Rank E
-    elif nivel <= 29: divisor = 1.6   # Rank D
-    elif nivel <= 39: divisor = 1.4   # Rank C
-    elif nivel <= 49: divisor = 1.2   # Rank B
-    elif nivel <= 59: divisor = 1.05  # Rank A
-    elif nivel <= 74: divisor = 0.95  # Rank S
-    else:             divisor = 0.85  # Rank SS
+    div_forca = 1.0  # overridden above
 
-    mult_real  = min(1.8, mult)   # cap duro no multiplicador
+    # Divisor e cap por rank — alvo: 5-8 hits para matar
+    if nivel <= 9:
+        div_forca = 1.1   # Rank F
+        mult_cap  = 1.15
+    elif nivel <= 19:
+        div_forca = 0.95  # Rank E
+        mult_cap  = 1.35
+    elif nivel <= 29:
+        div_forca = 0.85  # Rank D
+        mult_cap  = 1.55
+    elif nivel <= 39:
+        div_forca = 0.78  # Rank C
+        mult_cap  = 1.70
+    elif nivel <= 49:
+        div_forca = 0.72  # Rank B
+        mult_cap  = 1.80
+    elif nivel <= 59:
+        div_forca = 0.67  # Rank A
+        mult_cap  = 1.80
+    elif nivel <= 74:
+        div_forca = 0.62  # Rank S
+        mult_cap  = 1.80
+    else:
+        div_forca = 0.58  # Rank SS
+        mult_cap  = 1.80
+    mult_real  = min(mult_cap, mult)
     dano_minimo = max(2, int(atk * 0.10))  # min 10% ATK
 
     if ignorar_defesa:
-        base = int((atk / divisor) * mult_real)
+        base = int((atk / div_forca) * mult_real)
     else:
         atk_efetivo = max(1, atk - int(dfs * 0.35))
-        base = int((atk_efetivo / divisor) * mult_real)
+        base = int((atk_efetivo / div_forca) * mult_real)
 
     base = max(dano_minimo, base)
 
@@ -648,7 +666,7 @@ class GerenciarSkillsView(discord.ui.View):
 
 
 class BatalhaView(discord.ui.View):
-    def __init__(self, user_id, skills, pocoes):
+    def __init__(self, user_id, skills, pocoes, nivel=1):
         super().__init__(timeout=None)
         self.user_id    = user_id
         self.acao       = None
@@ -656,7 +674,12 @@ class BatalhaView(discord.ui.View):
         self._pocoes    = list(pocoes) if pocoes else []
         self._skills    = list(skills) if skills else []
 
-        for i, sk in enumerate(skills[:4]):
+        # Slots de skill por rank
+        if nivel <= 9:    max_slots = 2   # Rank F
+        elif nivel <= 19: max_slots = 3   # Rank E
+        else:             max_slots = 4   # Rank D+
+
+        for i, sk in enumerate(skills[:max_slots]):
             mana_txt = f" ({sk.get('mana',0)}💙)" if sk.get("mana", 0) > 0 else ""
             btn = discord.ui.Button(
                 label=f"{sk['emoji']} {sk['nome']}{mana_txt}",
@@ -666,6 +689,7 @@ class BatalhaView(discord.ui.View):
             )
             btn.callback = self._fazer_skill(i)
             self.add_item(btn)
+        self._max_slots = max_slots
 
         mochila_btn = discord.ui.Button(
             label=f"🎒 Mochila ({len(self._pocoes)})" if self._pocoes else "🎒 Mochila (vazia)",
@@ -828,7 +852,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
 
         # 3. Pocoes disponíveis
         pocoes = await get_pocoes_inv(uid)
-        view   = BatalhaView(uid, skills, pocoes)
+        view   = BatalhaView(uid, skills, pocoes, nivel=p["nivel"])
 
         passiva_txt = passiva.desc_passiva()
         embed_vez = discord.Embed(
@@ -1072,7 +1096,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                 reducao_txt = f" (-10% dragão)" if reducao > 0 else ""
                 linha_monstro = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji']} {sk_m['nome']}**: **{dano_m} de dano**{reducao_txt}!"
 
-        regen_txt = f"\n💙 +{regen_mana} mana ({mana_j}/{mana_jmx})" if mana_antes < mana_jmx else ""
+        regen_txt = f"\n💙 +{regen_mana} mana regenerada ({mana_j}/{mana_jmx})" if mana_antes < mana_jmx and mana_antes != mana_j else ""
         embed_m = discord.Embed(
             title=f"{monstro['emoji']} {monstro['nome']} age!",
             description=f"{linha_monstro}\n\n{barra_status()}{regen_txt}",
@@ -1084,10 +1108,10 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
             passiva.fim_turno_sem_dano()
 
         # Regen de mana por turno
-        mana_antes = mana_j
-        regen_mana = 10
-        mana_j = min(mana_jmx, mana_j + regen_mana)
-        turno += 1
+        mana_antes  = mana_j
+        regen_mana  = 10
+        mana_j      = min(mana_jmx, mana_j + regen_mana)
+        turno      += 1
         await asyncio.sleep(1.0)
 
     # ─── RESULTADO ───────────────────────────────────────────────
