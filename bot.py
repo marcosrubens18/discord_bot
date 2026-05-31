@@ -858,16 +858,18 @@ async def on_ready():
     try:
         guild_id = int(os.getenv("GUILD_ID", "0"))
         print(f"GUILD_ID: {guild_id}")
+        print(f"Comandos registrados no tree: {len(bot.tree.get_commands())}")
+        # Sync global first
+        global_synced = await bot.tree.sync()
+        print(f"✅ {len(global_synced)} comandos globais!")
+        # Then sync to guild for immediate effect
         if guild_id:
             guild_obj = discord.Object(id=guild_id)
             bot.tree.copy_global_to(guild=guild_obj)
-            synced = await bot.tree.sync(guild=guild_obj)
-            print(f"✅ {len(synced)} comandos sincronizados no servidor!")
-            for cmd in synced:
+            guild_synced = await bot.tree.sync(guild=guild_obj)
+            print(f"✅ {len(guild_synced)} comandos no servidor!")
+            for cmd in guild_synced:
                 print(f"   /{cmd.name}")
-        else:
-            synced = await bot.tree.sync()
-            print(f"✅ {len(synced)} comandos globais!")
     except Exception as e:
         import traceback
         print(f"ERRO SYNC: {e}")
