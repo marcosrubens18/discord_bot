@@ -90,13 +90,13 @@ MONSTROS = [
     {"id":"goblin","img":"https://i.imgur.com/3NpKzQm.png","nome":"Goblin","emoji":"👺","nivel":1,"hp":120,"ataque":6,"defesa":2,"xp":25,"moedas":12,"dificuldade":"facil",
      "skills":[{"nome":"Mordida","emoji":"🦷","dano":8},{"nome":"Arranhao","emoji":"💢","dano":5}],
      "loot":[("pedra_suja","Pedra Suja","material","Comum","🪨","Ingrediente basico")]},
-    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":160,"ataque":13, "defesa":5,"xp":38,"moedas":20,"dificuldade":"facil",
+    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":90, "ataque":13,"defesa":5,"xp":38,"moedas":20,"dificuldade":"facil",
      "skills":[{"nome":"Mordida Feroz","emoji":"🦷","dano":14},{"nome":"Investida","emoji":"💨","dano":10}],
      "loot":[("pele_lobo","Pele de Lobo","material","Comum","🐾","Material de armadura")]},
-    {"id":"rato_gigante","img":"https://i.imgur.com/6kqJv1R.png","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":130,"ataque":8,"defesa":3,"xp":30,"moedas":15,"dificuldade":"facil",
+    {"id":"rato_gigante","img":"https://i.imgur.com/6kqJv1R.png","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":75, "ataque":8,"defesa":3,"xp":30,"moedas":15,"dificuldade":"facil",
      "skills":[{"nome":"Arranhao Duplo","emoji":"💢","dano":9},{"nome":"Fuga","emoji":"💨","dano":4}],
      "loot":[("pelo_rato","Pelo de Rato","material","Comum","🐾","Material comum")]},
-    {"id":"goblin_arqueiro","img":"https://i.imgur.com/8PqWrTz.png","nome":"Goblin Arqueiro","emoji":"👺","nivel":4,"hp":140,"ataque":9,"defesa":3,"xp":35,"moedas":18,"dificuldade":"facil",
+    {"id":"goblin_arqueiro","img":"https://i.imgur.com/8PqWrTz.png","nome":"Goblin Arqueiro","emoji":"👺","nivel":4,"hp":85, "ataque":9,"defesa":3,"xp":35,"moedas":18,"dificuldade":"facil",
      "skills":[{"nome":"Flechada","emoji":"🏹","dano":12},{"nome":"Tiro Rapido","emoji":"🏹","dano":8}],
      "loot":[("flecha_goblin","Flecha de Goblin","material","Comum","🏹","Material de projétil")]},
 
@@ -264,6 +264,11 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
         mana_novo    = min(p["mana_atual"] + levelups * 10, mana_max_novo)
         hp_final     = max(1, min(hp, hp_max_novo))
 
+        # Mana nao restaura apos batalha — persiste o que sobrou
+        # So recupera pelo hospital ou pocoes
+        # Garante que nao passa do maximo nem fica negativa
+        mana_salvar = max(0, min(p["mana_atual"], mana_max_novo))
+
         await conn.execute("""
             UPDATE personagens
             SET hp_atual=$1, hp_max=$2, xp=$3, nivel=$4,
@@ -272,7 +277,7 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             WHERE user_id=$12
         """,
             hp_final, hp_max_novo, novo_xp, nv,
-            atk_novo, dfs_novo, mana_max_novo, mana_novo,
+            atk_novo, dfs_novo, mana_max_novo, mana_salvar,
             moedas_ganhas,
             1 if vitoria else 0,
             0 if vitoria else 1,
@@ -293,41 +298,57 @@ async def init_db_batalha():
 # ─── CALCULOS ────────────────────────────────────────────────────
 
 def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False, nivel=1, hp_max_monstro=None):
-    """Calcula dano balanceado.
-    - mult maximo efetivo: 2.0 (skills lendarias)
-    - nivel escala +0.5% por nivel, cap +50% no nivel 100
-    - dano maximo por hit: 40% do HP do monstro (se fornecido) ou 200
+    """Dano escalado pelo nivel de forma linear e controlada.
+
+    Rank F (Nv1-9):   dano base ATK/4  → mago nv1 ATK10 = 2-5 dano base
+    Rank E (Nv10-19): dano base ATK/3
+    Rank D (Nv20-29): dano base ATK/2.5
+    Rank C (Nv30-39): dano base ATK/2
+    Rank B (Nv40-49): dano base ATK/1.8
+    Rank A (Nv50-59): dano base ATK/1.5
+    Rank S (Nv60+):   dano base ATK/1.2
+
+    Skills multiplicam em cima desse base (max x2.0).
+    HP monstro cap: nenhum hit passa de 35% do HP.
     """
-    # Cap rigido no multiplicador — nenhuma skill passa de 2.0x efetivo
-    mult_real = min(2.0, mult)
+    # Divisor decresce conforme sobe de nivel — Rank F é bem fraco
+    if nivel <= 9:    divisor = 2.2   # Rank F  — fraco mas jogavel
+    elif nivel <= 19: divisor = 1.9   # Rank E
+    elif nivel <= 29: divisor = 1.6   # Rank D
+    elif nivel <= 39: divisor = 1.4   # Rank C
+    elif nivel <= 49: divisor = 1.2   # Rank B
+    elif nivel <= 59: divisor = 1.05  # Rank A
+    elif nivel <= 74: divisor = 0.95  # Rank S
+    else:             divisor = 0.85  # Rank SS
 
-    # Escala suave com nivel: +0.5% por nivel, cap 50%
-    escala = min(1.5, 1.0 + (nivel - 1) * 0.005)
-    mult_final = mult_real * escala
-
-    dano_minimo = max(3, int(atk * 0.20))
+    mult_real  = min(1.8, mult)   # cap duro no multiplicador
+    dano_minimo = max(2, int(atk * 0.10))  # min 10% ATK
 
     if ignorar_defesa:
-        base = max(dano_minimo, int(atk * mult_final))
+        base = int((atk / divisor) * mult_real)
     else:
-        # DEF reduz de forma equilibrada
-        reducao_def = int(dfs * 0.4)
-        base = max(dano_minimo, int((atk - reducao_def) * mult_final))
+        atk_efetivo = max(1, atk - int(dfs * 0.35))
+        base = int((atk_efetivo / divisor) * mult_real)
 
-    variacao = random.randint(-max(1, base // 10), max(1, base // 7))
+    base = max(dano_minimo, base)
+
+    # Variacao pequena +/- 10%
+    variacao = random.randint(-max(1, base // 10), max(1, base // 10))
     dano = max(dano_minimo, base + variacao)
-    dano = int(dano * min(bonus_atk, 1.20))  # bonus max 20%
 
+    # Bonus de afinidade (max +15%)
+    dano = int(dano * min(bonus_atk, 1.15))
+
+    # Critico: +30%
     if crit:
-        dano = int(dano * 1.35)  # critico mais moderado
+        dano = int(dano * 1.30)
 
-    # Cap por HP do monstro — max 45% do HP por hit
+    # Cap por HP do monstro: nunca passa de 35% do HP por hit
     if hp_max_monstro:
-        cap = max(dano_minimo, int(hp_max_monstro * 0.45))
+        cap = max(dano_minimo, int(hp_max_monstro * 0.35))
         dano = min(cap, dano)
 
-    # Cap absoluto de segurança
-    return min(250, max(dano_minimo, dano))
+    return max(dano_minimo, dano)
 
 def barra_hp(cur, mx):
     if mx <= 0: return "░░░░░░░░░░"
