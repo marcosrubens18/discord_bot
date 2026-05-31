@@ -1298,29 +1298,42 @@ async def auto_delete(msg, segundos=300):
 
 @bot.event
 async def on_ready():
-    print("Iniciando...")
+    print(f"Bot conectado: {bot.user}")
+
+    # ── SYNC PRIMEIRO (antes de qualquer coisa) ──────────────────
+    try:
+        guild_id = int(os.getenv("GUILD_ID", "0"))
+        print(f"GUILD_ID lido: {guild_id}")
+
+        if guild_id:
+            guild_obj = discord.Object(id=guild_id)
+            # Copia todos os comandos para o servidor e sincroniza
+            bot.tree.copy_global_to(guild=guild_obj)
+            synced = await bot.tree.sync(guild=guild_obj)
+            print(f"✅ {len(synced)} comandos sincronizados no servidor!")
+            for cmd in synced:
+                print(f"   /{cmd.name}")
+        else:
+            print("AVISO: GUILD_ID nao definido, sincronizando globalmente...")
+            synced = await bot.tree.sync()
+            print(f"✅ {len(synced)} comandos globais sincronizados!")
+    except Exception as e:
+        import traceback
+        print(f"ERRO SYNC: {e}")
+        traceback.print_exc()
+
+    # ── BANCO DE DADOS ───────────────────────────────────────────
     try:
         await init_db()
         await init_db_batalha()
         await init_db_hospital()
         await init_db_missoes()
         await init_conquistas()
+        print("✅ Banco de dados OK!")
     except Exception as e:
-        print(f"ERRO no banco: {e}")
-    try:
-        guild_id = int(os.getenv("GUILD_ID", "0"))
-        if guild_id:
-            guild_obj = discord.Object(id=guild_id)
-            synced = await bot.tree.sync(guild=guild_obj)
-            print(f"Comandos sincronizados no servidor: {len(synced)}")
-            for cmd in synced:
-                print(f"  /{cmd.name}")
-        # Sync global como fallback para garantir
-        global_synced = await bot.tree.sync()
-        print(f"Comandos globais: {len(global_synced)}")
-    except Exception as e:
-        print(f"ERRO ao sincronizar: {e}")
-    print(f"Bot online: {bot.user}")
+        print(f"ERRO banco: {e}")
+
+    print(f"✅ Bot pronto!")
 
 @bot.event
 async def on_member_join(member: discord.Member):
