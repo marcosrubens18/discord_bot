@@ -309,7 +309,8 @@ async def criar_personagem(interaction: discord.Interaction):
     if raca["id"] == "anao":
         dfs += 8
     nome = interaction.user.display_name
-    it   = ITEM_INICIAL.get(classe["id"], ITEM_INICIAL["guerreiro"])
+    # Sem item inicial — jogador começa sem arma/armadura
+    # Objetivo: juntar moedas para comprar na loja
 
     # Salva no banco
     pool_db = await get_pool()
@@ -332,10 +333,7 @@ async def criar_personagem(interaction: discord.Interaction):
                 "INSERT INTO skills_equipadas(user_id,skill_id,slot) VALUES($1,$2,$3) ON CONFLICT(user_id,slot) DO UPDATE SET skill_id=EXCLUDED.skill_id",
                 uid, sk["id"], i
             )
-        await conn.execute("""
-            INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao,equipado)
-            VALUES($1,$2,$3,$4,$5,$6,$7,1)
-        """, uid, it[0], it[1], it[2], it[3], it[4], it[5])
+        # Sem item inicial — inventario começa vazio
 
     # Embed final
     from racas import get_raca as get_r
@@ -354,7 +352,7 @@ async def criar_personagem(interaction: discord.Interaction):
     efinal.add_field(name="⚔️ ATK",    value=str(atk), inline=True)
     efinal.add_field(name="🛡️ DEF",    value=str(dfs), inline=True)
     efinal.add_field(name="💙 Mana",    value=str(mana_max), inline=True)
-    efinal.set_footer(text="Use /setup para equipar e /perfil para ver sua ficha completa!")
+    efinal.set_footer(text="Dica: Use /loja para comprar sua primeira arma! | /perfil para ver sua ficha")
 
     await msg.edit(embed=efinal, view=None)
 
