@@ -783,7 +783,7 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     view_arena = EscolherArenaView(interaction.user.id)
     await interaction.followup.send("Escolha a arena:", view=view_arena, wait=True)
     await view_arena.wait()
-    arena = view_arena.arena
+    arena = view_arena.arena or random.choice(ARENAS)
 
     monstros = [m for m in MONSTROS if m["dificuldade"] == dificuldade]
     if not monstros: monstros = [MONSTROS[0]]
