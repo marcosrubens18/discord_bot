@@ -196,6 +196,12 @@ async def get_skills_eq(user_id):
 
 async def get_pocoes_inv(user_id):
     pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            "SELECT * FROM inventario WHERE user_id=$1 AND (item_id LIKE 'pocao%' OR item_id='elixir')",
+            user_id
+        )
+
 async def get_skills_eq(user_id):
     pool = await get_pool()
     async with pool.acquire() as db:
@@ -505,14 +511,7 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         elif acao == "pocao" and val:
             pd = POCOES_DEF.get(val)
             if pd:
-                pool_dg = await get_pool()
-                async with pool_dg.acquire() as conn_dg:
-                    row_poc = await conn_dg.fetchrow("SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", p["user_id"], val)
-                    if row_poc:
-                        if row_poc["quantidade"] > 1:
-                            await conn_dg.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=$1", row_poc["id"])
-                        else:
-                            await conn_dg.execute("DELETE FROM inventario WHERE id=$1", row_poc["id"])
+                await remover_pocao(p["user_id"], val)
                 if pd["tipo"] == "hp":
                     ganho = pd["valor"]; hp_j = min(hp_jmx, hp_j+ganho)
                     linha = f"🧪 **{pd['nome']}**: +{ganho} HP!"
