@@ -87,58 +87,58 @@ RECEITAS = [
 
 MONSTROS = [
     # ── FACIL ─────────────────────────────────────────────────────
-    {"id":"goblin","img":"https://i.imgur.com/3NpKzQm.png","nome":"Goblin","emoji":"👺","nivel":1,"hp":40,"ataque":6,"defesa":2,"xp":25,"moedas":12,"dificuldade":"facil",
+    {"id":"goblin","img":"https://i.imgur.com/3NpKzQm.png","nome":"Goblin","emoji":"👺","nivel":1,"hp":120,"ataque":6,"defesa":2,"xp":25,"moedas":12,"dificuldade":"facil",
      "skills":[{"nome":"Mordida","emoji":"🦷","dano":8},{"nome":"Arranhao","emoji":"💢","dano":5}],
      "loot":[("pedra_suja","Pedra Suja","material","Comum","🪨","Ingrediente basico")]},
-    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":65,"ataque":10,"defesa":4,"xp":38,"moedas":20,"dificuldade":"facil",
+    {"id":"lobo","img":"https://i.imgur.com/5Q2xXkN.png","nome":"Lobo Selvagem","emoji":"🐺","nivel":3,"hp":160,"ataque":13, "defesa":5,"xp":38,"moedas":20,"dificuldade":"facil",
      "skills":[{"nome":"Mordida Feroz","emoji":"🦷","dano":14},{"nome":"Investida","emoji":"💨","dano":10}],
      "loot":[("pele_lobo","Pele de Lobo","material","Comum","🐾","Material de armadura")]},
-    {"id":"rato_gigante","img":"https://i.imgur.com/6kqJv1R.png","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":50,"ataque":8,"defesa":3,"xp":30,"moedas":15,"dificuldade":"facil",
+    {"id":"rato_gigante","img":"https://i.imgur.com/6kqJv1R.png","nome":"Rato Gigante","emoji":"🐀","nivel":2,"hp":130,"ataque":8,"defesa":3,"xp":30,"moedas":15,"dificuldade":"facil",
      "skills":[{"nome":"Arranhao Duplo","emoji":"💢","dano":9},{"nome":"Fuga","emoji":"💨","dano":4}],
      "loot":[("pelo_rato","Pelo de Rato","material","Comum","🐾","Material comum")]},
-    {"id":"goblin_arqueiro","img":"https://i.imgur.com/8PqWrTz.png","nome":"Goblin Arqueiro","emoji":"👺","nivel":4,"hp":55,"ataque":9,"defesa":3,"xp":35,"moedas":18,"dificuldade":"facil",
+    {"id":"goblin_arqueiro","img":"https://i.imgur.com/8PqWrTz.png","nome":"Goblin Arqueiro","emoji":"👺","nivel":4,"hp":140,"ataque":9,"defesa":3,"xp":35,"moedas":18,"dificuldade":"facil",
      "skills":[{"nome":"Flechada","emoji":"🏹","dano":12},{"nome":"Tiro Rapido","emoji":"🏹","dano":8}],
      "loot":[("flecha_goblin","Flecha de Goblin","material","Comum","🏹","Material de projétil")]},
 
     # ── MEDIO ─────────────────────────────────────────────────────
-    {"id":"orc","img":"https://i.imgur.com/2LmNxKp.png","nome":"Orc Guerreiro","emoji":"👹","nivel":7,"hp":120,"ataque":18,"defesa":10,"xp":85,"moedas":50,"dificuldade":"medio",
+    {"id":"orc","img":"https://i.imgur.com/2LmNxKp.png","nome":"Orc Guerreiro","emoji":"👹","nivel":7,"hp":280,"ataque":22, "defesa":12,"xp":85,"moedas":50,"dificuldade":"medio",
      "skills":[{"nome":"Machado","emoji":"🪓","dano":22},{"nome":"Grito de Guerra","emoji":"😤","dano":12}],
      "loot":[("dente_orc","Dente de Orc","material","Incomum","🦷","Ingrediente alquimico"),("minerio_ferro","Minerio de Ferro","material","Comum","⛏️","Metal bruto")]},
-    {"id":"golem","img":"https://i.imgur.com/3nQpLmZ.png","nome":"Golem de Pedra","emoji":"🗿","nivel":12,"hp":200,"ataque":22,"defesa":20,"xp":140,"moedas":75,"dificuldade":"medio",
+    {"id":"golem","img":"https://i.imgur.com/3nQpLmZ.png","nome":"Golem de Pedra","emoji":"🗿","nivel":12,"hp":380,"ataque":28, "defesa":22,"xp":140,"moedas":75,"dificuldade":"medio",
      "skills":[{"nome":"Soco de Pedra","emoji":"👊","dano":30},{"nome":"Terremoto","emoji":"🌋","dano":20}],
      "loot":[("fragmento_golem","Fragmento de Golem","material","Raro","🪨","Material magico")]},
-    {"id":"esqueleto","img":"https://i.imgur.com/6MqWrZp.png","nome":"Esqueleto Armado","emoji":"💀","nivel":9,"hp":140,"ataque":20,"defesa":12,"xp":100,"moedas":60,"dificuldade":"medio",
+    {"id":"esqueleto","img":"https://i.imgur.com/6MqWrZp.png","nome":"Esqueleto Armado","emoji":"💀","nivel":9,"hp":300,"ataque":20,"defesa":12,"xp":100,"moedas":60,"dificuldade":"medio",
      "skills":[{"nome":"Espada Ossea","emoji":"⚔️","dano":25},{"nome":"Lanca de Osso","emoji":"🔱","dano":18}],
      "loot":[("osso_oco","Osso Oco","material","Incomum","💀","Material necrotico")]},
-    {"id":"troll_pântano","img":"https://i.imgur.com/4NqKpZm.png","nome":"Troll do Pantano","emoji":"🧌","nivel":11,"hp":180,"ataque":24,"defesa":8,"xp":120,"moedas":68,"dificuldade":"medio",
+    {"id":"troll_pântano","img":"https://i.imgur.com/4NqKpZm.png","nome":"Troll do Pantano","emoji":"🧌","nivel":11,"hp":350,"ataque":24,"defesa":8,"xp":120,"moedas":68,"dificuldade":"medio",
      "skills":[{"nome":"Porrada","emoji":"👊","dano":32},{"nome":"Lama Toxica","emoji":"🟢","dano":15}],
      "loot":[("muco_troll","Muco de Troll","material","Incomum","🟢","Ingrediente alquimico")]},
 
     # ── DIFICIL ───────────────────────────────────────────────────
-    {"id":"vampiro","img":"https://i.imgur.com/5QrLpKz.png","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":280,"ataque":35,"defesa":18,"xp":400,"moedas":200,"dificuldade":"dificil",
+    {"id":"vampiro","img":"https://i.imgur.com/5QrLpKz.png","nome":"Vampiro Anciao","emoji":"🧛","nivel":20,"hp":550,"ataque":42, "defesa":22,"xp":400,"moedas":200,"dificuldade":"dificil",
      "skills":[{"nome":"Drenar Sangue","emoji":"🩸","dano":40},{"nome":"Hipnose","emoji":"👁️","dano":15}],
      "loot":[("capa_vampiro","Capa de Vampiro","armadura","Epico","🧛","Absorve magia negra"),("sangue_anciao","Sangue Anciao","material","Raro","🩸","Ingrediente raro")]},
-    {"id":"troll_pedra","img":"https://i.imgur.com/8WmKzNp.png","nome":"Troll das Pedras","emoji":"🗿","nivel":22,"hp":320,"ataque":38,"defesa":25,"xp":420,"moedas":220,"dificuldade":"dificil",
+    {"id":"troll_pedra","img":"https://i.imgur.com/8WmKzNp.png","nome":"Troll das Pedras","emoji":"🗿","nivel":22,"hp":620,"ataque":38,"defesa":25,"xp":420,"moedas":220,"dificuldade":"dificil",
      "skills":[{"nome":"Avalanche","emoji":"🪨","dano":45},{"nome":"Esmagar","emoji":"💥","dano":35}],
      "loot":[("nucleo_pedra","Nucleo de Pedra","material","Raro","💎","Material magico raro")]},
-    {"id":"bruxa","img":"https://i.imgur.com/4QzXpKn.png","nome":"Bruxa das Trevas","emoji":"🧙","nivel":25,"hp":260,"ataque":42,"defesa":15,"xp":450,"moedas":240,"dificuldade":"dificil",
+    {"id":"bruxa","img":"https://i.imgur.com/4QzXpKn.png","nome":"Bruxa das Trevas","emoji":"🧙","nivel":25,"hp":500,"ataque":42,"defesa":15,"xp":450,"moedas":240,"dificuldade":"dificil",
      "skills":[{"nome":"Maldicao","emoji":"🩸","dano":38},{"nome":"Bola de Fogo Sombria","emoji":"🔥","dano":50}],
      "loot":[("essencia_sombria","Essencia Sombria","material","Raro","🌑","Ingrediente sombrio")]},
-    {"id":"grifo","img":"https://i.imgur.com/7RmKpXz.png","nome":"Grifo Selvagem","emoji":"🦅","nivel":28,"hp":300,"ataque":40,"defesa":20,"xp":460,"moedas":250,"dificuldade":"dificil",
+    {"id":"grifo","img":"https://i.imgur.com/7RmKpXz.png","nome":"Grifo Selvagem","emoji":"🦅","nivel":28,"hp":580,"ataque":40,"defesa":20,"xp":460,"moedas":250,"dificuldade":"dificil",
      "skills":[{"nome":"Bico de Aco","emoji":"⚔️","dano":42},{"nome":"Garra Dupla","emoji":"🐾","dano":35}],
      "loot":[("pena_grifo","Pena de Grifo","material","Raro","🦅","Material de voo")]},
 
     # ── LENDARIO ──────────────────────────────────────────────────
-    {"id":"dragao","img":"https://i.imgur.com/9WqLpNm.png","nome":"Dragao Jovem","emoji":"🐉","nivel":35,"hp":500,"ataque":60,"defesa":35,"xp":900,"moedas":600,"dificuldade":"lendario",
+    {"id":"dragao","img":"https://i.imgur.com/9WqLpNm.png","nome":"Dragao Jovem","emoji":"🐉","nivel":35,"hp":1200,"ataque":70, "defesa":40,"xp":900,"moedas":600,"dificuldade":"lendario",
      "skills":[{"nome":"Baforada de Fogo","emoji":"🔥","dano":70},{"nome":"Garra Draconica","emoji":"🐾","dano":55}],
      "loot":[("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario"),("olho_dragao","Olho de Dragao","material","Epico","👁️","Material epico")]},
-    {"id":"quimera","img":"https://i.imgur.com/3NpKzQm.png","nome":"Quimera Anciao","emoji":"🦁","nivel":40,"hp":580,"ataque":70,"defesa":40,"xp":1000,"moedas":700,"dificuldade":"lendario",
+    {"id":"quimera","img":"https://i.imgur.com/3NpKzQm.png","nome":"Quimera Anciao","emoji":"🦁","nivel":40,"hp":1400,"ataque":70,"defesa":40,"xp":1000,"moedas":700,"dificuldade":"lendario",
      "skills":[{"nome":"Rugido do Caos","emoji":"😤","dano":75},{"nome":"Chamas e Gelo","emoji":"❄️","dano":60}],
      "loot":[("corno_quimera","Corno de Quimera","material","Lendario","🦄","Extremamente raro"),("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario")]},
-    {"id":"lich","img":"https://i.imgur.com/6MqWrZp.png","nome":"Lich Anciao","emoji":"💀","nivel":45,"hp":520,"ataque":75,"defesa":30,"xp":1100,"moedas":750,"dificuldade":"lendario",
+    {"id":"lich","img":"https://i.imgur.com/6MqWrZp.png","nome":"Lich Anciao","emoji":"💀","nivel":45,"hp":1300,"ataque":75,"defesa":30,"xp":1100,"moedas":750,"dificuldade":"lendario",
      "skills":[{"nome":"Toque da Morte","emoji":"☠️","dano":80},{"nome":"Exercito Espectral","emoji":"👻","dano":50}],
      "loot":[("essencia_lich","Essencia do Lich","material","Lendario","💀","O material mais sombrio"),("coroa_lich","Coroa do Lich","armadura","Lendario","👑","Armadura lendaria")]},
-    {"id":"titan","img":"https://i.imgur.com/4NqKpZm.png","nome":"Titan Primordial","emoji":"🗿","nivel":50,"hp":700,"ataque":85,"defesa":50,"xp":1200,"moedas":850,"dificuldade":"lendario",
+    {"id":"titan","img":"https://i.imgur.com/4NqKpZm.png","nome":"Titan Primordial","emoji":"🗿","nivel":50,"hp":1600,"ataque":85,"defesa":50,"xp":1200,"moedas":850,"dificuldade":"lendario",
      "skills":[{"nome":"Golpe Primordial","emoji":"💥","dano":90},{"nome":"Tremor da Terra","emoji":"🌋","dano":70}],
      "loot":[("fragmento_titan","Fragmento do Titan","material","Lendario","🗿","Lendario absoluto"),("escama_dragao","Escama de Dragao","material","Lendario","🐉","Material lendario")]},
 ]
@@ -292,32 +292,42 @@ async def init_db_batalha():
 
 # ─── CALCULOS ────────────────────────────────────────────────────
 
-def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False, nivel=1):
-    """Calcula dano escalado por nivel.
-    Dano minimo = 30% ATK. Skills escalam com nivel do jogador.
-    nivel 1 = 100%, nivel 50 = 160%, nivel 100 = 220% (cap).
+def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False, nivel=1, hp_max_monstro=None):
+    """Calcula dano balanceado.
+    - mult maximo efetivo: 2.0 (skills lendarias)
+    - nivel escala +0.5% por nivel, cap +50% no nivel 100
+    - dano maximo por hit: 40% do HP do monstro (se fornecido) ou 200
     """
-    # Escala mult com nivel — +1.2% por nivel, cap em +120%
-    escala_nivel = min(2.2, 1.0 + (nivel - 1) * 0.012)
-    mult_final   = mult * escala_nivel
+    # Cap rigido no multiplicador — nenhuma skill passa de 2.0x efetivo
+    mult_real = min(2.0, mult)
 
-    dano_minimo = max(3, int(atk * 0.30))
+    # Escala suave com nivel: +0.5% por nivel, cap 50%
+    escala = min(1.5, 1.0 + (nivel - 1) * 0.005)
+    mult_final = mult_real * escala
+
+    dano_minimo = max(3, int(atk * 0.20))
 
     if ignorar_defesa:
         base = max(dano_minimo, int(atk * mult_final))
     else:
-        reducao_def = dfs // 3
+        # DEF reduz de forma equilibrada
+        reducao_def = int(dfs * 0.4)
         base = max(dano_minimo, int((atk - reducao_def) * mult_final))
 
-    variacao = random.randint(-max(1, base // 8), max(2, base // 5))
+    variacao = random.randint(-max(1, base // 10), max(1, base // 7))
     dano = max(dano_minimo, base + variacao)
-    dano = int(dano * bonus_atk)
+    dano = int(dano * min(bonus_atk, 1.20))  # bonus max 20%
 
     if crit:
-        dano = int(dano * 1.5)
+        dano = int(dano * 1.35)  # critico mais moderado
 
-    # Cap de dano maximo por hit = 500 para evitar hitkill
-    return min(500, max(dano_minimo, dano))
+    # Cap por HP do monstro — max 45% do HP por hit
+    if hp_max_monstro:
+        cap = max(dano_minimo, int(hp_max_monstro * 0.45))
+        dano = min(cap, dano)
+
+    # Cap absoluto de segurança
+    return min(250, max(dano_minimo, dano))
 
 def barra_hp(cur, mx):
     if mx <= 0: return "░░░░░░░░░░"
