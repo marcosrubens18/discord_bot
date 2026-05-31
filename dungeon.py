@@ -433,12 +433,32 @@ class DungeonBatalhaView(discord.ui.View):
 # ─── ENGINE DE BATALHA DA DUNGEON ────────────────────────────────
 
 async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx, mana_jmx, msgs):
-    """Batalha contra um andar/chefe. Retorna (hp_j, mana_j, vitoria)"""
-    hp_m   = monstro["hp"]
-    hp_mmx = monstro["hp"]
-    turno  = 1
+    """Batalha contra um andar/chefe. Retorna (hp_j, mana_j, vitoria, fugiu)"""
+    hp_m    = monstro["hp"]
+    hp_mmx  = monstro["hp"]
+    turno   = 1
     efeitos = {}
     emoji_j = EMOJI_CLASSE.get(p["classe_id"],"⚔️")
+    nivel_p = p["nivel"]
+
+    # Bonus de afinidade de arma
+    from batalha import calcular_bonus_equip as _cbe, get_arma_equipada as _gae, get_armadura_equipada as _garm
+    try:
+        arma_eq = await _gae(p["user_id"])
+        arm_eq  = await _garm(p["user_id"])
+        bonus_atk, bonus_dfs = _cbe(p["classe_id"], arma_eq, arm_eq)
+    except Exception:
+        bonus_atk, bonus_dfs = 1.0, 1.0
+
+    def _mult_basico(nv):
+        if nv <= 9:    return 1.0
+        elif nv <= 19: return 1.1
+        elif nv <= 29: return 1.2
+        elif nv <= 39: return 1.3
+        elif nv <= 49: return 1.4
+        elif nv <= 59: return 1.5
+        elif nv <= 74: return 1.6
+        else:          return 1.8
 
     def status():
         return (
@@ -470,22 +490,9 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         linha = ""
         cor   = 0x378ADD
 
-        nivel_p = p["nivel"]
-
-        def _mult_basico_dg(nv):
-            if nv <= 9:    return 1.0
-            elif nv <= 19: return 1.1
-            elif nv <= 29: return 1.2
-            elif nv <= 39: return 1.3
-            elif nv <= 49: return 1.4
-            elif nv <= 59: return 1.5
-            elif nv <= 74: return 1.6
-            else:          return 1.8
-
         if acao == "atk_basico":
-            from batalha import calc_dano as _cd_dg
-            dano = _cd_dg(p["ataque"], monstro["defesa"], _mult_basico_dg(nivel_p),
-                         bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_m)
+            dano = calc_dano(p["ataque"], monstro["defesa"], _mult_basico(nivel_p),
+                             bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx)
             hp_m = max(0, hp_m - dano)
             linha = f"⚔️ **Ataque Básico**: **{dano} de dano**! *(sem mana)*"
             cor   = 0x888780
@@ -498,7 +505,14 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         elif acao == "pocao" and val:
             pd = POCOES_DEF.get(val)
             if pd:
-                await remover_pocao(p["user_id"], val)
+                pool_dg = await get_pool()
+                async with pool_dg.acquire() as conn_dg:
+                    row_poc = await conn_dg.fetchrow("SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", p["user_id"], val)
+                    if row_poc:
+                        if row_poc["quantidade"] > 1:
+                            await conn_dg.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=$1", row_poc["id"])
+                        else:
+                            await conn_dg.execute("DELETE FROM inventario WHERE id=$1", row_poc["id"])
                 if pd["tipo"] == "hp":
                     ganho = pd["valor"]; hp_j = min(hp_jmx, hp_j+ganho)
                     linha = f"🧪 **{pd['nome']}**: +{ganho} HP!"
@@ -514,8 +528,8 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         elif acao == "skill" and val is not None and val < len(skills):
             sk = skills[val]; efeito = sk.get("efeito",""); custo = sk.get("mana",0)
             if custo > mana_j:
-                dano = calc_dano(p["ataque"], monstro["defesa"]); hp_m -= dano
-                linha = f"⚔️ Sem mana! Ataque basico: **{dano} dano**"
+                dano = calc_dano(p["ataque"], monstro["defesa"], _mult_basico(nivel_p), bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx); hp_m -= dano
+                linha = f"⚔️ Sem mana! Ataque básico: **{dano} dano**"
                 cor = 0x888780
             elif efeito == "cura":
                 mana_j -= custo; cura = int(hp_jmx*0.30); hp_j = min(hp_jmx, hp_j+cura)
@@ -526,13 +540,13 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
                 linha = f"{sk['emoji']} **{sk['nome']}**: efeito ativo!"
                 cor = 0x7F77DD
             elif efeito == "dreno":
-                mana_j -= custo; dano = calc_dano(p["ataque"],monstro["defesa"],sk["dano"])
+                mana_j -= custo; dano = calc_dano(p["ataque"],monstro["defesa"],sk.get("dano",1.0),bonus_atk=bonus_atk,nivel=nivel_p,hp_max_monstro=hp_mmx)
                 roubo = dano//2; hp_m -= dano; hp_j = min(hp_jmx, hp_j+roubo)
                 linha = f"{sk['emoji']} **{sk['nome']}**: {dano} dano! +{roubo} HP drenado!"
                 cor = 0x1D9E75
             else:
                 mana_j -= custo; crit = random.random()<0.15
-                dano = calc_dano(p["ataque"], monstro["defesa"], sk["dano"], crit)
+                dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano",1.0), crit, bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx)
                 hp_m -= dano
                 linha = f"{sk['emoji']} **{sk['nome']}**: **{dano} dano!**{'  💥 CRITICO!' if crit else ''}"
                 cor = 0xD85A30 if crit else 0x378ADD
