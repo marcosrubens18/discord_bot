@@ -36,13 +36,13 @@ from imagens import (
 # ─── CONFIG ──────────────────────────────────────────────────────
 
 CLASSES = [
-    {"id":"guerreiro",  "nome":"Guerreiro",  "emoji":"🗡️","raridade":"Comum",   "peso":30},
-    {"id":"arqueiro",   "nome":"Arqueiro",   "emoji":"🏹","raridade":"Comum",   "peso":25},
-    {"id":"mago",       "nome":"Mago",       "emoji":"🔮","raridade":"Comum",   "peso":20},
-    {"id":"paladino",   "nome":"Paladino",   "emoji":"⚡","raridade":"Incomum", "peso":12},
-    {"id":"necromante", "nome":"Necromante", "emoji":"🌑","raridade":"Raro",    "peso":8},
-    {"id":"dracomante", "nome":"Dracomante", "emoji":"🐉","raridade":"Lendario","peso":2},
-    {"id":"arcano",     "nome":"Arcano",     "emoji":"✨","raridade":"Epico",   "peso":3},
+    {"id":"guerreiro",  "nome":"Guerreiro",  "emoji":"🗡️","raridade":"Comum",   "peso":30, "desc":"Combate corpo a corpo. Alta defesa e ataques físicos poderosos."},
+    {"id":"arqueiro",   "nome":"Arqueiro",   "emoji":"🏹","raridade":"Comum",   "peso":25, "desc":"Especialista em precisão. Críticos frequentes e esquiva."},
+    {"id":"mago",       "nome":"Mago",       "emoji":"🔮","raridade":"Comum",   "peso":20, "desc":"Mestre da magia. Dano massivo que cresce a cada turno."},
+    {"id":"paladino",   "nome":"Paladino",   "emoji":"⚡","raridade":"Incomum", "peso":12, "desc":"Híbrido sagrado. Cura e combate ao mesmo tempo."},
+    {"id":"necromante", "nome":"Necromante", "emoji":"🌑","raridade":"Raro",    "peso":8,  "desc":"Mestre das trevas. Drena vida e invoca mortos."},
+    {"id":"dracomante", "nome":"Dracomante", "emoji":"🐉","raridade":"Lendario","peso":2,  "desc":"Sangue de dragão. Fogo e resistência absolutos."},
+    {"id":"arcano",     "nome":"Arcano",     "emoji":"✨","raridade":"Epico",   "peso":3,  "desc":"Poder do vazio. Dano arcano que ignora defesa."},
 ]
 PODERES = [
     {"id":"fraquinho","nome":"Fraquinho",     "emoji":"💀","valor":10},
