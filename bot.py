@@ -17,7 +17,7 @@ from hospital import (
     COR_RAR, EMOJI_FICHA
 )
 from batalha import (
-    rodar_pvp, rodar_treino, MONSTROS, SKILLS_POR_CLASSE,
+    rodar_pvp, rodar_treino, MONSTROS, SKILLS_POR_CLASSE, BATALHAS_ATIVAS,
     get_skills_eq, get_skills_desbloq, GerenciarSkillsView,
     AceitarDueloView, EscolherArenaView, init_db_batalha,
     ARENAS, LOJA_ITENS, RECEITAS, POCOES
@@ -77,6 +77,21 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# ─── BATALHA ATIVA — bloqueia outros comandos ────────────────────
+
+def em_batalha(user_id: int) -> bool:
+    return user_id in BATALHAS_ATIVAS
+
+async def checar_batalha(interaction: discord.Interaction) -> bool:
+    """Retorna True se pode continuar, False se está em batalha."""
+    if em_batalha(interaction.user.id):
+        await interaction.response.send_message(
+            "⚔️ Você está em batalha! Termine ou fuja primeiro antes de usar outros comandos.",
+            ephemeral=True
+        )
+        return False
+    return True
 
 # ─── DB HELPERS ──────────────────────────────────────────────────
 
@@ -507,6 +522,7 @@ async def inventario(interaction: discord.Interaction, jogador: discord.Member =
 
 @bot.tree.command(name="setup", description="Monte seu setup completo")
 async def setup(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
     await cmd_setup(interaction)
 
 # ─── /skills ─────────────────────────────────────────────────────
@@ -773,6 +789,13 @@ async def set_moedas(interaction: discord.Interaction, jogador: discord.Member, 
 ])
 async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     await interaction.response.defer()
+    # Bloqueia se ja esta em batalha
+    if em_batalha(interaction.user.id):
+        await interaction.followup.send(
+            "⚔️ Você já está em batalha! Termine ou fuja primeiro.",
+            ephemeral=True
+        )
+        return
     p = await get_personagem(interaction.user.id)
     if not p:
         await interaction.followup.send("Crie seu personagem com `/criar_personagem`!", ephemeral=True); return
@@ -801,6 +824,7 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
 @bot.tree.command(name="desafiar", description="Desafia outro jogador para um duelo PvP")
 @app_commands.describe(jogador="Jogador que voce quer desafiar")
 async def desafiar(interaction: discord.Interaction, jogador: discord.Member):
+    if not await checar_batalha(interaction): return
     await interaction.response.defer()
     if jogador.id == interaction.user.id:
         await interaction.followup.send("Nao pode se desafiar!", ephemeral=True); return
@@ -856,12 +880,14 @@ async def dungeon(interaction: discord.Interaction, rank: str):
 
 @bot.tree.command(name="hospital", description="Restaura seu HP e Mana pagando moedas")
 async def hospital(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
     await cmd_hospital(interaction)
 
 # ─── /girar ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="girar", description="Use seus giros de roleta acumulados")
 async def girar(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
     await cmd_girar(interaction)
 
 
@@ -954,6 +980,7 @@ async def set_giros(interaction: discord.Interaction, jogador: discord.Member):
     app_commands.Choice(name="🧪 Pocoes e Elixires",         value="pocoes"),
 ])
 async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
+    if not await checar_batalha(interaction): return
     await interaction.response.defer(ephemeral=True)
     p = await get_personagem(interaction.user.id)
     if not p:
@@ -1055,6 +1082,7 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
 
 @bot.tree.command(name="ferreiro", description="Forje itens usando materiais coletados")
 async def ferreiro(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
     await interaction.response.defer(ephemeral=True)
     p = await get_personagem(interaction.user.id)
     if not p:
@@ -1113,6 +1141,7 @@ async def ferreiro(interaction: discord.Interaction):
 
 @bot.tree.command(name="missoes", description="Veja suas missoes diarias e progresso")
 async def missoes(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
     await cmd_missoes(interaction)
 
 # ─── /ranking ────────────────────────────────────────────────────
@@ -1181,6 +1210,7 @@ async def deletar_personagem(interaction: discord.Interaction):
 
 @bot.tree.command(name="mercador", description="Visite o Mercador Sombrio e troque itens por poderes especiais")
 async def mercador(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
     await cmd_mercador(interaction)
 
 
@@ -1188,6 +1218,7 @@ async def mercador(interaction: discord.Interaction):
 
 @bot.tree.command(name="mercado", description="Venda itens do seu inventario por moedas")
 async def mercado(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
     await cmd_mercado_vender(interaction)
 
 
