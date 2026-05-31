@@ -1,11 +1,12 @@
-from catalogo import get_rank, CARGOS_RANK
-from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA, IMG_DUNGEON_MONSTRO
-from utils import atualizar_todos_cargos
 # -*- coding: utf-8 -*-
 import discord
 from discord import app_commands
 import asyncio, random
 from db import get_pool
+from catalogo import get_rank, CARGOS_RANK
+from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA, IMG_DUNGEON_MONSTRO
+from utils import atualizar_todos_cargos
+from batalha import calc_dano, BATALHAS_ATIVAS
 
 
 EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
