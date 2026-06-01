@@ -139,12 +139,13 @@ class DungeonEventoCriarModal(discord.ui.Modal, title="Criar Dungeon de Evento")
             @discord.ui.select(
                 cls=discord.ui.ChannelSelect,
                 placeholder="Escolha o canal de anuncio...",
-                channel_types=[discord.ChannelType.text]
+                
             )
             async def sel(self_v, inter: discord.Interaction, s: discord.ui.ChannelSelect):
                 if inter.user.id != interaction.user.id:
                     await inter.response.defer(); return
-                canal = s.values[0]
+                canal_raw = s.values[0]
+                canal = interaction.guild.get_channel(canal_raw.id) or canal_raw
                 pool2 = await get_pool()
                 async with pool2.acquire() as conn2:
                     await conn2.execute(
