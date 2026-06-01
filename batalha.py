@@ -317,12 +317,6 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
         # Log de batalha
         try:
             await conn.execute("""
-                CREATE TABLE IF NOT EXISTS log_batalhas
-                (id SERIAL PRIMARY KEY, user_id BIGINT, tipo TEXT, resultado TEXT,
-                 oponente TEXT, xp_ganho INTEGER, moedas_ganhas INTEGER,
-                 nivel_apos INTEGER, criado_em TIMESTAMP DEFAULT NOW())
-            """)
-            await conn.execute("""
                 INSERT INTO log_batalhas(user_id,tipo,resultado,oponente,xp_ganho,moedas_ganhas,nivel_apos)
                 VALUES($1,'treino',$2,$3,$4,$5,$6)
             """, user_id,
