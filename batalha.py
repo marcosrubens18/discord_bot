@@ -1,3 +1,13 @@
+RANK_BONUS = {
+    "E":  {"hp": 20,  "mana": 15,  "atk": 5,  "dfs": 3},
+    "D":  {"hp": 35,  "mana": 25,  "atk": 8,  "dfs": 5},
+    "C":  {"hp": 55,  "mana": 40,  "atk": 14, "dfs": 9},
+    "B":  {"hp": 80,  "mana": 60,  "atk": 22, "dfs": 14},
+    "A":  {"hp": 120, "mana": 90,  "atk": 35, "dfs": 22},
+    "S":  {"hp": 180, "mana": 130, "atk": 55, "dfs": 35},
+    "SS": {"hp": 280, "mana": 200, "atk": 85, "dfs": 55},
+}
+
 # batalha.py — PostgreSQL — Completo com todos os bugs corrigidos
 import discord
 import asyncio
@@ -260,10 +270,23 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             levelups += 1
 
         # Atualiza stats por nivel
-        hp_max_novo  = p["hp_max"]  + levelups * 5
+        hp_max_novo  = p["hp_max"]  + levelups * 12
         atk_novo     = p["ataque"]  + levelups * 2
         dfs_novo     = p["defesa"]  + levelups * 1
-        mana_max_novo = calcular_mana_max(classe_id, nv, p["poder_valor"], p["destino_id"])
+
+        # Bonus de rank up (so se mudou de rank)
+        rank_bonus_hp = rank_bonus_mana = rank_bonus_atk = rank_bonus_dfs = 0
+        if rank_antes != get_rank(nv)["rank"]:
+            novo_rank = get_rank(nv)["rank"]
+            bonus = RANK_BONUS.get(novo_rank, {})
+            rank_bonus_hp   = bonus.get("hp", 0)
+            rank_bonus_mana = bonus.get("mana", 0)
+            rank_bonus_atk  = bonus.get("atk", 0)
+            rank_bonus_dfs  = bonus.get("dfs", 0)
+            hp_max_novo  += rank_bonus_hp
+            atk_novo     += rank_bonus_atk
+            dfs_novo     += rank_bonus_dfs
+        mana_max_novo = calcular_mana_max(classe_id, nv, p["poder_valor"], p["destino_id"]) + rank_bonus_mana
         # mana_novo handled below via mana_atual_batalha
         hp_final     = max(1, min(hp, hp_max_novo))
 
@@ -271,7 +294,7 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
         # So recupera pelo hospital ou pocoes
         # Garante que nao passa do maximo nem fica negativa
         mana_base   = int(mana_atual_batalha) if mana_atual_batalha is not None else p["mana_atual"]
-        mana_salvar = max(0, min(mana_base + levelups * 5, mana_max_novo))
+        mana_salvar = max(0, min(mana_base + levelups * 10, mana_max_novo))
 
         await conn.execute("""
             UPDATE personagens
@@ -671,7 +694,7 @@ class GerenciarSkillsView(discord.ui.View):
 
 class BatalhaView(discord.ui.View):
     def __init__(self, user_id, skills, pocoes, nivel=1):
-        super().__init__(timeout=None)
+        super().__init__(timeout=30)
         self.user_id    = user_id
         self.acao       = None
         self.acao_feita = False
@@ -694,6 +717,10 @@ class BatalhaView(discord.ui.View):
             btn.callback = self._fazer_skill(i)
             self.add_item(btn)
         self._max_slots = max_slots
+
+    async def on_timeout(self):
+        self.acao = ("timeout", None)
+        self.stop()
 
         # Ataque Basico — sempre visivel, sem mana, escala com rank
         atk_btn = discord.ui.Button(
@@ -845,7 +872,8 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     ressuscitou   = False
     tomou_dano    = False
     emoji_j = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
-    msgs_batalha = []
+    msgs_batalha  = []
+    timeout_count = 0   # turnos consecutivos sem acao
 
     def barra_status():
         ef_txt = ""
@@ -918,7 +946,31 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         try: await msg_vez.edit(view=None)
         except: pass
 
-        # 4. Processa acao
+        # 4. Inatividade
+        if acao == "timeout":
+            timeout_count += 1
+            if timeout_count >= 3:
+                embed_exp = discord.Embed(
+                    title="💤 Expulso por inatividade!",
+                    description=f"**{p['nome']}** ficou inativo por 3 turnos!\nNenhuma recompensa.",
+                    color=0x888780
+                )
+                await interaction.followup.send(embed=embed_exp)
+                BATALHAS_ATIVAS.discard(uid)
+                return
+            else:
+                aviso = discord.Embed(
+                    title=f"⏰ Turno perdido! ({timeout_count}/3)",
+                    description=f"Sem acao em 30s. Mais **{3-timeout_count}x** = expulso!",
+                    color=0xE4AF3C
+                )
+                await interaction.followup.send(embed=aviso)
+                turno += 1
+                continue
+        else:
+            timeout_count = 0
+
+        # 5. Processa acao
         linha_jogador = ""
         cor_acao = arena["cor"]
 
@@ -1234,9 +1286,13 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         if loot:
             desc += f"\n🎁 Loot: {loot[0][4]} **{loot[0][1]}** [{loot[0][3]}]"
         if lvlups:
-            rank_txt = f"\n🏅 **Novo rank: {rank_obj['emoji']} {rank_obj['rank']}!**" if rank_mudou else ""
-            desc += f"\n\n🎉 **LEVEL UP! Nível {nivel_novo}!** (+{lvlups} nível{'' if lvlups==1 else 's'}){rank_txt}"
-            desc += f"\n+{lvlups*5} HP máx | +{lvlups*2} ATK | +{lvlups} DEF"
+            if rank_mudou:
+                b = RANK_BONUS.get(rank_obj["rank"], {})
+                rank_txt = (f" | 🏅 **RANK UP: {rank_obj['emoji']} {rank_obj['rank']}!**"
+                           f"\n🎁 Bonus: +{b.get('hp',0)} HP | +{b.get('mana',0)} Mana | +{b.get('atk',0)} ATK | +{b.get('dfs',0)} DEF")
+            else:
+                rank_txt = ""
+            desc += f"\n\n⬆️ **LEVEL UP x{lvlups}! → Nível {nivel_novo}**{rank_txt}\n+{12*lvlups} HP máx | +{10*lvlups} Mana | +{2*lvlups} ATK | +{lvlups} DEF 🎊"
 
         # Missoes
         try:
@@ -1404,11 +1460,26 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena):
                 try: await m.delete()
                 except: pass
             return
+        elif acao1 == "timeout":
+            timeout1 += 1
+            if timeout1 >= 3:
+                embed_f = discord.Embed(
+                    title=f"💤 {p1['nome']} foi expulso por inatividade!",
+                    description=f"**{p2['nome']}** vence por W.O.!",
+                    color=0x888780
+                )
+                await channel.send(embed=embed_f)
+                BATALHAS_ATIVAS.discard(uid1); BATALHAS_ATIVAS.discard(uid2)
+                return
+            else:
+                dano = calc_dano(p1["ataque"], p2["defesa"], bonus_atk=bonus_atk1)
+                hp2  = max(0, hp2 - dano)
+                linha = f"⏰ Auto ({timeout1}/3): **{dano} de dano**! ({3-timeout1} inativo(s) restante(s))"
         else:
-            sk = skills1[0]
+            timeout1 = 0
             dano = calc_dano(p1["ataque"], p2["defesa"], bonus_atk=bonus_atk1)
             hp2  = max(0, hp2 - dano)
-            linha = f"⏰ Auto: {sk['emoji']} **{dano} de dano**!"
+            linha = f"⏰ Auto: **{dano} de dano**!"
 
         mana1 = min(mana1mx, mana1 + 5)
         embed_a1 = discord.Embed(
@@ -1460,10 +1531,19 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena):
                 except: pass
             return
         else:
+            timeout2 += 1
+            if timeout2 >= 3:
+                embed_f = discord.Embed(
+                    title=f"💤 {p2['nome']} foi expulso por inatividade!",
+                    description=f"**{p1['nome']}** vence por W.O.!",
+                    color=0x888780
+                )
+                await channel.send(embed=embed_f)
+                BATALHAS_ATIVAS.discard(uid1); BATALHAS_ATIVAS.discard(uid2)
+                return
             dano = calc_dano(p2["ataque"], p1["defesa"], bonus_atk=bonus_atk2)
             hp1  = max(0, hp1 - dano)
-            linha = f"⏰ Auto: **{dano} de dano**!"
-
+            linha = f"⏰ Auto ({timeout2}/3): **{dano} de dano**!"
         mana2 = min(mana2mx, mana2 + 5)
         embed_a2 = discord.Embed(
             title=f"{e2} {p2['nome']} age!", description=f"{linha}\n\n{barra_status_pvp()}", color=arena["cor"]
