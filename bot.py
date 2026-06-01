@@ -26,6 +26,11 @@ from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progres
 from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
 from eventos import cmd_criar_evento, cmd_eventos, cmd_evento_info, cmd_encerrar_evento, cmd_add_pontos, init_db_eventos
 from anuncios import cmd_anunciar, cmd_anunciar_evento, cmd_agendar_anuncio, CORES
+from torneio import (cmd_torneio_criar, cmd_torneio_status, cmd_torneio_lutar,
+    cmd_torneio_fechar_inscricoes, cmd_torneio_cancelar, init_db_torneio)
+from dungeon_evento import (cmd_dungeon_evento_ativar, cmd_dungeon_evento_info,
+    cmd_dungeon_evento_fechar, AdicionarAndarModal, DungeonEventoCriarModal,
+    init_db_dungeon_evento)
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
 from imagens import (
@@ -1011,6 +1016,94 @@ async def agendar_anuncio(interaction: discord.Interaction, canal: discord.TextC
     await cmd_agendar_anuncio(interaction, canal, cor)
 
 
+
+# ─── /torneio-criar ──────────────────────────────────────────────
+
+@bot.tree.command(name="torneio-criar", description="[ADMIN] Cria um torneio PvP")
+@app_commands.checks.has_permissions(administrator=True)
+async def torneio_criar(interaction: discord.Interaction):
+    await cmd_torneio_criar(interaction)
+
+
+# ─── /torneio-status ─────────────────────────────────────────────
+
+@bot.tree.command(name="torneio-status", description="Veja as chaves e status de um torneio")
+@app_commands.describe(torneio_id="ID do torneio")
+async def torneio_status(interaction: discord.Interaction, torneio_id: int):
+    await cmd_torneio_status(interaction, torneio_id)
+
+
+# ─── /torneio-lutar ──────────────────────────────────────────────
+
+@bot.tree.command(name="torneio-lutar", description="[ADMIN] Inicia uma luta do torneio")
+@app_commands.describe(torneio_id="ID do torneio", jogador1="Jogador 1", jogador2="Jogador 2")
+@app_commands.checks.has_permissions(administrator=True)
+async def torneio_lutar(interaction: discord.Interaction, torneio_id: int,
+                         jogador1: discord.Member, jogador2: discord.Member):
+    await cmd_torneio_lutar(interaction, torneio_id, jogador1, jogador2)
+
+
+# ─── /torneio-fechar-inscricoes ──────────────────────────────────
+
+@bot.tree.command(name="torneio-fechar-inscricoes", description="[ADMIN] Fecha inscricoes e monta as chaves")
+@app_commands.describe(torneio_id="ID do torneio")
+@app_commands.checks.has_permissions(administrator=True)
+async def torneio_fechar_inscricoes(interaction: discord.Interaction, torneio_id: int):
+    await cmd_torneio_fechar_inscricoes(interaction, torneio_id)
+
+
+# ─── /torneio-cancelar ───────────────────────────────────────────
+
+@bot.tree.command(name="torneio-cancelar", description="[ADMIN] Cancela torneio e devolve inscricoes")
+@app_commands.describe(torneio_id="ID do torneio")
+@app_commands.checks.has_permissions(administrator=True)
+async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
+    await cmd_torneio_cancelar(interaction, torneio_id)
+
+
+# ─── /dungeon-evento-criar ───────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-criar", description="[ADMIN] Cria uma dungeon de evento customizada")
+@app_commands.checks.has_permissions(administrator=True)
+async def dungeon_evento_criar(interaction: discord.Interaction):
+    await interaction.response.send_modal(DungeonEventoCriarModal(interaction.guild))
+
+
+# ─── /dungeon-evento-andar ───────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-andar", description="[ADMIN] Adiciona um andar a dungeon de evento")
+@app_commands.describe(dungeon_id="ID da dungeon")
+@app_commands.checks.has_permissions(administrator=True)
+async def dungeon_evento_andar(interaction: discord.Interaction, dungeon_id: int):
+    await interaction.response.send_modal(AdicionarAndarModal(dungeon_id))
+
+
+# ─── /dungeon-evento-ativar ──────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-ativar", description="[ADMIN] Ativa e anuncia a dungeon de evento")
+@app_commands.describe(dungeon_id="ID da dungeon")
+@app_commands.checks.has_permissions(administrator=True)
+async def dungeon_evento_ativar(interaction: discord.Interaction, dungeon_id: int):
+    await cmd_dungeon_evento_ativar(interaction, dungeon_id)
+
+
+# ─── /dungeon-evento-info ────────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-info", description="Veja detalhes e andares de uma dungeon de evento")
+@app_commands.describe(dungeon_id="ID da dungeon")
+async def dungeon_evento_info(interaction: discord.Interaction, dungeon_id: int):
+    await cmd_dungeon_evento_info(interaction, dungeon_id)
+
+
+# ─── /dungeon-evento-fechar ──────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-fechar", description="[ADMIN] Fecha uma dungeon de evento")
+@app_commands.describe(dungeon_id="ID da dungeon")
+@app_commands.checks.has_permissions(administrator=True)
+async def dungeon_evento_fechar(interaction: discord.Interaction, dungeon_id: int):
+    await cmd_dungeon_evento_fechar(interaction, dungeon_id)
+
+
 # ─── /ajuda ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="ajuda", description="Lista todos os comandos do RPG")
@@ -1024,6 +1117,8 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Admin",      value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros` `/set-vida` `/set-mana`", inline=False)
     embed.add_field(name="Eventos",    value="`/criar-evento` `/eventos` `/evento-info` `/encerrar-evento` `/add-pontos`", inline=False)
     embed.add_field(name="Anuncios",   value="`/anunciar` `/anunciar-evento` `/agendar-anuncio`", inline=False)
+    embed.add_field(name="Torneio",    value="`/torneio-criar` `/torneio-status` `/torneio-lutar` `/torneio-fechar-inscricoes` `/torneio-cancelar`", inline=False)
+    embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-andar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
