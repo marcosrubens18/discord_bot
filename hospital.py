@@ -222,10 +222,6 @@ async def get_descanso(user_id):
     """Retorna None se pode descansar, ou datetime do proximo descanso disponivel."""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS descanso
-            (user_id BIGINT PRIMARY KEY, proximo_descanso TIMESTAMP DEFAULT NOW())
-        """)
         row = await conn.fetchrow("SELECT proximo_descanso FROM descanso WHERE user_id=$1", user_id)
         if not row: return None
         from datetime import datetime
