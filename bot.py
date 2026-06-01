@@ -26,6 +26,10 @@ from missoes import cmd_missoes, cmd_ranking, init_db_missoes, atualizar_progres
 from conquistas import cmd_conquistas, init_conquistas, verificar_conquistas
 from eventos import cmd_criar_evento, cmd_eventos, cmd_evento_info, cmd_encerrar_evento, cmd_add_pontos, init_db_eventos
 from anuncios import cmd_anunciar, cmd_anunciar_evento, cmd_agendar_anuncio, CORES
+from loja_sazonal import (cmd_loja_sazonal, cmd_loja_sazonal_remover, LojaItemModal, LojaRotativaModal, init_db_loja_sazonal)
+from guildas import (cmd_guilda_criar, cmd_guilda_info, cmd_guilda_convidar, cmd_guilda_sair,
+    cmd_guilda_expulsar, cmd_guilda_promover, cmd_guilda_depositar, cmd_guilda_ranking,
+    init_db_guildas)
 from torneio import (cmd_torneio_criar, cmd_torneio_status, cmd_torneio_lutar,
     cmd_torneio_fechar_inscricoes, cmd_torneio_cancelar, init_db_torneio)
 from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
@@ -495,6 +499,14 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     p = await get_personagem(interaction.user.id)
     if not p:
         await interaction.followup.send("Use /criar_personagem primeiro!", ephemeral=True); return
+    # Cooldown
+    count, reset_em = await get_treino_uso(interaction.user.id)
+    if count >= 20 and reset_em:
+        from datetime import datetime
+        secs = int((reset_em - datetime.utcnow()).total_seconds())
+        mins = secs // 60; segs = secs % 60
+        await interaction.followup.send(
+            f"Voce ja treinou 20 vezes! Descanse. Treina novamente em {mins}min {segs}s.", ephemeral=True); return
     monstros_d = [m for m in MONSTROS if m["dificuldade"] == dificuldade]
     if not monstros_d:
         await interaction.followup.send("Dificuldade invalida!", ephemeral=True); return
@@ -504,6 +516,7 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     await view_arena.wait()
     arena = view_arena.arena or random.choice(ARENAS)
     await rodar_treino(interaction, p, monstro, arena)
+    await incrementar_treino(interaction.user.id)
 
 # ─── /desafiar ───────────────────────────────────────────────────
 
@@ -621,7 +634,16 @@ async def ferreiro(interaction: discord.Interaction):
         pf  = await conn.fetchrow("SELECT moedas FROM personagens WHERE user_id=$1", interaction.user.id)
     inv_map = {r["item_id"]:r["quantidade"] for r in inv}
     disp = [r for r in RECEITAS if all(inv_map.get(m,0)>=q for m,q in r["materiais"].items())]
-    desc = "\n".join([f"{r['emoji']} **{r['nome']}** [{r['raridade']}] — {r['preco_forja']} moedas" for r in RECEITAS])
+    linhas = []
+    for r in RECEITAS:
+        pode = r in disp
+        status = "✅" if pode else "❌"
+        falta_txt = ""
+        if not pode:
+            faltando = [f"{q-inv_map.get(m,0)}x {m}" for m,q in r["materiais"].items() if inv_map.get(m,0) < q]
+            if faltando: falta_txt = f" (falta: {', '.join(faltando)})"
+        linhas.append(f"{status} {r['emoji']} **{r['nome']}** [{r['raridade']}] — {r['preco_forja']} moedas{falta_txt}")
+    desc = "\n".join(linhas)
     if not disp:
         await interaction.followup.send(embed=discord.Embed(title="Ferreiro", description=f"Sem materiais suficientes!\n\n{desc}", color=0x888780), ephemeral=True); return
     opcoes = [discord.SelectOption(label=f"{r['emoji']} {r['nome']}", value=r["id"]) for r in disp[:25]]
@@ -1104,6 +1126,131 @@ async def dungeon_evento_fechar(interaction: discord.Interaction, dungeon_id: in
     await cmd_dungeon_evento_fechar(interaction, dungeon_id)
 
 
+
+
+# ─── /loja-sazonal ───────────────────────────────────────────────
+
+@bot.tree.command(name="loja-sazonal", description="Compre itens sazonais e ofertas do dia")
+async def loja_sazonal(interaction: discord.Interaction):
+    if not await checar_batalha(interaction): return
+    await cmd_loja_sazonal(interaction)
+
+
+# ─── /loja-sazonal-adicionar ─────────────────────────────────────
+
+@bot.tree.command(name="loja-sazonal-adicionar", description="[ADMIN] Adiciona item permanente a loja sazonal")
+@app_commands.checks.has_permissions(administrator=True)
+async def loja_sazonal_adicionar(interaction: discord.Interaction):
+    await interaction.response.send_modal(LojaItemModal())
+
+
+# ─── /loja-rotativa-adicionar ────────────────────────────────────
+
+@bot.tree.command(name="loja-rotativa-adicionar", description="[ADMIN] Adiciona oferta do dia na loja rotativa")
+@app_commands.checks.has_permissions(administrator=True)
+async def loja_rotativa_adicionar(interaction: discord.Interaction):
+    await interaction.response.send_modal(LojaRotativaModal())
+
+
+# ─── /loja-sazonal-remover ───────────────────────────────────────
+
+@bot.tree.command(name="loja-sazonal-remover", description="[ADMIN] Remove item da loja sazonal pelo ID")
+@app_commands.describe(item_id="ID numerico do item")
+@app_commands.checks.has_permissions(administrator=True)
+async def loja_sazonal_remover(interaction: discord.Interaction, item_id: int):
+    await cmd_loja_sazonal_remover(interaction, item_id)
+
+
+# ─── /historico ──────────────────────────────────────────────────
+
+@bot.tree.command(name="historico", description="Veja seu historico das ultimas batalhas")
+async def historico(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    p = await get_personagem(interaction.user.id)
+    if not p:
+        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        try:
+            logs = await conn.fetch("""
+                SELECT * FROM log_batalhas WHERE user_id=$1
+                ORDER BY criado_em DESC LIMIT 10
+            """, interaction.user.id)
+        except:
+            logs = []
+    if not logs:
+        await interaction.followup.send("Nenhuma batalha registrada ainda!", ephemeral=True); return
+    embed = discord.Embed(title=f"📜 Historico de {p['nome']}", color=0x7F77DD)
+    linhas = []
+    for l in logs:
+        emoji = "✅" if l["resultado"] == "vitoria" else "❌"
+        tempo = l["criado_em"].strftime("%d/%m %H:%M") if l["criado_em"] else "?"
+        linhas.append(f"{emoji} **{l['tipo'].title()}** — {l['oponente']} | +{l['xp_ganho']}XP +{l['moedas_ganhas']}🪙 | Nv{l['nivel_apos']} | {tempo}")
+    embed.description = "\n".join(linhas)
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+# ─── /guilda-criar ───────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-criar", description="Funda uma nova guilda (custa 5000 moedas)")
+async def guilda_criar(interaction: discord.Interaction):
+    await cmd_guilda_criar(interaction)
+
+
+# ─── /guilda-info ────────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-info", description="Informacoes sobre uma guilda")
+@app_commands.describe(nome="Nome da guilda (vazio = sua guilda)")
+async def guilda_info(interaction: discord.Interaction, nome: str = ""):
+    await cmd_guilda_info(interaction, nome)
+
+
+# ─── /guilda-convidar ────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-convidar", description="Convida um jogador para sua guilda")
+@app_commands.describe(jogador="Jogador a convidar")
+async def guilda_convidar(interaction: discord.Interaction, jogador: discord.Member):
+    await cmd_guilda_convidar(interaction, jogador)
+
+
+# ─── /guilda-sair ────────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-sair", description="Sai da sua guilda atual")
+async def guilda_sair(interaction: discord.Interaction):
+    await cmd_guilda_sair(interaction)
+
+
+# ─── /guilda-expulsar ────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-expulsar", description="[Mestre] Expulsa um membro da guilda")
+@app_commands.describe(jogador="Membro a expulsar")
+async def guilda_expulsar(interaction: discord.Interaction, jogador: discord.Member):
+    await cmd_guilda_expulsar(interaction, jogador)
+
+
+# ─── /guilda-promover ────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-promover", description="[Mestre] Promove um membro ou transfere lideranca")
+@app_commands.describe(jogador="Membro a promover")
+async def guilda_promover(interaction: discord.Interaction, jogador: discord.Member):
+    await cmd_guilda_promover(interaction, jogador)
+
+
+# ─── /guilda-depositar ───────────────────────────────────────────
+
+@bot.tree.command(name="guilda-depositar", description="Deposita moedas no banco da guilda")
+@app_commands.describe(valor="Quantidade de moedas")
+async def guilda_depositar(interaction: discord.Interaction, valor: int):
+    await cmd_guilda_depositar(interaction, valor)
+
+
+# ─── /guilda-ranking ─────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-ranking", description="Ranking de todas as guildas do servidor")
+async def guilda_ranking(interaction: discord.Interaction):
+    await cmd_guilda_ranking(interaction)
+
+
 # ─── /ajuda ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="ajuda", description="Lista todos os comandos do RPG")
@@ -1112,11 +1259,12 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Personagem", value="`/criar_personagem` `/perfil` `/skills` `/setup` `/deletar_personagem`", inline=False)
     embed.add_field(name="Inventario", value="`/inventario` `/equipar` `/jogar-fora` `/dar`", inline=False)
     embed.add_field(name="Batalha",    value="`/treinar` `/desafiar` `/dungeon`", inline=False)
-    embed.add_field(name="Economia",   value="`/loja` `/ferreiro` `/hospital` `/mercado` `/mercador`", inline=False)
+    embed.add_field(name="Economia",   value="`/loja` `/loja-sazonal` `/ferreiro` `/hospital` `/mercado` `/mercador`", inline=False)
     embed.add_field(name="Progresso",  value="`/missoes` `/conquistas` `/ranking` `/girar`", inline=False)
     embed.add_field(name="Admin",      value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros` `/set-vida` `/set-mana`", inline=False)
     embed.add_field(name="Eventos",    value="`/criar-evento` `/eventos` `/evento-info` `/encerrar-evento` `/add-pontos`", inline=False)
     embed.add_field(name="Anuncios",   value="`/anunciar` `/anunciar-evento` `/agendar-anuncio`", inline=False)
+    embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-ranking`", inline=False)
     embed.add_field(name="Torneio",    value="`/torneio-criar` `/torneio-status` `/torneio-lutar` `/torneio-fechar-inscricoes` `/torneio-cancelar`", inline=False)
     embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
