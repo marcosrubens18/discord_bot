@@ -133,9 +133,10 @@ class TorneioModal(discord.ui.Modal, title="Criar Torneio"):
         max_length=200
     )
 
-    def __init__(self, guild):
+    def __init__(self, guild, p1: str = "", p2: str = "", p3: str = ""):
         super().__init__()
         self.guild = guild
+        if p1: self.premios_input.default = f"{p1}|{p2}|{p3}".rstrip("|")
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -341,8 +342,8 @@ async def _agendar_fechamento(torneio_id, segundos, guild):
 
 # ─── COMANDOS EXPORTADOS ──────────────────────────────────────────
 
-async def cmd_torneio_criar(interaction: discord.Interaction):
-    await interaction.response.send_modal(TorneioModal(interaction.guild))
+async def cmd_torneio_criar(interaction: discord.Interaction, p1: str = "", p2: str = "", p3: str = ""):
+    await interaction.response.send_modal(TorneioModal(interaction.guild, p1, p2, p3))
 
 async def cmd_torneio_status(interaction: discord.Interaction, torneio_id: int):
     await interaction.response.defer()
