@@ -177,25 +177,39 @@ async def cmd_ranking(interaction: discord.Interaction):
     await interaction.response.defer()
     pool = await get_pool()
     async with pool.acquire() as conn:
-        top_vitorias = await conn.fetch("SELECT nome, classe_id, nivel, vitorias, moedas FROM personagens ORDER BY vitorias DESC LIMIT 10")
-        top_nivel    = await conn.fetch("SELECT nome, classe_id, nivel, vitorias, moedas FROM personagens ORDER BY nivel DESC, xp DESC LIMIT 10")
-        top_moedas   = await conn.fetch("SELECT nome, classe_id, nivel, vitorias, moedas FROM personagens ORDER BY moedas DESC LIMIT 10")
+        top_nivel    = await conn.fetch("SELECT nome,classe_id,nivel,xp FROM personagens ORDER BY nivel DESC, xp DESC LIMIT 10")
+        top_vitorias = await conn.fetch("SELECT nome,classe_id,vitorias FROM personagens ORDER BY vitorias DESC LIMIT 10")
+        top_moedas   = await conn.fetch("SELECT nome,classe_id,moedas FROM personagens ORDER BY moedas DESC LIMIT 10")
+        try:
+            top_dungeons = await conn.fetch("""
+                SELECT p.nome, p.classe_id, COUNT(*) as total
+                FROM dungeon_evento_runs r JOIN personagens p ON r.user_id=p.user_id
+                WHERE r.concluida=TRUE GROUP BY p.user_id,p.nome,p.classe_id
+                ORDER BY total DESC LIMIT 10
+            """)
+        except: top_dungeons = []
+        try:
+            top_torneios = await conn.fetch("""
+                SELECT p.nome, p.classe_id, COUNT(*) as total
+                FROM torneio_lutas l JOIN personagens p ON l.vencedor_id=p.user_id
+                WHERE l.fase='Final' GROUP BY p.user_id,p.nome,p.classe_id
+                ORDER BY total DESC LIMIT 10
+            """)
+        except: top_torneios = []
 
-    EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
-    MEDALHAS = ["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"]
+    from catalogo import get_rank
+    EMOJI_CLS = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
 
-    def fmt(lista, campo):
-        txt = ""
-        for i, p in enumerate(lista):
-            e = EMOJI_CLASSE.get(p["classe_id"],"⚔️"); m = MEDALHAS[i] if i < 10 else f"{i+1}."
-            valor = f"{p['vitorias']} vitorias" if campo=="vitorias" else (f"Nivel {p['nivel']}" if campo=="nivel" else f"{p['moedas']} 🪙")
-            txt += f"{m} {e} **{p['nome']}** — {valor}\n"
-        return txt or "*Ninguem ainda*"
+    def fmt(rows, col, sufixo=""):
+        if not rows: return "—"
+        return "\n".join([f"**{i+1}.** {EMOJI_CLS.get(r['classe_id'],'⚔️')} {r['nome']} — {r[col]}{sufixo}" for i,r in enumerate(rows)])
 
-    embed = discord.Embed(title="🏆 Ranking do Servidor", color=0xE4AF3C)
-    embed.add_field(name="⚔️ Top Vitorias", value=fmt(top_vitorias,"vitorias"), inline=True)
-    embed.add_field(name="⭐ Top Nivel",    value=fmt(top_nivel,"nivel"),    inline=True)
-    embed.add_field(name="💰 Top Moedas",   value=fmt(top_moedas,"moedas"),  inline=True)
-    if IMG_RANKING: embed.set_image(url=IMG_RANKING)
-    embed.set_footer(text="Ranking atualizado em tempo real")
+    embed = discord.Embed(title="🏆 Ranking de Villa Eldoria", color=0xE4AF3C)
+    embed.add_field(name="📈 Maior Nivel",      value=fmt(top_nivel,    "nivel", " Nv"), inline=True)
+    embed.add_field(name="⚔️ Mais Vitorias",   value=fmt(top_vitorias, "vitorias", " wins"), inline=True)
+    embed.add_field(name="🪙 Mais Rico",        value=fmt(top_moedas,   "moedas", " 🪙"), inline=True)
+    if top_dungeons:
+        embed.add_field(name="🏰 Dungeons Concluidas", value=fmt(top_dungeons, "total", "x"), inline=True)
+    if top_torneios:
+        embed.add_field(name="🏆 Torneios Vencidos", value=fmt(top_torneios, "total", "x"), inline=True)
     await interaction.followup.send(embed=embed)
