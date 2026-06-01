@@ -314,6 +314,22 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
         # Desbloqueia skills pelo novo nivel
         await desbloquear_skills_nivel(conn, user_id, classe_id, nv)
 
+        # Log de batalha
+        try:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS log_batalhas
+                (id SERIAL PRIMARY KEY, user_id BIGINT, tipo TEXT, resultado TEXT,
+                 oponente TEXT, xp_ganho INTEGER, moedas_ganhas INTEGER,
+                 nivel_apos INTEGER, criado_em TIMESTAMP DEFAULT NOW())
+            """)
+            await conn.execute("""
+                INSERT INTO log_batalhas(user_id,tipo,resultado,oponente,xp_ganho,moedas_ganhas,nivel_apos)
+                VALUES($1,'treino',$2,$3,$4,$5,$6)
+            """, user_id,
+                "vitoria" if vitoria else "derrota",
+                "Treino", xp_ganho, moedas_ganhas, nv)
+        except: pass
+
         rank_novo_obj = get_rank(nv)
         rank_mudou = rank_novo_obj["rank"] != rank_antes
 
@@ -832,6 +848,38 @@ class BatalhaView(discord.ui.View):
 
 
 # ─── ENGINE DE TREINO ────────────────────────────────────────────
+
+
+async def notificar_level_up(guild, user_id, nome, classe_id, nivel_novo, rank_mudou, rank_obj,
+                              hp_bonus, mana_bonus, atk_bonus, def_bonus):
+    """Manda embed de level up no canal privado do jogador."""
+    if not guild: return
+    try:
+        emoji_cls = EMOJI_CLASSE.get(classe_id, "⚔️")
+        # Busca canal privado pelo nome (formato: emoji│nome)
+        nome_lower = nome.lower()[:20]
+        canal = None
+        cat = discord.utils.get(guild.categories, name="MEU PERFIL")
+        if cat:
+            for ch in cat.channels:
+                if nome_lower in ch.name.lower():
+                    canal = ch; break
+        if not canal: return
+        cor = rank_obj["cor"] if "cor" in rank_obj else 0xE4AF3C
+        embed = discord.Embed(
+            title=f"🎉 LEVEL UP! {emoji_cls} {nome}",
+            description=f"Voce subiu para o **Nivel {nivel_novo}**!",
+            color=0xE4AF3C
+        )
+        embed.add_field(name="Ganhos", value=f"+{hp_bonus} HP Max | +{mana_bonus} Mana | +{atk_bonus} ATK | +{def_bonus} DEF", inline=False)
+        if rank_mudou:
+            embed.add_field(name="RANK UP!", value=f"{rank_obj['emoji']} Rank {rank_obj['rank']} — {rank_obj['nome']}", inline=False)
+        embed.set_footer(text="Continue sua jornada em Villa Eldoria!")
+        member = guild.get_member(user_id)
+        mention = member.mention if member else ""
+        await canal.send(content=mention, embed=embed)
+    except Exception as e:
+        print(f"Erro notif level up: {e}")
 
 async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     uid = p["user_id"]
