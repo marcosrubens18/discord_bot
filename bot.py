@@ -28,7 +28,7 @@ from eventos import cmd_criar_evento, cmd_eventos, cmd_evento_info, cmd_encerrar
 from anuncios import cmd_anunciar, cmd_anunciar_evento, cmd_agendar_anuncio, CORES
 from torneio import (cmd_torneio_criar, cmd_torneio_status, cmd_torneio_lutar,
     cmd_torneio_fechar_inscricoes, cmd_torneio_cancelar, init_db_torneio)
-from dungeon_evento import (cmd_dungeon_evento_criar, cmd_dungeon_evento_configurar,
+from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_ativar, cmd_dungeon_evento_info,
     cmd_dungeon_evento_fechar, init_db_dungeon_evento)
 from mercado import cmd_mercador, cmd_mercado_vender
@@ -1066,7 +1066,7 @@ async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
 @bot.tree.command(name="dungeon-evento-criar", description="[ADMIN] Cria uma dungeon de evento customizada")
 @app_commands.checks.has_permissions(administrator=True)
 async def dungeon_evento_criar(interaction: discord.Interaction):
-    await cmd_dungeon_evento_criar(interaction)
+    await interaction.response.send_modal(DungeonEventoCriarModal(interaction.guild))
 
 
 # ─── /dungeon-evento-configurar ──────────────────────────────────
@@ -1075,7 +1075,7 @@ async def dungeon_evento_criar(interaction: discord.Interaction):
 @app_commands.describe(dungeon_id="ID da dungeon")
 @app_commands.checks.has_permissions(administrator=True)
 async def dungeon_evento_configurar(interaction: discord.Interaction, dungeon_id: int):
-    await cmd_dungeon_evento_configurar(interaction, dungeon_id)
+    await interaction.response.send_modal(AdicionarAndarModal(dungeon_id))
 
 
 # ─── /dungeon-evento-ativar ──────────────────────────────────────
