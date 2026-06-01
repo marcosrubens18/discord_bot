@@ -79,6 +79,32 @@ async def init_db():
             )
         """)
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS treino_uso (
+                user_id BIGINT PRIMARY KEY,
+                count INTEGER DEFAULT 0,
+                reset_em TIMESTAMP
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS descanso (
+                user_id BIGINT PRIMARY KEY,
+                proximo_descanso TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS log_batalhas (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT,
+                tipo TEXT,
+                resultado TEXT,
+                oponente TEXT,
+                xp_ganho INTEGER DEFAULT 0,
+                moedas_ganhas INTEGER DEFAULT 0,
+                nivel_apos INTEGER DEFAULT 1,
+                criado_em TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS missoes_diarias (
                 user_id    BIGINT,
                 data       TEXT,
