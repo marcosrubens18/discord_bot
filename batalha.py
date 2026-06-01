@@ -1369,7 +1369,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
 
 # ─── ENGINE PVP ──────────────────────────────────────────────────
 
-async def rodar_pvp(channel, p1, p2, m1, m2, arena):
+async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback=None):
     uid1, uid2 = p1["user_id"], p2["user_id"]
 
     # Skills
