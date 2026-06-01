@@ -733,22 +733,23 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
 
         if not vitoria:
             # Morreu — perde tudo
-            # Morreu - perde tudo
             pool = await get_pool()
             async with pool.acquire() as db:
                 await db.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
+            BATALHAS_ATIVAS.discard(p["user_id"])
             for m in msgs_global:
                 try: await m.delete()
                 except: pass
             await interaction.followup.send(embed=discord.Embed(
                 title=f"💀 {p['nome']} foi derrotado no Andar {andar}!",
                 description=(
-                    f"Voce foi derrotado por **{{monstro['emoji']}} {{monstro['nome']}}** no andar {{andar}}.\n\n"
+                    f"Voce foi derrotado por **{monstro['emoji']} {monstro['nome']}** no andar {andar}.\n\n"
                     "Perdeu todas as recompensas da dungeon!\n"
                     "Acordou na cidade com 10 HP."
                 ),
                 color=0xE24B4A
             ))
+            return  # ← ESSENCIAL: para execução aqui
 
         # Vitoria no andar — recompensa
         xp_andar     = dungeon["recompensa_andar"]["xp"]
