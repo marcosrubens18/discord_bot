@@ -313,7 +313,7 @@ def get_skills_jogador(p, ids):
 
 class DungeonBatalhaView(discord.ui.View):
     def __init__(self, user_id, skills, pocoes):
-        super().__init__(timeout=None)
+        super().__init__(timeout=30)
         self.user_id    = user_id
         self.acao       = None
         self.acao_feita = False
@@ -470,6 +470,21 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         except: pass
 
         acao, val = view.acao or ("timeout", None)
+
+        if acao == "timeout":
+            timeout_count += 1
+            if timeout_count >= 3:
+                return hp_j, mana_j, False, False  # expulso
+            else:
+                aviso = discord.Embed(
+                    title=f"Turno perdido! ({timeout_count}/3)",
+                    description=f"Sem acao em 30s — turno ignorado. Mais {3-timeout_count}x = expulso!",
+                    color=0xE4AF3C
+                )
+                await msg_turno.edit(embed=aviso, view=None)
+                continue
+
+        timeout_count = 0  # Reset ao agir
 
         if acao == "fugir":
             return hp_j, mana_j, False, True  # hp, mana, vitoria, fugiu
@@ -647,9 +662,10 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
     mana_jmx= p["mana_max"]   if "mana_max"   in p.keys() else 100
     emoji_j = EMOJI_CLASSE.get(p["classe_id"],"⚔️")
 
-    xp_total     = 0
-    moedas_total = 0
-    msgs_global  = []
+    xp_total      = 0
+    moedas_total  = 0
+    msgs_global   = []
+    timeout_count = 0
 
     # ── Mensagem de entrada ──────────────────────────────────────
     img_dg = IMG_DUNGEON.get(rank.upper(), IMG_DUNGEON["F"])
