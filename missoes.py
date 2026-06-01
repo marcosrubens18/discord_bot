@@ -99,10 +99,29 @@ async def atualizar_progresso(user_id, tipo, quantidade=1):
                     "UPDATE missoes_diarias SET progresso=$1, concluida=1 WHERE user_id=$2 AND data=$3 AND missao_id=$4",
                     m["meta"], user_id, hoje, m["missao_id"]
                 )
-                await conn.execute(
-                    "UPDATE personagens SET xp=xp+$1, moedas=moedas+$2 WHERE user_id=$3",
-                    m["xp"], m["moedas"], user_id
-                )
+                # Adiciona XP e verifica level up
+                p_atual = await conn.fetchrow("SELECT xp, nivel, hp_max, ataque, defesa, mana_max, mana_atual, poder_valor, destino_id, classe_id FROM personagens WHERE user_id=$1", user_id)
+                if p_atual:
+                    novo_xp_m = p_atual["xp"] + m["xp"]
+                    nv_m      = p_atual["nivel"]
+                    lvlups_m  = 0
+                    needed_m  = 100 + (nv_m - 1) * 50
+                    while novo_xp_m >= needed_m:
+                        novo_xp_m -= needed_m
+                        nv_m      += 1
+                        needed_m   = 100 + (nv_m - 1) * 50
+                        lvlups_m  += 1
+                    hp_max_m   = p_atual["hp_max"]  + lvlups_m * 12
+                    atk_m      = p_atual["ataque"]  + lvlups_m * 2
+                    dfs_m      = p_atual["defesa"]  + lvlups_m * 1
+                    from catalogo import calcular_mana_max as _cmm
+                    mana_max_m = _cmm(p_atual["classe_id"], nv_m, p_atual["poder_valor"], p_atual["destino_id"])
+                    await conn.execute(
+                        "UPDATE personagens SET xp=$1, nivel=$2, hp_max=$3, ataque=$4, defesa=$5, mana_max=$6, moedas=moedas+$7 WHERE user_id=$8",
+                        novo_xp_m, nv_m, hp_max_m, atk_m, dfs_m, mana_max_m, m["moedas"], user_id
+                    )
+                else:
+                    await conn.execute("UPDATE personagens SET xp=xp+$1, moedas=moedas+$2 WHERE user_id=$3", m["xp"], m["moedas"], user_id)
                 if m["ficha"]:
                     await conn.execute("""
                         INSERT INTO giros (user_id, roleta_id, raridade, quantidade)
@@ -150,7 +169,7 @@ async def cmd_missoes(interaction: discord.Interaction):
             value=f"`{barra}` {m['progresso']}/{m['meta']}\n{recomp}",
             inline=False
         )
-    embed.set_image(url=IMG_MISSOES)
+    if IMG_MISSOES: embed.set_image(url=IMG_MISSOES)
     embed.set_footer(text=f"Concluidas: {total_concluidas}/3 hoje")
     await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -177,6 +196,6 @@ async def cmd_ranking(interaction: discord.Interaction):
     embed.add_field(name="⚔️ Top Vitorias", value=fmt(top_vitorias,"vitorias"), inline=True)
     embed.add_field(name="⭐ Top Nivel",    value=fmt(top_nivel,"nivel"),    inline=True)
     embed.add_field(name="💰 Top Moedas",   value=fmt(top_moedas,"moedas"),  inline=True)
-    embed.set_image(url=IMG_RANKING)
+    if IMG_RANKING: embed.set_image(url=IMG_RANKING)
     embed.set_footer(text="Ranking atualizado em tempo real")
     await interaction.followup.send(embed=embed)
