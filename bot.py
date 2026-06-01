@@ -10,7 +10,8 @@ from discord.ext import commands
 from db import get_pool, init_db
 from catalogo import (
     get_rank, CARGOS_RANK, calcular_mana_max,
-    get_armas_classe, get_armaduras_classe
+    get_armas_classe, get_armaduras_classe,
+    get_catalogo_completo, get_item_por_chave, get_itens_por_categoria
 )
 from utils import atualizar_cargo_nivel, atualizar_cargo_rank, atualizar_todos_cargos
 from setup_cmd import cmd_setup
@@ -151,6 +152,83 @@ async def criar_canal_privado(guild, member, nome, classe):
         await canal.send(member.mention, embed=embed_bv)
     except Exception as e:
         print(f"Erro ao criar canal privado: {e}")
+
+
+# ─── AUTOCOMPLETE FUNCTIONS ──────────────────────────────────────
+
+async def autocomplete_item_categoria(interaction: discord.Interaction, current: str):
+    """Autocomplete de item baseado na categoria selecionada."""
+    try:
+        categoria = str(interaction.namespace.categoria or "")
+    except:
+        categoria = ""
+    itens = get_itens_por_categoria(categoria) if categoria else get_catalogo_completo()
+    filtrado = [i for i in itens if current.lower() in i["nome"].lower() or current.lower() in i["raridade"].lower()]
+    return [
+        app_commands.Choice(
+            name=f"{i['emoji']} {i['nome']} [{i['raridade']}]"[:100],
+            value=i["chave"]
+        )
+        for i in filtrado[:25]
+    ]
+
+async def autocomplete_item_todos(interaction: discord.Interaction, current: str):
+    """Autocomplete com todos os itens do catalogo."""
+    itens = get_catalogo_completo()
+    filtrado = [i for i in itens if current.lower() in i["nome"].lower() or current.lower() in i["raridade"].lower() or current.lower() in i["tipo"].lower()]
+    return [
+        app_commands.Choice(
+            name=f"{i['emoji']} {i['nome']} [{i['raridade']}] — {i['tipo']}{' ('+i['classe']+')' if i['classe'] else ''}"[:100],
+            value=i["chave"]
+        )
+        for i in filtrado[:25]
+    ]
+
+async def autocomplete_materiais(interaction: discord.Interaction, current: str):
+    """Autocomplete apenas de materiais e pocoes (para loot de dungeon)."""
+    itens = get_catalogo_completo()
+    filtrado = [i for i in itens if i["tipo"] in ("material","pocao") and (current.lower() in i["nome"].lower() or not current)]
+    return [
+        app_commands.Choice(
+            name=f"{i['emoji']} {i['nome']} [{i['raridade']}]"[:100],
+            value=i["chave"]
+        )
+        for i in filtrado[:25]
+    ]
+
+
+async def autocomplete_item_premio(interaction: discord.Interaction, current: str):
+    """Autocomplete para campo de premio — mostra itens se tipo=item, senao da exemplos."""
+    try:
+        premio_tipo = str(interaction.namespace.premio_tipo or "")
+    except:
+        premio_tipo = ""
+    if premio_tipo == "item":
+        itens = get_catalogo_completo()
+        filtrado = [i for i in itens if current.lower() in i["nome"].lower() or not current]
+        return [
+            app_commands.Choice(
+                name=f"{i['emoji']} {i['nome']} [{i['raridade']}]"[:100],
+                value=f"{i['id']}|{i['nome']}|{i['tipo']}|{i['raridade']}|{i['emoji']}|{i.get('desc','')}"[:100]
+            )
+            for i in filtrado[:25]
+        ]
+    elif premio_tipo == "moedas":
+        exemplos = ["1000","2000","5000","10000","20000","50000"]
+        return [app_commands.Choice(name=f"{v} moedas", value=v) for v in exemplos if current in v]
+    elif premio_tipo == "xp":
+        exemplos = ["500","1000","2000","5000","10000"]
+        return [app_commands.Choice(name=f"{v} XP", value=v) for v in exemplos if current in v]
+    elif premio_tipo == "ficha":
+        exemplos = ["1","2","3","5","10"]
+        return [app_commands.Choice(name=f"{v} ficha(s)", value=v) for v in exemplos if current in v]
+    elif premio_tipo == "cargo":
+        return [app_commands.Choice(name="Nome do cargo (ex: Campiao)", value=current or "Campiao")]
+    elif premio_tipo == "classe":
+        classes = ["guerreiro","arqueiro","mago","paladino","necromante","dracomante","arcano"]
+        EMOJI_CLS = {"guerreiro":"🗡️","arqueiro":"🏹","mago":"🔮","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
+        return [app_commands.Choice(name=f"{EMOJI_CLS[cl]} {cl.title()}", value=cl) for cl in classes if current.lower() in cl]
+    return [app_commands.Choice(name=current or "Digite o valor do premio", value=current or "")]
 
 # ─── /criar_personagem ───────────────────────────────────────────
 
@@ -707,7 +785,12 @@ async def conquistas(interaction: discord.Interaction):
 # ─── /set-item ───────────────────────────────────────────────────
 
 @bot.tree.command(name="set-item", description="[ADMIN] Da item a um jogador")
-@app_commands.describe(jogador="Jogador alvo", categoria="Categoria", quantidade="Quantidade")
+@app_commands.describe(
+    jogador="Jogador que vai receber o item",
+    categoria="Categoria do item",
+    item="Digite para buscar o item",
+    quantidade="Quantidade (padrao: 1)"
+)
 @app_commands.choices(categoria=[
     app_commands.Choice(name="Pocoes",             value="pocoes"),
     app_commands.Choice(name="Armas Guerreiro",    value="arma_guerreiro"),
@@ -726,106 +809,44 @@ async def conquistas(interaction: discord.Interaction):
     app_commands.Choice(name="Armaduras Arcano",   value="arm_arcano"),
     app_commands.Choice(name="Materiais",          value="materiais"),
 ])
+@app_commands.autocomplete(item=autocomplete_item_categoria)
 @app_commands.checks.has_permissions(administrator=True)
-async def set_item(interaction: discord.Interaction, jogador: discord.Member, categoria: str, quantidade: int = 1):
+async def set_item(interaction: discord.Interaction, jogador: discord.Member,
+                   categoria: str, item: str, quantidade: int = 1):
     await interaction.response.defer(ephemeral=True)
     if not await get_personagem(jogador.id):
         await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
-    from catalogo import ARMAS_POR_CLASSE, ARMADURAS_POR_CLASSE
-    POCOES_LIST = [
-        {"id":"pocao_hp_p","nome":"Pocao de Cura P","emoji":"🧪","tipo":"pocao","raridade":"Comum","desc":"Recupera 30 HP"},
-        {"id":"pocao_hp_m","nome":"Pocao de Cura M","emoji":"💊","tipo":"pocao","raridade":"Comum","desc":"Recupera 60 HP"},
-        {"id":"pocao_hp_g","nome":"Pocao de Cura G","emoji":"❤️","tipo":"pocao","raridade":"Raro","desc":"Recupera 120 HP"},
-        {"id":"pocao_mana_p","nome":"Pocao de Mana P","emoji":"🔵","tipo":"pocao","raridade":"Comum","desc":"Recupera 20 Mana"},
-        {"id":"pocao_mana_m","nome":"Pocao de Mana M","emoji":"💙","tipo":"pocao","raridade":"Incomum","desc":"Recupera 50 Mana"},
-        {"id":"elixir","nome":"Elixir Supremo","emoji":"✨","tipo":"pocao","raridade":"Epico","desc":"HP e Mana full"},
-    ]
-    MATS_LIST = [
-        {"id":"dente_orc","nome":"Dente de Orc","emoji":"🦷","tipo":"material","raridade":"Incomum","desc":"Ingrediente"},
-        {"id":"fragmento_golem","nome":"Fragmento de Golem","emoji":"🪨","tipo":"material","raridade":"Raro","desc":"Material magico"},
-        {"id":"sangue_anciao","nome":"Sangue Anciao","emoji":"🩸","tipo":"material","raridade":"Raro","desc":"Raro"},
-        {"id":"escama_dragao_p","nome":"Escama de Dragao","emoji":"🐉","tipo":"material","raridade":"Raro","desc":"Fragmento"},
-        {"id":"olho_dragao","nome":"Olho de Dragao","emoji":"👁️","tipo":"material","raridade":"Epico","desc":"Epico"},
-        {"id":"essencia_lich","nome":"Essencia do Lich","emoji":"💀","tipo":"material","raridade":"Lendario","desc":"Lendario"},
-        {"id":"coroa_criador","nome":"Coroa do Criador","emoji":"👑","tipo":"armadura","raridade":"Lendario","desc":"Definitiva"},
-    ]
-    cat_map = {
-        "pocoes": POCOES_LIST,
-        "arma_guerreiro":[{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"arma","raridade":a["raridade"],"desc":a["desc"]} for a in ARMAS_POR_CLASSE["guerreiro"]],
-        "arma_arqueiro": [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"arma","raridade":a["raridade"],"desc":a["desc"]} for a in ARMAS_POR_CLASSE["arqueiro"]],
-        "arma_mago":     [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"arma","raridade":a["raridade"],"desc":a["desc"]} for a in ARMAS_POR_CLASSE["mago"]],
-        "arma_paladino": [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"arma","raridade":a["raridade"],"desc":a["desc"]} for a in ARMAS_POR_CLASSE["paladino"]],
-        "arma_necromante":[{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"arma","raridade":a["raridade"],"desc":a["desc"]} for a in ARMAS_POR_CLASSE["necromante"]],
-        "arma_dracomante":[{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"arma","raridade":a["raridade"],"desc":a["desc"]} for a in ARMAS_POR_CLASSE["dracomante"]],
-        "arma_arcano":   [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"arma","raridade":a["raridade"],"desc":a["desc"]} for a in ARMAS_POR_CLASSE["arcano"]],
-        "arm_guerreiro": [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"armadura","raridade":a["raridade"],"desc":a["desc"]} for a in ARMADURAS_POR_CLASSE["guerreiro"]],
-        "arm_arqueiro":  [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"armadura","raridade":a["raridade"],"desc":a["desc"]} for a in ARMADURAS_POR_CLASSE["arqueiro"]],
-        "arm_mago":      [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"armadura","raridade":a["raridade"],"desc":a["desc"]} for a in ARMADURAS_POR_CLASSE["mago"]],
-        "arm_paladino":  [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"armadura","raridade":a["raridade"],"desc":a["desc"]} for a in ARMADURAS_POR_CLASSE["paladino"]],
-        "arm_necromante":[{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"armadura","raridade":a["raridade"],"desc":a["desc"]} for a in ARMADURAS_POR_CLASSE["necromante"]],
-        "arm_dracomante":[{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"armadura","raridade":a["raridade"],"desc":a["desc"]} for a in ARMADURAS_POR_CLASSE["dracomante"]],
-        "arm_arcano":    [{"id":a["id"],"nome":a["nome"],"emoji":a["emoji"],"tipo":"armadura","raridade":a["raridade"],"desc":a["desc"]} for a in ARMADURAS_POR_CLASSE["arcano"]],
-        "materiais": MATS_LIST,
-    }
-    itens = cat_map.get(categoria, [])
-    if not itens:
-        await interaction.followup.send("Categoria invalida!", ephemeral=True); return
+
+    # Busca item pelo chave unica
+    it = get_item_por_chave(item)
+    if not it:
+        # Fallback: busca por ID direto
+        itens_cat = get_itens_por_categoria(categoria)
+        it = next((i for i in itens_cat if i["id"] == item), None)
+    if not it:
+        await interaction.followup.send(f"Item nao encontrado! Selecione da lista de sugestoes.", ephemeral=True); return
+
     qtd = max(1, min(quantidade, 99))
-    opcoes = [discord.SelectOption(label=f"{it['emoji']} {it['nome'][:40]}", value=it["id"], description=f"{it['raridade']}") for it in itens[:25]]
-    class SetItemView(discord.ui.View):
-        def __init__(self): super().__init__(timeout=120); self.item = None
-        @discord.ui.select(placeholder="Escolha o item...", options=opcoes)
-        async def sel(self, inter, s):
-            if inter.user.id != interaction.user.id: return
-            self.item = next((i for i in itens if i["id"]==s.values[0]), None)
-            await inter.response.defer(); self.stop()
-    v = SetItemView()
-    embed = discord.Embed(title=f"Dar item para {jogador.display_name}", description=f"Categoria: **{categoria}** | Qtd: **{qtd}x**", color=0x7F77DD)
-    await interaction.followup.send(embed=embed, view=v, ephemeral=True)
-    await v.wait()
-    if not v.item: return
-    it = v.item
     pool_db = await get_pool()
     async with pool_db.acquire() as conn:
-        ex = await conn.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", jogador.id, it["id"])
-        if ex: await conn.execute("UPDATE inventario SET quantidade=quantidade+$1 WHERE id=$2", qtd, ex["id"])
-        else: await conn.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
-            jogador.id, it["id"], it["nome"], it["tipo"], it["raridade"], it["emoji"], it["desc"])
-    await interaction.followup.send(f"Dado {it['emoji']} **{it['nome']}** x{qtd} para {jogador.mention}!", ephemeral=True)
+        ex = await conn.fetchrow(
+            "SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2",
+            jogador.id, it["id"])
+        if ex:
+            await conn.execute("UPDATE inventario SET quantidade=quantidade+$1 WHERE id=$2", qtd, ex["id"])
+        else:
+            await conn.execute(
+                "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                jogador.id, it["id"], it["nome"], it["tipo"], it["raridade"], it["emoji"], it.get("desc",""))
 
-
-# ─── /set-vida ───────────────────────────────────────────────────
-
-@bot.tree.command(name="set-vida", description="[ADMIN] Define o HP de um jogador")
-@app_commands.describe(jogador="Jogador alvo", quantidade="HP a definir (0 = HP max)")
-@app_commands.checks.has_permissions(administrator=True)
-async def set_vida(interaction: discord.Interaction, jogador: discord.Member, quantidade: int = 0):
-    await interaction.response.defer(ephemeral=True)
-    p = await get_personagem(jogador.id)
-    if not p:
-        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
-    novo_hp = p["hp_max"] if quantidade <= 0 else min(quantidade, p["hp_max"])
-    pool_db = await get_pool()
-    async with pool_db.acquire() as conn:
-        await conn.execute("UPDATE personagens SET hp_atual=$1 WHERE user_id=$2", novo_hp, jogador.id)
-    await interaction.followup.send(f"HP de {jogador.display_name} definido para **{novo_hp}/{p['hp_max']}** ❤️", ephemeral=True)
-
-
-# ─── /set-mana ───────────────────────────────────────────────────
-
-@bot.tree.command(name="set-mana", description="[ADMIN] Define a mana de um jogador")
-@app_commands.describe(jogador="Jogador alvo", quantidade="Mana a definir (0 = mana max)")
-@app_commands.checks.has_permissions(administrator=True)
-async def set_mana(interaction: discord.Interaction, jogador: discord.Member, quantidade: int = 0):
-    await interaction.response.defer(ephemeral=True)
-    p = await get_personagem(jogador.id)
-    if not p:
-        await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
-    nova_mana = p["mana_max"] if quantidade <= 0 else min(quantidade, p["mana_max"])
-    pool_db = await get_pool()
-    async with pool_db.acquire() as conn:
-        await conn.execute("UPDATE personagens SET mana_atual=$1 WHERE user_id=$2", nova_mana, jogador.id)
-    await interaction.followup.send(f"Mana de {jogador.display_name} definida para **{nova_mana}/{p['mana_max']}** 💙", ephemeral=True)
+    cor = COR_RAR_BOT.get(it["raridade"], 0x888780)
+    await interaction.followup.send(
+        embed=discord.Embed(
+            title="Item adicionado!",
+            description=f"{it['emoji']} **{it['nome']}** x{qtd} para {jogador.mention}!",
+            color=cor
+        ), ephemeral=True
+    )
 
 
 # ─── /set-moedas ─────────────────────────────────────────────────
@@ -939,6 +960,7 @@ async def deletar_personagem(interaction: discord.Interaction):
     app_commands.Choice(name="Cargo exclusivo",  value="cargo"),
     app_commands.Choice(name="Classe especial",  value="classe"),
 ])
+@app_commands.autocomplete(premio_valor=autocomplete_item_premio)
 @app_commands.checks.has_permissions(administrator=True)
 async def criar_evento(interaction: discord.Interaction, tipo: str, premio_tipo: str, premio_valor: str, canal: discord.TextChannel):
     await cmd_criar_evento(interaction, tipo, premio_tipo, premio_valor, canal)
@@ -1139,17 +1161,48 @@ async def loja_sazonal(interaction: discord.Interaction):
 # ─── /loja-sazonal-adicionar ─────────────────────────────────────
 
 @bot.tree.command(name="loja-sazonal-adicionar", description="[ADMIN] Adiciona item permanente a loja sazonal")
+@app_commands.describe(item="Digite para buscar o item", preco="Preco em moedas", estoque="Estoque (-1 = ilimitado)")
+@app_commands.autocomplete(item=autocomplete_item_todos)
 @app_commands.checks.has_permissions(administrator=True)
-async def loja_sazonal_adicionar(interaction: discord.Interaction):
-    await interaction.response.send_modal(LojaItemModal())
+async def loja_sazonal_adicionar(interaction: discord.Interaction, item: str, preco: int = 500, estoque: int = -1):
+    await interaction.response.defer(ephemeral=True)
+    it = get_item_por_chave(item)
+    if not it:
+        await interaction.followup.send("Item nao encontrado! Selecione da lista de sugestoes.", ephemeral=True); return
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO loja_sazonal(item_id,nome,emoji,tipo,raridade,descricao,preco,estoque)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+        """, it["id"], it["nome"], it["emoji"], it["tipo"], it["raridade"],
+            it.get("desc",""), preco, estoque)
+    est_txt = str(estoque) if estoque >= 0 else "Ilimitado"
+    await interaction.followup.send(
+        f"Adicionado a loja sazonal! {it['emoji']} **{it['nome']}** [{it['raridade']}] — {preco} moedas | Estoque: {est_txt}",
+        ephemeral=True)
 
 
 # ─── /loja-rotativa-adicionar ────────────────────────────────────
 
 @bot.tree.command(name="loja-rotativa-adicionar", description="[ADMIN] Adiciona oferta do dia na loja rotativa")
+@app_commands.describe(item="Digite para buscar o item", preco="Preco em moedas", estoque="Estoque do dia")
+@app_commands.autocomplete(item=autocomplete_item_todos)
 @app_commands.checks.has_permissions(administrator=True)
-async def loja_rotativa_adicionar(interaction: discord.Interaction):
-    await interaction.response.send_modal(LojaRotativaModal())
+async def loja_rotativa_adicionar(interaction: discord.Interaction, item: str, preco: int = 300, estoque: int = 3):
+    await interaction.response.defer(ephemeral=True)
+    it = get_item_por_chave(item)
+    if not it:
+        await interaction.followup.send("Item nao encontrado! Selecione da lista de sugestoes.", ephemeral=True); return
+    pool_db = await get_pool()
+    async with pool_db.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO loja_rotativa(item_id,nome,emoji,tipo,raridade,descricao,preco,estoque)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+        """, it["id"], it["nome"], it["emoji"], it["tipo"], it["raridade"],
+            it.get("desc",""), preco, estoque)
+    await interaction.followup.send(
+        f"Adicionado a oferta do dia! {it['emoji']} **{it['nome']}** [{it['raridade']}] — {preco} moedas | Estoque: {estoque}",
+        ephemeral=True)
 
 
 # ─── /loja-sazonal-remover ───────────────────────────────────────
