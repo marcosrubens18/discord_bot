@@ -217,6 +217,37 @@ def build_pool_filtrado(roleta_id, classe_id, ids_ja_tem):
 
     return []
 
+
+async def get_descanso(user_id):
+    """Retorna None se pode descansar, ou datetime do proximo descanso disponivel."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS descanso
+            (user_id BIGINT PRIMARY KEY, proximo_descanso TIMESTAMP DEFAULT NOW())
+        """)
+        row = await conn.fetchrow("SELECT proximo_descanso FROM descanso WHERE user_id=$1", user_id)
+        if not row: return None
+        from datetime import datetime
+        if datetime.utcnow() >= row["proximo_descanso"]: return None
+        return row["proximo_descanso"]
+
+async def usar_descanso(user_id):
+    from datetime import datetime, timedelta
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        proximo = datetime.utcnow() + timedelta(minutes=30)
+        await conn.execute("""
+            INSERT INTO descanso(user_id, proximo_descanso) VALUES($1,$2)
+            ON CONFLICT(user_id) DO UPDATE SET proximo_descanso=$2
+        """, user_id, proximo)
+        p = await conn.fetchrow("SELECT hp_max, mana_max FROM personagens WHERE user_id=$1", user_id)
+        if p:
+            await conn.execute(
+                "UPDATE personagens SET hp_atual=$1, mana_atual=$2 WHERE user_id=$3",
+                p["hp_max"], p["mana_max"], user_id)
+        return p
+
 async def cmd_hospital(interaction: discord.Interaction):
     await interaction.response.defer()
     p = await get_personagem(interaction.user.id)
@@ -258,9 +289,33 @@ async def cmd_hospital(interaction: discord.Interaction):
         await inter.response.edit_message(embed=discord.Embed(title="Atendimento concluido!", description=desc, color=plano["cor"]), view=None)
 
     sel.callback = escolher
-    embed.set_image(url=IMG_HOSPITAL)
     v = discord.ui.View(timeout=60); v.add_item(sel)
-    embed.set_image(url=IMG_ROLETA)
+    # Botao descanso gratis
+    proximo_desc = await get_descanso(interaction.user.id)
+    pode_descansar = proximo_desc is None
+    if not pode_descansar and proximo_desc:
+        from datetime import datetime
+        secs = max(0, int((proximo_desc - datetime.utcnow()).total_seconds()))
+        mins = secs // 60; segs = secs % 60
+        desc_label = f"Descanso gratis disponivel em {mins}min {segs}s"
+    else:
+        desc_label = "Descansar gratis (recupera tudo em 30 min)"
+    btn_desc = discord.ui.Button(
+        label=desc_label,
+        style=discord.ButtonStyle.success if pode_descansar else discord.ButtonStyle.secondary,
+        disabled=not pode_descansar, row=1)
+    async def on_descanso(inter: discord.Interaction):
+        if inter.user.id != interaction.user.id: return
+        res = await usar_descanso(inter.user.id)
+        if res:
+            await inter.response.send_message(
+                f"Descansou e recuperou todo HP e Mana! Proximo descanso gratis em **30 minutos**.",
+                ephemeral=True)
+        else:
+            await inter.response.send_message("Erro ao descansar!", ephemeral=True)
+    btn_desc.callback = on_descanso
+    v.add_item(btn_desc)
+    if IMG_HOSPITAL: embed.set_image(url=IMG_HOSPITAL)
     await interaction.followup.send(embed=embed, view=v)
 
 async def cmd_girar(interaction: discord.Interaction):
@@ -380,7 +435,7 @@ async def cmd_girar(interaction: discord.Interaction):
         ))
 
     sel.callback = girar
-    embed.set_image(url=IMG_HOSPITAL)
+    if IMG_HOSPITAL: embed.set_image(url=IMG_HOSPITAL)
     v = discord.ui.View(timeout=60); v.add_item(sel)
     await interaction.followup.send(embed=embed, view=v)
 
