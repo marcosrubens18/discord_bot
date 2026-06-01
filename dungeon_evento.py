@@ -200,9 +200,18 @@ class AdicionarAndarModal(discord.ui.Modal, title="Adicionar Andar"):
         default="nao"
     )
 
-    def __init__(self, dungeon_id: int):
+    def __init__(self, dungeon_id: int, loot_chave: str = ""):
         super().__init__()
         self.dungeon_id = dungeon_id
+        self.loot_chave = loot_chave
+        # Pre-fill loot field if item was selected via autocomplete
+        if loot_chave:
+            try:
+                from catalogo import get_item_por_chave
+                it = get_item_por_chave(loot_chave)
+                if it:
+                    self.loot_input.default = f"{it['id']}|{it['nome']}|{it['tipo']}|{it['raridade']}|{it['emoji']}"
+            except: pass
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
