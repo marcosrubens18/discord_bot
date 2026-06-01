@@ -134,33 +134,56 @@ class DungeonEventoCriarModal(discord.ui.Modal, title="Criar Dungeon de Evento")
 
         # Seletor de canal (sem modal - e uma View)
         class CanalView(discord.ui.View):
-            def __init__(self_v): super().__init__(timeout=120)
+    def __init__(self_v):
+        super().__init__(timeout=120)
 
-            @discord.ui.select(
-                cls=discord.ui.ChannelSelect,
-                placeholder="Escolha o canal de anuncio...",
-                
+    @discord.ui.select(
+        cls=discord.ui.ChannelSelect,
+        placeholder="Escolha o canal de anuncio...",
+        channel_types=[
+            discord.ChannelType.text,
+            discord.ChannelType.news,
+            discord.ChannelType.forum,
+        ],
+    )
+    async def sel(
+        self_v,
+        inter: discord.Interaction,
+        s: discord.ui.ChannelSelect
+    ):
+        if inter.user.id != interaction.user.id:
+            await inter.response.defer()
+            return
+
+        canal_raw = s.values[0]
+        canal = interaction.guild.get_channel(canal_raw.id) or canal_raw
+
+        pool2 = await get_pool()
+        async with pool2.acquire() as conn2:
+            await conn2.execute(
+                "UPDATE dungeons_evento SET canal_id=$1 WHERE id=$2",
+                canal.id,
+                dg["id"]
             )
-            async def sel(self_v, inter: discord.Interaction, s: discord.ui.ChannelSelect):
-                if inter.user.id != interaction.user.id:
-                    await inter.response.defer(); return
-                canal_raw = s.values[0]
-                canal = interaction.guild.get_channel(canal_raw.id) or canal_raw
-                pool2 = await get_pool()
-                async with pool2.acquire() as conn2:
-                    await conn2.execute(
-                        "UPDATE dungeons_evento SET canal_id=$1 WHERE id=$2",
-                        canal.id, dg["id"])
-                await inter.response.send_message(
-                    f"Dungeon **{str(self.nome_input)}** criada! ID: `{dg['id']}`\n"
-                    f"Rank: **{rank_min}** | Fechamento: **{fecha_txt}** | Tentativas: **{tent_txt}**\n"
-                    f"Canal: {canal.mention}\n\n"
-                    f"Proximos passos:\n"
-                    f"1. `/dungeon-evento-andar {dg['id']}` — adicione os andares\n"
-                    f"2. `/dungeon-evento-info {dg['id']}` — confira tudo\n"
-                    f"3. `/dungeon-evento-ativar {dg['id']}` — ative quando quiser",
-                    ephemeral=True
-                )
+
+        await inter.response.send_message(
+            f"Dungeon **{str(self.nome_input)}** criada! ID: `{dg['id']}`\n"
+            f"Rank: **{rank_min}** | Fechamento: **{fecha_txt}** | Tentativas: **{tent_txt}**\n"
+            f"Canal: {canal.mention}\n\n"
+            f"Proximos passos:\n"
+            f"1. `/dungeon-evento-andar {dg['id']}` — adicione os andares\n"
+            f"2. `/dungeon-evento-info {dg['id']}` — confira tudo\n"
+            f"3. `/dungeon-evento-ativar {dg['id']}` — ative quando quiser",
+            ephemeral=True
+        )
+
+        self_v.stop()
+
+await interaction.followup.send(
+    "Escolha o canal onde a dungeon sera anunciada:",
+    view=CanalView(),
+    ephemeral=True
+)
                 self_v.stop()
 
         await interaction.followup.send(
