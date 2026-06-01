@@ -116,17 +116,32 @@ async def atualizar_cargo_rank(guild, member, rank):
             except: pass
 
 async def criar_canal_privado(guild, member, nome, classe):
-    cat = discord.utils.get(guild.categories, name="MEU PERFIL")
-    if not cat: return
     try:
+        # Busca categoria por varios nomes possiveis
+        cat = (discord.utils.get(guild.categories, name="MEU PERFIL") or
+               discord.utils.get(guild.categories, name="Meu Perfil") or
+               discord.utils.get(guild.categories, name="PERFIL") or
+               discord.utils.get(guild.categories, name="perfil"))
+        # Se nao existe, cria
+        if not cat:
+            cat = await guild.create_category("MEU PERFIL")
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             member: discord.PermissionOverwrite(read_messages=True, send_messages=True),
             guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True),
         }
         nome_canal = f"{classe['emoji']}│{nome.lower()[:20]}"
-        await guild.create_text_channel(nome_canal, category=cat, overwrites=overwrites)
-    except: pass
+        canal = await guild.create_text_channel(nome_canal, category=cat, overwrites=overwrites)
+        # Manda mensagem de boas vindas no canal
+        embed_bv = discord.Embed(
+            title=f"Bem-vindo ao seu canal, {nome}!",
+            description="Este e o seu espaco privado!\n\nUse `/perfil` `/inventario` `/treinar`",
+            color=COR_RAR_BOT.get(classe.get("raridade","Comum"), 0x7F77DD)
+        )
+        embed_bv.set_footer(text="Villa Eldoria RPG — Sua jornada comeca aqui!")
+        await canal.send(member.mention, embed=embed_bv)
+    except Exception as e:
+        print(f"Erro ao criar canal privado: {e}")
 
 # ─── /criar_personagem ───────────────────────────────────────────
 
