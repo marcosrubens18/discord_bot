@@ -93,9 +93,10 @@ class DungeonEventoCriarModal(discord.ui.Modal, title="Criar Dungeon de Evento")
         max_length=200
     )
 
-    def __init__(self, guild):
+    def __init__(self, guild, premio: str = ""):
         super().__init__()
         self.guild = guild
+        if premio: self.premio_input.default = premio
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
