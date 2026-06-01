@@ -133,7 +133,7 @@ class DungeonEventoCriarModal(discord.ui.Modal, title="Criar Dungeon de Evento")
         fecha_txt = "Quando alguem completar" if modo == "primeiro" else f"{dias} dias"
 
         # Seletor de canal (sem modal - e uma View)
-        class CanalView(discord.ui.View):
+class CanalView(discord.ui.View):
     def __init__(self_v):
         super().__init__(timeout=120)
 
