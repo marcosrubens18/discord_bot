@@ -593,8 +593,18 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     await interaction.followup.send("Escolha a arena:", view=view_arena, wait=True)
     await view_arena.wait()
     arena = view_arena.arena or random.choice(ARENAS)
-    await rodar_treino(interaction, p, monstro, arena)
-    await incrementar_treino(interaction.user.id)
+    try:
+        await rodar_treino(interaction, p, monstro, arena)
+    except Exception as e:
+        import traceback
+        print(f"ERRO rodar_treino: {e}")
+        traceback.print_exc()
+        BATALHAS_ATIVAS.discard(interaction.user.id)
+        try:
+            await interaction.followup.send("Ocorreu um erro na batalha. Tente novamente!", ephemeral=True)
+        except: pass
+    finally:
+        await incrementar_treino(interaction.user.id)
 
 # ─── /desafiar ───────────────────────────────────────────────────
 
