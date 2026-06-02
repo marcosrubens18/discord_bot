@@ -29,8 +29,9 @@ from eventos import cmd_criar_evento, cmd_eventos, cmd_evento_info, cmd_encerrar
 from anuncios import cmd_anunciar, cmd_anunciar_evento, cmd_agendar_anuncio, CORES
 from loja_sazonal import (cmd_loja_sazonal, cmd_loja_sazonal_remover, LojaItemModal, LojaRotativaModal, init_db_loja_sazonal)
 from guildas import (cmd_guilda_criar, cmd_guilda_info, cmd_guilda_convidar, cmd_guilda_sair,
-    cmd_guilda_expulsar, cmd_guilda_promover, cmd_guilda_depositar, cmd_guilda_ranking,
-    init_db_guildas)
+    cmd_guilda_expulsar, cmd_guilda_promover, cmd_guilda_depositar, cmd_guilda_retirar,
+    cmd_guilda_ranking, cmd_guilda_missoes, init_db_guildas, dar_xp_guilda, atualizar_missao_guilda)
+from dupla import rodar_treino_dupla
 from torneio import (cmd_torneio_criar, cmd_torneio_status, cmd_torneio_lutar,
     cmd_torneio_fechar_inscricoes, cmd_torneio_cancelar, init_db_torneio)
 from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
@@ -1308,6 +1309,77 @@ async def historico(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
+
+# ─── /guilda-missoes ─────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-missoes", description="Veja as missoes semanais da sua guilda")
+async def guilda_missoes(interaction: discord.Interaction):
+    await cmd_guilda_missoes(interaction)
+
+
+# ─── /guilda-retirar ─────────────────────────────────────────────
+
+@bot.tree.command(name="guilda-retirar", description="[Mestre] Retira moedas do banco da guilda")
+@app_commands.describe(valor="Quantidade de moedas a retirar")
+async def guilda_retirar(interaction: discord.Interaction, valor: int):
+    await cmd_guilda_retirar(interaction, valor)
+
+
+# ─── /treinar-dupla ──────────────────────────────────────────────
+
+@bot.tree.command(name="treinar-dupla", description="Batalha em dupla com outro jogador da guilda")
+@app_commands.describe(parceiro="Jogador parceiro", dificuldade="Dificuldade")
+@app_commands.choices(dificuldade=[
+    app_commands.Choice(name="Facil",    value="facil"),
+    app_commands.Choice(name="Medio",    value="medio"),
+    app_commands.Choice(name="Dificil",  value="dificil"),
+    app_commands.Choice(name="Lendario", value="lendario"),
+])
+async def treinar_dupla(interaction: discord.Interaction, parceiro: discord.Member,
+                         dificuldade: str = "facil"):
+    await interaction.response.defer()
+    # Validacoes
+    if parceiro.bot or parceiro.id == interaction.user.id:
+        await interaction.followup.send("Parceiro invalido!", ephemeral=True); return
+    if em_batalha(interaction.user.id) or em_batalha(parceiro.id):
+        await interaction.followup.send("Um dos jogadores ja esta em batalha!", ephemeral=True); return
+    p1 = await get_personagem(interaction.user.id)
+    p2 = await get_personagem(parceiro.id)
+    if not p1 or not p2:
+        await interaction.followup.send("Ambos precisam ter personagem!", ephemeral=True); return
+
+    # Convite ao parceiro
+    class AceitarView(discord.ui.View):
+        def __init__(self): super().__init__(timeout=60); self.ok = None
+        @discord.ui.button(label="Aceitar!", style=discord.ButtonStyle.success)
+        async def sim(self, inter, b):
+            if inter.user.id != parceiro.id: return
+            self.ok = True; await inter.response.defer(); self.stop()
+        @discord.ui.button(label="Recusar", style=discord.ButtonStyle.danger)
+        async def nao(self, inter, b):
+            if inter.user.id != parceiro.id: return
+            self.ok = False; await inter.response.defer(); self.stop()
+
+    v = AceitarView()
+    embed_inv = discord.Embed(
+        title="Convite de Batalha em Dupla!",
+        description=f"{interaction.user.mention} te convida para batalhar juntos! Dificuldade: **{dificuldade.title()}**",
+        color=0x7F77DD
+    )
+    await interaction.followup.send(content=parceiro.mention, embed=embed_inv, view=v)
+    await v.wait()
+    if not v.ok:
+        await interaction.followup.send(f"{parceiro.display_name} recusou o convite.", ephemeral=True); return
+
+    monstros_d = [m for m in MONSTROS if m["dificuldade"] == dificuldade]
+    if not monstros_d:
+        await interaction.followup.send("Dificuldade invalida!", ephemeral=True); return
+    monstro = random.choice(monstros_d)
+    arena   = random.choice(ARENAS)
+    await rodar_treino_dupla(interaction, p1, p2, monstro, arena,
+                              interaction.user, parceiro)
+
+
 # ─── /guilda-criar ───────────────────────────────────────────────
 
 @bot.tree.command(name="guilda-criar", description="Funda uma nova guilda (custa 5000 moedas)")
@@ -1382,7 +1454,8 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Admin",      value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros` `/set-vida` `/set-mana`", inline=False)
     embed.add_field(name="Eventos",    value="`/criar-evento` `/eventos` `/evento-info` `/encerrar-evento` `/add-pontos`", inline=False)
     embed.add_field(name="Anuncios",   value="`/anunciar` `/anunciar-evento` `/agendar-anuncio`", inline=False)
-    embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-ranking`", inline=False)
+    embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-missoes` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-retirar` `/guilda-ranking`", inline=False)
+    embed.add_field(name="Dupla",      value="`/treinar-dupla`", inline=False)
     embed.add_field(name="Torneio",    value="`/torneio-criar` `/torneio-status` `/torneio-lutar` `/torneio-fechar-inscricoes` `/torneio-cancelar`", inline=False)
     embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
