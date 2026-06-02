@@ -1049,7 +1049,7 @@ async def deletar_personagem(interaction: discord.Interaction):
 ])
 @app_commands.autocomplete(premio_valor=autocomplete_item_premio, canal=autocomplete_canal)
 @app_commands.checks.has_permissions(administrator=True)
-async def criar_evento(interaction: discord.Interaction, tipo: str, premio_tipo: str, premio_valor: str, canal):
+async def criar_evento(interaction: discord.Interaction, tipo: str, premio_tipo: str, premio_valor: str, canal: str):
     canal_obj = resolver_canal(interaction.guild, canal)
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
     await cmd_criar_evento(interaction, tipo, premio_tipo, premio_valor, canal_obj)
@@ -1109,7 +1109,7 @@ async def add_pontos(interaction: discord.Interaction, jogador: discord.Member, 
     app_commands.Choice(name="Preto", value="preto"),
 ])
 @app_commands.checks.has_permissions(administrator=True)
-async def anunciar(interaction: discord.Interaction, canal,
+async def anunciar(interaction: discord.Interaction, canal: str,
                    cor: str = "roxo", ping: discord.Role = None):
     canal_obj = resolver_canal(interaction.guild, canal)
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
@@ -1125,7 +1125,7 @@ async def anunciar(interaction: discord.Interaction, canal,
 )
 @app_commands.autocomplete(canal=autocomplete_canal)
 @app_commands.checks.has_permissions(administrator=True)
-async def anunciar_evento(interaction: discord.Interaction, canal,
+async def anunciar_evento(interaction: discord.Interaction, canal: str,
                           ping: discord.Role = None):
     canal_obj = resolver_canal(interaction.guild, canal)
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
@@ -1150,7 +1150,7 @@ async def anunciar_evento(interaction: discord.Interaction, canal,
     app_commands.Choice(name="Preto", value="preto"),
 ])
 @app_commands.checks.has_permissions(administrator=True)
-async def agendar_anuncio(interaction: discord.Interaction, canal,
+async def agendar_anuncio(interaction: discord.Interaction, canal: str,
                           cor: str = "dourado"):
     canal_obj = resolver_canal(interaction.guild, canal)
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
@@ -1169,7 +1169,7 @@ async def agendar_anuncio(interaction: discord.Interaction, canal,
 )
 @app_commands.autocomplete(premio_1=autocomplete_item_premio, premio_2=autocomplete_item_premio, premio_3=autocomplete_item_premio, canal=autocomplete_canal)
 @app_commands.checks.has_permissions(administrator=True)
-async def torneio_criar(interaction: discord.Interaction, canal,
+async def torneio_criar(interaction: discord.Interaction, canal: str,
                          premio_1: str, premio_2: str = "", premio_3: str = ""):
     canal_obj = resolver_canal(interaction.guild, canal)
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
@@ -1221,7 +1221,7 @@ async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
 )
 @app_commands.autocomplete(premio=autocomplete_item_premio, canal=autocomplete_canal)
 @app_commands.checks.has_permissions(administrator=True)
-async def dungeon_evento_criar(interaction: discord.Interaction, canal, premio: str):
+async def dungeon_evento_criar(interaction: discord.Interaction, canal: str, premio: str):
     canal_obj = resolver_canal(interaction.guild, canal)
     canal_id = canal_obj.id if canal_obj else 0
     await interaction.response.send_modal(DungeonEventoCriarModal(interaction.guild, premio, canal_id))
