@@ -173,14 +173,116 @@ async def criar_canal_privado(guild, member, nome, classe):
         }
         nome_canal = f"{classe['emoji']}│{nome.lower()[:20]}"
         canal = await guild.create_text_channel(nome_canal, category=cat, overwrites=overwrites)
-        # Manda mensagem de boas vindas no canal
-        embed_bv = discord.Embed(
-            title=f"Bem-vindo ao seu canal, {nome}!",
-            description="Este e o seu espaco privado!\n\nUse `/perfil` `/inventario` `/treinar`",
-            color=COR_RAR_BOT.get(classe.get("raridade","Comum"), 0x7F77DD)
-        )
-        embed_bv.set_footer(text="Villa Eldoria RPG — Sua jornada comeca aqui!")
-        await canal.send(member.mention, embed=embed_bv)
+        # Tutorial completo no canal privado
+        cor = COR_RAR_BOT.get(classe.get("raridade","Comum"), 0x7F77DD)
+        await canal.send(content=member.mention)
+
+        secoes = [
+            ("Bem-vindo a Villa Eldoria!", cor,
+             "Este e o seu canal privado - so voce e o bot tem acesso aqui.\n\n"
+             "Aqui estao todas as informacoes para sua jornada.\n"
+             "**Leia tudo antes de comecar!**\n\n"
+             "Use `/tutorial` a qualquer momento para rever qualquer secao.", "1/11"),
+
+            ("Seu Personagem", 0x7F77DD,
+             "**Comandos essenciais:**\n"
+             "`/perfil` - Ver sua ficha completa\n"
+             "`/inventario` - Ver seus itens\n"
+             "`/skills` - Ver suas habilidades\n"
+             "`/setup` - Equipar armas e armaduras\n\n"
+             "Ganhe XP para subir de nivel e evoluir seu personagem.\n"
+             "Cada nivel aumenta HP, Mana, ATK e DEF automaticamente.", "2/11"),
+
+            ("Roletas do Destino", 0x9B59B6,
+             "`/girar` - Girar a roleta usando fichas\n\n"
+             "As roletas podem conceder:\n"
+             "- Novas classes raras (Dracomante, Arcano...)\n"
+             "- Racas especiais\n"
+             "- Itens e recompensas exclusivas\n\n"
+             "Fichas sao obtidas em eventos, missoes e conquistas.", "3/11"),
+
+            ("Sistema de Combate", 0xE24B4A,
+             "`/treinar [dificuldade]` - Batalhar contra monstros\n"
+             "`/desafiar @jogador` - Duelo PvP\n"
+             "`/treinar-dupla @parceiro` - Batalha em dupla (+20% recompensa)\n\n"
+             "Durante a batalha voce pode usar skills, se defender,\n"
+             "usar pocoes da mochila ou fugir.\n\n"
+             "**Dificuldades:** Facil > Medio > Dificil > Lendario", "4/11"),
+
+            ("Dungeons", 0x7F77DD,
+             "`/dungeon` - Entrar em uma dungeon\n\n"
+             "Cada dungeon tem andares com monstros diferentes.\n"
+             "Derrote todos para avancar e ganhar loot.\n"
+             "Se morrer perde todas as recompensas do run.\n\n"
+             "Masmorras vao do Rank F ao Rank SS.\n"
+             "Cada rank e mais desafiador e recompensador.", "5/11"),
+
+            ("Inventario e Loja", 0x1D9E75,
+             "`/inventario` - Ver seus itens\n"
+             "`/loja` - Comprar armas, armaduras e pocoes\n"
+             "`/loja-sazonal` - Itens especiais e ofertas do dia\n"
+             "`/ferreiro` - Forjar equipamentos raros\n"
+             "`/mercado` - Vender seus itens\n\n"
+             "Dica: Equipe sempre a melhor arma e armadura para sua classe!\n"
+             "Use `/setup` para equipar ou clique em Equipar no `/inventario`.", "6/11"),
+
+            ("Hospital e Recuperacao", 0x3498DB,
+             "`/hospital` - Acessar o hospital\n\n"
+             "Opcoes de cura:\n"
+             "- Comprar cura com moedas\n"
+             "- Descanso gratis de 30 minutos (recupera tudo)\n"
+             "- Pocoes de cura do inventario durante batalhas\n\n"
+             "Dica: Use o descanso gratis sempre que possivel!", "7/11"),
+
+            ("Guildas", 0xE4AF3C,
+             "`/guilda-info` - Ver informacoes da sua guilda\n"
+             "`/guilda-missoes` - Ver missoes semanais\n"
+             "`/guilda-depositar` - Depositar no banco da guilda\n\n"
+             "Beneficios de ter guilda:\n"
+             "- Bonus de XP e moedas conforme o nivel da guilda\n"
+             "- Missoes semanais com recompensas para todos\n"
+             "- Batalhas em dupla com membros\n\n"
+             "Para criar uma guilda: `/guilda-criar` (custa 5000 moedas)", "8/11"),
+
+            ("Rankings e Conquistas", 0xE4AF3C,
+             "`/ranking` - Ver ranking do servidor\n"
+             "`/conquistas` - Ver suas conquistas\n"
+             "`/missoes` - Ver missoes diarias\n"
+             "`/historico` - Ver historico de batalhas\n\n"
+             "Rankings: Maior nivel, mais vitorias, mais rico,\n"
+             "dungeons concluidas e torneios vencidos.\n\n"
+             "Complete conquistas para ganhar recompensas!", "9/11"),
+
+            ("Eventos e Torneios", 0xD85A30,
+             "`/eventos` - Ver eventos ativos\n"
+             "`/evento-info` - Detalhes e ranking do evento\n\n"
+             "Tipos de eventos:\n"
+             "- Torneios PvP com chaves e premios\n"
+             "- Dungeons de evento com monstros customizados\n"
+             "- Eventos especiais com premios exclusivos\n\n"
+             "Fique de olho nos canais de anuncio!", "10/11"),
+
+            ("Dicas para Iniciantes", 0x1D9E75,
+             "**Por onde comecar:**\n"
+             "1. Use `/loja` e compre uma arma para sua classe\n"
+             "2. Use `/treinar facil` para ganhar XP e moedas\n"
+             "3. Complete as `/missoes` diarias\n"
+             "4. Entre numa guilda para bonus de XP\n"
+             "5. Explore `/dungeon` quando estiver mais forte\n\n"
+             "**Como evoluir rapido:**\n"
+             "- Faca missoes diarias todos os dias\n"
+             "- Participe de todos os eventos\n"
+             "- Use o descanso gratis do hospital\n"
+             "- Jogue em dupla para +20% de recompensa\n\n"
+             "Use `/tutorial` para rever qualquer secao!", "11/11"),
+        ]
+
+        for titulo, cor_s, desc, secao in secoes:
+            e = discord.Embed(title=titulo, description=desc, color=cor_s)
+            e.set_footer(text=f"Villa Eldoria RPG — Secao {secao}")
+            await canal.send(embed=e)
+            await asyncio.sleep(0.4)
+
     except Exception as e:
         print(f"Erro ao criar canal privado: {e}")
 
@@ -1489,6 +1591,96 @@ async def guilda_ranking(interaction: discord.Interaction):
     await cmd_guilda_ranking(interaction)
 
 
+
+# ─── /tutorial ───────────────────────────────────────────────────
+
+TUTORIAL_SECOES = {
+    "personagem": ("Seu Personagem", 0x7F77DD,
+        "`/perfil` - Ver sua ficha completa\n"
+        "`/inventario` - Ver seus itens\n"
+        "`/skills` - Ver suas habilidades\n"
+        "`/setup` - Equipar armas e armaduras\n\n"
+        "Ganhe XP para subir de nivel e evoluir.\n"
+        "Cada nivel aumenta HP, Mana, ATK e DEF automaticamente."),
+    "combate": ("Sistema de Combate", 0xE24B4A,
+        "`/treinar [dificuldade]` - Batalhar contra monstros\n"
+        "`/desafiar @jogador` - Duelo PvP\n"
+        "`/treinar-dupla @parceiro` - Batalha em dupla (+20%)\n\n"
+        "Durante a batalha: use skills, se defenda,\n"
+        "use pocoes da mochila ou fuja.\n\n"
+        "**Dificuldades:** Facil > Medio > Dificil > Lendario"),
+    "dungeons": ("Dungeons", 0x7F77DD,
+        "`/dungeon` - Entrar em uma dungeon\n\n"
+        "Cada dungeon tem andares com monstros diferentes.\n"
+        "Derrote todos para avancar e ganhar loot.\n"
+        "Se morrer perde as recompensas do run.\n\n"
+        "Masmorras vao do Rank F ao Rank SS."),
+    "loja": ("Inventario e Loja", 0x1D9E75,
+        "`/inventario` - Ver seus itens\n"
+        "`/loja` - Comprar armas, armaduras e pocoes\n"
+        "`/loja-sazonal` - Itens especiais e ofertas do dia\n"
+        "`/ferreiro` - Forjar equipamentos raros\n"
+        "`/mercado` - Vender seus itens\n\n"
+        "Equipe sempre a melhor arma e armadura para sua classe!"),
+    "hospital": ("Hospital e Recuperacao", 0x3498DB,
+        "`/hospital` - Acessar o hospital\n\n"
+        "Opcoes de cura:\n"
+        "- Comprar cura com moedas\n"
+        "- Descanso gratis de 30 minutos\n"
+        "- Pocoes durante batalhas\n\n"
+        "Use o descanso gratis sempre que possivel!"),
+    "guildas": ("Guildas", 0xE4AF3C,
+        "`/guilda-info` - Ver informacoes da sua guilda\n"
+        "`/guilda-missoes` - Ver missoes semanais\n"
+        "`/guilda-depositar` - Depositar no banco\n\n"
+        "Beneficios: bonus de XP/moedas, missoes semanais,\n"
+        "batalhas em dupla e canal exclusivo.\n\n"
+        "Para criar: `/guilda-criar` (custa 5000 moedas)"),
+    "ranking": ("Rankings e Conquistas", 0xE4AF3C,
+        "`/ranking` - Ver ranking do servidor\n"
+        "`/conquistas` - Ver suas conquistas\n"
+        "`/missoes` - Ver missoes diarias\n"
+        "`/historico` - Ver historico de batalhas\n\n"
+        "Rankings: nivel, vitorias, rico, dungeons, torneios.\n"
+        "Complete conquistas para ganhar recompensas!"),
+    "eventos": ("Eventos e Torneios", 0xD85A30,
+        "`/eventos` - Ver eventos ativos\n"
+        "`/evento-info` - Detalhes e ranking\n\n"
+        "Tipos: torneios PvP, dungeons de evento,\n"
+        "eventos especiais com premios exclusivos.\n\n"
+        "Fique de olho nos canais de anuncio!"),
+    "dicas": ("Dicas para Iniciantes", 0x1D9E75,
+        "**Por onde comecar:**\n"
+        "1. Use `/loja` e compre uma arma\n"
+        "2. Use `/treinar facil` para ganhar XP\n"
+        "3. Complete as `/missoes` diarias\n"
+        "4. Entre numa guilda para bonus de XP\n"
+        "5. Explore `/dungeon` quando estiver forte\n\n"
+        "**Como evoluir rapido:**\n"
+        "Faca missoes diarias, participe de eventos,\n"
+        "use o descanso gratis do hospital e jogue em dupla!"),
+}
+
+@bot.tree.command(name="tutorial", description="Guia completo do servidor — escolha uma secao")
+@app_commands.describe(secao="Qual secao voce quer ver?")
+@app_commands.choices(secao=[
+    app_commands.Choice(name="Personagem — perfil, skills e progressao", value="personagem"),
+    app_commands.Choice(name="Combate — treino, PvP e batalha em dupla",  value="combate"),
+    app_commands.Choice(name="Dungeons — masmorras e recompensas",         value="dungeons"),
+    app_commands.Choice(name="Loja e Inventario — itens e equipamentos",   value="loja"),
+    app_commands.Choice(name="Hospital — cura e recuperacao",              value="hospital"),
+    app_commands.Choice(name="Guildas — unir forcas",                      value="guildas"),
+    app_commands.Choice(name="Rankings e Conquistas",                      value="ranking"),
+    app_commands.Choice(name="Eventos e Torneios",                         value="eventos"),
+    app_commands.Choice(name="Dicas para Iniciantes",                      value="dicas"),
+])
+async def tutorial(interaction: discord.Interaction, secao: str = "dicas"):
+    titulo, cor, desc = TUTORIAL_SECOES.get(secao, TUTORIAL_SECOES["dicas"])
+    embed = discord.Embed(title=titulo, description=desc, color=cor)
+    embed.set_footer(text="Villa Eldoria RPG | Use /tutorial novamente para ver outra secao")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
 # ─── /ajuda ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="ajuda", description="Lista todos os comandos do RPG")
@@ -1567,10 +1759,41 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member: discord.Member):
+    # Cargo de recem-chegado
     cargo = discord.utils.get(member.guild.roles, name="🌱 Recem-chegado")
     if cargo:
         try: await member.add_roles(cargo)
         except: pass
+
+    # Mensagem de boas-vindas
+    try:
+        canal_bv = (
+            discord.utils.get(member.guild.text_channels, name="📌┃boas-vindas") or
+            discord.utils.get(member.guild.text_channels, name="boas-vindas") or
+            discord.utils.get(member.guild.text_channels, name="bem-vindo") or
+            discord.utils.get(member.guild.text_channels, name="welcome")
+        )
+        if not canal_bv: return
+
+        embed = discord.Embed(
+            title=f"Bem-vindo a Villa Eldoria, {member.display_name}!",
+            description=(
+                "Villa Eldoria e um RPG textual de fantasia medieval!\n\n"
+                "**O que te espera:**\n"
+                "Combate com skills e equipamentos\n"
+                "Dungeons com varios andares e chefes\n"
+                "Torneios PvP, eventos e rankings\n"
+                "Guildas com missoes semanais\n"
+                "Roletas para desbloquear racas e classes raras\n\n"
+                "**Para comecar:** Use `/criar_personagem`!\n"
+                "Apos criar seu personagem voce recebera um canal privado com guia completo."
+            ),
+            color=0xE4AF3C
+        )
+        embed.set_footer(text="Villa Eldoria RPG — Sua jornada comeca agora!")
+        await canal_bv.send(content=member.mention, embed=embed)
+    except Exception as e:
+        print(f"Erro boas-vindas: {e}")
 
 # ─── MAIN ────────────────────────────────────────────────────────
 
