@@ -929,10 +929,10 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
             f"{monstro['emoji']} **{monstro['nome']}** ❤️`{barra_hp(hp_m,hp_mmx)}`**{hp_m}/{hp_mmx}**"
         )
 
-    # Embed inicial
+    # Card do monstro (imagem separada)
     img_monstro = monstro.get("img", IMG_MONSTRO.get(monstro.get("id",""), IMG_MONSTRO["default"]))
-    embed_ini = discord.Embed(
-        title=f"⚔️ Batalha iniciada — {arena['emoji']} {arena['nome']}",
+    embed_monstro = discord.Embed(
+        title=f"{monstro['emoji']} {monstro['nome']} aparece!",
         description=(
             f"**{emoji_j} {p['nome']}** vs **{monstro['emoji']} {monstro['nome']}**\n\n"
             f"{barra_status()}\n\n"
@@ -940,9 +940,9 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         ),
         color=arena["cor"]
     )
-    if arena.get("img"): embed_ini.set_image(url=arena["img"])
-    embed_ini.set_thumbnail(url=img_monstro)
-    msgs_batalha.append(await interaction.followup.send(embed=embed_ini, wait=True))
+    if img_monstro: embed_monstro.set_image(url=img_monstro)
+    msgs_batalha.append(await interaction.followup.send(embed=embed_monstro, wait=True))
+    await asyncio.sleep(1)
 
     # ─── LOOP DE BATALHA ─────────────────────────────────────────
 
@@ -1020,11 +1020,11 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
 
         if acao == "fugir":
             embed_fuga = discord.Embed(
-                title="🏃 Você fugiu!",
-                description=f"Voce escapou de **{monstro['emoji']} {monstro['nome']}**!\nNenhuma recompensa.",
+                title="🏃 Voce fugiu!",
+                description=f"Escapou de **{monstro['emoji']} {monstro['nome']}**!\nNenhuma recompensa.",
                 color=0x888780
             )
-            embed_fuga.set_image(url=arena["img"])
+            if IMG_DERROTA: embed_fuga.set_image(url=IMG_DERROTA)
             await interaction.followup.send(embed=embed_fuga)
             BATALHAS_ATIVAS.discard(uid)
             for m in msgs_batalha:
@@ -1395,7 +1395,8 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
 
     # Envia resultado ANTES de apagar mensagens
     fim = discord.Embed(title=titulo, description=desc, color=cor)
-    fim.set_image(url=arena["img"])
+    img_resultado = IMG_VITORIA if vitoria else IMG_DERROTA
+    if img_resultado: fim.set_image(url=img_resultado)
     msg_fim = await interaction.followup.send(embed=fim, wait=True)
 
     await asyncio.sleep(1.5)
