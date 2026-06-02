@@ -69,10 +69,10 @@ IMG_HOSPITAL_PREMIUM  = ""
 # ─── MONSTROS — TREINO ───────────────────────────────────────────
 IMG_MONSTRO = {
     # Facil
-    "goblin":          "",
-    "lobo":            "",
-    "rato_gigante":    "",
-    "goblin_arqueiro": "",
+    "goblin":          "https://i.imgur.com/I59Dzqt.png",
+    "lobo":            "https://i.imgur.com/NM0Wfc3.png",
+    "rato_gigante":    "https://i.imgur.com/lkAHFI5.png",
+    "goblin_arqueiro": "https://i.imgur.com/Y502ilA.png",
     # Medio
     "orc":             "",
     "golem":           "",
