@@ -32,6 +32,8 @@ from guildas import (cmd_guilda_criar, cmd_guilda_info, cmd_guilda_convidar, cmd
     cmd_guilda_expulsar, cmd_guilda_promover, cmd_guilda_depositar, cmd_guilda_retirar,
     cmd_guilda_ranking, cmd_guilda_missoes, init_db_guildas, dar_xp_guilda, atualizar_missao_guilda)
 from dupla import rodar_treino_dupla
+from expedicao import (cmd_expedicao_criar, cmd_expedicao_status, cmd_expedicao_encerrar, init_db_expedicao)
+from expedicao import cmd_expedicao_iniciar
 from torneio import (cmd_torneio_criar, cmd_torneio_status, cmd_torneio_lutar,
     cmd_torneio_fechar_inscricoes, cmd_torneio_cancelar, init_db_torneio)
 from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
@@ -1679,6 +1681,45 @@ async def tutorial(interaction: discord.Interaction, secao: str = "dicas"):
     embed = discord.Embed(title=titulo, description=desc, color=cor)
     embed.set_footer(text="Villa Eldoria RPG | Use /tutorial novamente para ver outra secao")
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+
+# ─── /expedicao-criar ────────────────────────────────────────────
+
+@bot.tree.command(name="expedicao-criar", description="[ADMIN] Cria uma expedição narrativa com IA")
+@app_commands.describe(canal="Canal onde a expedição sera anunciada")
+@app_commands.autocomplete(canal=autocomplete_canal)
+@app_commands.checks.has_permissions(administrator=True)
+async def expedicao_criar(interaction: discord.Interaction, canal: str):
+    canal_obj = resolver_canal(interaction.guild, canal)
+    if not canal_obj:
+        await interaction.response.send_message("Canal nao encontrado!", ephemeral=True); return
+    await cmd_expedicao_criar(interaction, canal_obj)
+
+
+# ─── /expedicao-iniciar ──────────────────────────────────────────
+
+@bot.tree.command(name="expedicao-iniciar", description="[ADMIN] Inicia a aventura de uma expedição")
+@app_commands.describe(expedicao_id="ID da expedição")
+@app_commands.checks.has_permissions(administrator=True)
+async def expedicao_iniciar(interaction: discord.Interaction, expedicao_id: int):
+    await cmd_expedicao_iniciar(interaction, expedicao_id)
+
+
+# ─── /expedicao-encerrar ─────────────────────────────────────────
+
+@bot.tree.command(name="expedicao-encerrar", description="[ADMIN] Encerra uma expedição manualmente")
+@app_commands.describe(expedicao_id="ID da expedição", sucesso="A expedição foi um sucesso?")
+@app_commands.checks.has_permissions(administrator=True)
+async def expedicao_encerrar(interaction: discord.Interaction, expedicao_id: int, sucesso: bool = True):
+    await cmd_expedicao_encerrar(interaction, expedicao_id, sucesso)
+
+
+# ─── /expedicao-status ───────────────────────────────────────────
+
+@bot.tree.command(name="expedicao-status", description="Lista todas as expedições ativas")
+async def expedicao_status(interaction: discord.Interaction):
+    await cmd_expedicao_status(interaction)
 
 
 # ─── /ajuda ──────────────────────────────────────────────────────
