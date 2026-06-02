@@ -619,7 +619,27 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     if not monstros_d:
         await interaction.followup.send("Dificuldade invalida!", ephemeral=True); return
     monstro = random.choice(monstros_d)
-    arena = random.choice(ARENAS)  # arena aleatoria para evitar travamento
+
+    # Seletor de arena com imagem
+    view_arena = EscolherArenaView(interaction.user.id)
+    embed_arena = discord.Embed(
+        title="Escolha a Arena!",
+        description=f"Voce vai enfrentar **{monstro['emoji']} {monstro['nome']}**!\n\nEscolha onde a batalha vai acontecer:",
+        color=0x7F77DD
+    )
+    embed_arena.set_footer(text="30s para selecionar automaticamente")
+    msg_arena = await interaction.followup.send(embed=embed_arena, view=view_arena, wait=True)
+    await view_arena.wait()
+    arena = view_arena.arena or random.choice(ARENAS)
+    embed_escolhida = discord.Embed(
+        title=f"{arena['emoji']} {arena['nome']}",
+        description=f"Bonus: {arena['bonus']}\n\nPreparando batalha...",
+        color=arena["cor"]
+    )
+    if arena.get("img"): embed_escolhida.set_image(url=arena["img"])
+    try: await msg_arena.edit(embed=embed_escolhida, view=None)
+    except: pass
+    await asyncio.sleep(1)
     try:
         await rodar_treino(interaction, p, monstro, arena)
     except Exception as e:
