@@ -589,10 +589,7 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     if not monstros_d:
         await interaction.followup.send("Dificuldade invalida!", ephemeral=True); return
     monstro = random.choice(monstros_d)
-    view_arena = EscolherArenaView(interaction.user.id)
-    await interaction.followup.send("Escolha a arena:", view=view_arena, wait=True)
-    await view_arena.wait()
-    arena = view_arena.arena or random.choice(ARENAS)
+    arena = random.choice(ARENAS)  # arena aleatoria para evitar travamento
     try:
         await rodar_treino(interaction, p, monstro, arena)
     except Exception as e:
