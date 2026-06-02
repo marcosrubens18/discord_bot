@@ -47,7 +47,7 @@ from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
 from imagens import (
-    IMG_PERFIL, IMG_SETUP, IMG_INVENTARIO, IMG_SKILLS, IMG_AJUDA,
+    IMG_, IMG_SETUP, IMG_INVENTARIO, IMG_SKILLS, IMG_AJUDA,
     IMG_LOJA, IMG_FERREIRO, IMG_HOSPITAL, IMG_MERCADO, IMG_MERCADOR,
     IMG_MISSOES, IMG_RANKING, IMG_CONQUISTAS, IMG_ROLETA,
     IMG_BANNER_GERAL, IMG_VITORIA, IMG_DERROTA, IMG_LEVEL_UP, IMG_CLASSE
@@ -162,12 +162,12 @@ async def atualizar_cargo_rank(guild, member, rank):
 
 async def criar_canal_privado(guild, member, nome, classe):
     try:
-        cat = (discord.utils.get(guild.categories, name="MEU PERFIL") or
-               discord.utils.get(guild.categories, name="Meu Perfil") or
-               discord.utils.get(guild.categories, name="PERFIL") or
-               discord.utils.get(guild.categories, name="perfil"))
+        cat = (discord.utils.get(guild.categories, name="MEU ") or
+               discord.utils.get(guild.categories, name="Meu ") or
+               discord.utils.get(guild.categories, name="") or
+               discord.utils.get(guild.categories, name=""))
         if not cat:
-            cat = await guild.create_category("MEU PERFIL")
+            cat = await guild.create_category("MEU ")
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             member: discord.PermissionOverwrite(read_messages=True, send_messages=True),
@@ -187,7 +187,7 @@ async def criar_canal_privado(guild, member, nome, classe):
 
             ("Seu Personagem", 0x7F77DD,
              "**Comandos essenciais:**\n"
-             "`/perfil` - Ver sua ficha completa\n"
+             "`/` - Ver sua ficha completa\n"
              "`/inventario` - Ver seus itens\n"
              "`/skills` - Ver suas habilidades\n"
              "`/setup` - Equipar armas e armaduras\n\n"
@@ -387,7 +387,7 @@ async def criar_personagem(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     uid = interaction.user.id
     if await get_personagem(uid):
-        await interaction.followup.send("Voce ja tem personagem! Use /perfil.", ephemeral=True)
+        await interaction.followup.send("Voce ja tem personagem! Use /.", ephemeral=True)
         return
 
     embed_raca = discord.Embed(title="Passo 1 — Escolha sua Raca", color=0x7F77DD)
@@ -529,8 +529,9 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
     alvo = jogador or interaction.user
     p = await get_personagem(alvo.id)
     if not p:
-        await interaction.followup.send("Personagem nao encontrado!", ephemeral=True); return
-    cls = next((c for c in CLASSES if c["id"]==p["classe_id"]), None)
+        await interaction.followup.send("Personagem nao encontrado!", ephemeral=True)
+        return
+    cls = next((c for c in CLASSES if c["id"] == p["classe_id"]), None)
     raca_p = get_raca(p["raca_id"] if p["raca_id"] else "humano")
     rank_i = get_rank(p["nivel"])
     pool_db = await get_pool()
@@ -541,9 +542,12 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
     from catalogo import SKILLS_COMPLETAS
     sk_nomes = []
     for r in ids_eq:
-        for sk in SKILLS_COMPLETAS.get(p["classe_id"],[]):
-            if sk["id"]==r["skill_id"]: sk_nomes.append(f"{sk['emoji']} {sk['nome']}"); break
-    xp_need = 100 + (p["nivel"]-1)*50    embed = discord.Embed(
+        for sk in SKILLS_COMPLETAS.get(p["classe_id"], []):
+            if sk["id"] == r["skill_id"]:
+                sk_nomes.append(f"{sk['emoji']} {sk['nome']}")
+                break
+    xp_need = 100 + (p["nivel"] - 1) * 50
+    embed = discord.Embed(
         title=f"{cls['emoji'] if cls else '?'} {p['nome']}",
         description=(
             f"**Raca:** {raca_p['emoji']} {raca_p['nome']}\n"
@@ -551,14 +555,15 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
             f"**Rank:** {rank_i['emoji']} {rank_i['rank']} — {rank_i['nome']}\n"
             f"**Nivel:** {p['nivel']} | XP: {p['xp']}/{xp_need}"
         ),
-        color=COR_RAR_BOT.get(p["raridade"],0x888780)
+        color=COR_RAR_BOT.get(p["raridade"], 0x888780)
     )
     embed.add_field(name="Stats", value=f"❤️ {p['hp_atual']}/{p['hp_max']} | ⚔️ {p['ataque']} | 🛡️ {p['defesa']} | 💙 {p['mana_atual']}/{p['mana_max']}", inline=False)
     embed.add_field(name="Equipamento", value=f"⚔️ {arma['nome'] if arma else 'Sem arma'} | 🛡️ {arm['nome'] if arm else 'Sem armadura'}", inline=False)
-    if sk_nomes: embed.add_field(name="Skills", value=" | ".join(sk_nomes), inline=False)
+    if sk_nomes:
+        embed.add_field(name="Skills", value=" | ".join(sk_nomes), inline=False)
     embed.add_field(name=f"{raca_p['emoji']} Passiva Racial", value=raca_p['passiva_desc'], inline=False)
     embed.add_field(name="Moedas", value=f"{p['moedas']} 🪙", inline=True)
-    embed.add_field(name="Vitorias", value=str(p.get('vitorias',0)), inline=True)
+    embed.add_field(name="Vitorias", value=str(p.get('vitorias', 0)), inline=True)
     embed.set_thumbnail(url=alvo.display_avatar.url)
     await interaction.followup.send(embed=embed)
 
