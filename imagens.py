@@ -137,3 +137,6 @@ IMG_DUNGEON_MONSTRO = {
     "CHEFE — O Criador":  "",
     "default":            "",
 }
+
+# ─── VARIÁVEIS QUE FALTAVAM (para compatibilidade com bot.py) ────
+IMG_CLASSE_PADRAO = IMG_CLASSE  # alias para compatibilidade
