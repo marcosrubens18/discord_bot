@@ -1387,8 +1387,11 @@ async def sync_cmd(ctx):
 
 # ─── EVENTOS ─────────────────────────────────────────────────────
 
+_synced = False  # evita sync duplo ao reconectar
+
 @bot.event
 async def on_ready():
+    global _synced
     print(f"Bot: {bot.user}")
     cmds_no_tree = len(bot.tree.get_commands())
     print(f"Comandos no tree: {cmds_no_tree}")
@@ -1401,24 +1404,23 @@ async def on_ready():
     except Exception as e:
         print(f"ERRO DB: {e}")
 
-    # Sync — global primeiro para garantir todos os comandos
-    try:
-        global_synced = await bot.tree.sync()
-        print(f"Comandos globais: {len(global_synced)}")
-        for c in global_synced: print(f"  /{c.name}")
-    except Exception as e:
-        print(f"ERRO sync global: {e}")
-
-    # Sync no servidor para efeito imediato
-    try:
-        guild_id = int(os.getenv("GUILD_ID","0"))
-        if guild_id:
-            guild_obj = discord.Object(id=guild_id)
-            bot.tree.copy_global_to(guild=guild_obj)
-            guild_synced = await bot.tree.sync(guild=guild_obj)
-            print(f"Comandos no servidor: {len(guild_synced)}")
-    except Exception as e:
-        print(f"ERRO sync servidor: {e}")
+    # Sync apenas na primeira vez — evita rate limit no Discord
+    if not _synced:
+        try:
+            guild_id = int(os.getenv("GUILD_ID","0"))
+            if guild_id:
+                guild_obj = discord.Object(id=guild_id)
+                bot.tree.copy_global_to(guild=guild_obj)
+                guild_synced = await bot.tree.sync(guild=guild_obj)
+                print(f"Comandos no servidor: {len(guild_synced)}")
+            else:
+                global_synced = await bot.tree.sync()
+                print(f"Comandos globais: {len(global_synced)}")
+            _synced = True
+        except Exception as e:
+            print(f"ERRO sync: {e}")
+    else:
+        print("Sync ignorado — ja sincronizado anteriormente")
 
     print("Bot pronto!")
 
