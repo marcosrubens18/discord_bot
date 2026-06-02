@@ -175,23 +175,28 @@ async def atualizar_missao_guilda(user_id: int, tipo: str, quantidade: int = 1):
     return None
 
 async def gerar_missoes_semanais(guilda_id: int):
-    """Gera 3 missões semanais para a guilda."""
+    """Gera 3 missoes semanais para a guilda."""
+    await init_db_guildas()
     pool = await get_pool()
     async with pool.acquire() as conn:
-        semana_atual = date.today().isocalendar()[1]
-        ja_tem = await conn.fetchval("""
-            SELECT COUNT(*) FROM guilda_missoes
-            WHERE guilda_id=$1 AND EXTRACT(WEEK FROM semana) = $2
-        """, guilda_id, semana_atual)
+        inicio_semana = date.today() - timedelta(days=date.today().weekday())
+        try:
+            ja_tem = await conn.fetchval(
+                "SELECT COUNT(*) FROM guilda_missoes WHERE guilda_id=$1 AND semana >= $2",
+                guilda_id, inicio_semana)
+        except Exception:
+            ja_tem = 0
         if ja_tem >= 3: return False
         escolhidas = random.sample(MISSOES_POOL, 3)
         for miss in escolhidas:
             meta = random.randint(*miss["meta_range"])
             desc = miss["desc"].format(meta=meta)
-            await conn.execute("""
-                INSERT INTO guilda_missoes(guilda_id,tipo,descricao,meta,premio_xp,premio_moedas,semana)
-                VALUES($1,$2,$3,$4,$5,$6,CURRENT_DATE)
-            """, guilda_id, miss["tipo"], desc, meta, miss["xp"], miss["moedas"])
+            try:
+                await conn.execute(
+                    "INSERT INTO guilda_missoes(guilda_id,tipo,descricao,meta,premio_xp,premio_moedas,semana) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                    guilda_id, miss["tipo"], desc, meta, miss["xp"], miss["moedas"], inicio_semana)
+            except Exception as e:
+                print(f"Erro inserir missao: {e}")
         return True
 
 # ─── CRIAR CANAL DA GUILDA ────────────────────────────────────────
