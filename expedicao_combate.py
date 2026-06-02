@@ -23,42 +23,42 @@ def get_monstro_por_nome(nome: str) -> dict:
 
 async def setup_jogador(user_id: int, p: dict) -> dict:
     """Prepara stats completos do jogador para o combate."""
-    ids_eq  = await get_skills_eq(user_id)
-    skills  = [s for sid in ids_eq for s in SKILLS_COMPLETAS.get(p["classe_id"],[]) if s["id"]==sid]
+    ids_eq = await get_skills_eq(user_id)
+    skills = [s for sid in ids_eq for s in SKILLS_COMPLETAS.get(p["classe_id"], []) if s["id"] == sid]
     if not skills:
-        skills = SKILLS_COMPLETAS.get(p["classe_id"],[])[:4]
-    arma    = await get_arma_equipada(user_id)
-    armadura= await get_armadura_equipada(user_id)
+        skills = SKILLS_COMPLETAS.get(p["classe_id"], [])[:4]
+    arma = await get_arma_equipada(user_id)
+    armadura = await get_armadura_equipada(user_id)
     batk, bdfs = calcular_bonus_equip(p["classe_id"], arma, armadura)
     return {
-        "user_id":  user_id,
-        "nome":     p["nome"],
-        "classe_id":p["classe_id"],
-        "nivel":    p["nivel"],
-        "hp":       p["hp_atual"],
-        "hp_max":   p["hp_max"],
-        "mana":     p["mana_atual"] or 100,
-        "mana_max": p["mana_max"]  or 100,
-        "ataque":   p["ataque"],
-        "defesa":   p["defesa"],
-        "efeitos":  {},
-        "passiva":  Passiva(p["classe_id"]),
-        "racial":   PassivaRacial(p.get("raca_id","humano")),
-        "skills":   skills,
-        "batk":     batk,
-        "bdfs":     bdfs,
-        "emoji":    EMOJI_CLASSE.get(p["classe_id"],"⚔️"),
-        "vivo":     True,
+        "user_id": user_id,
+        "nome": p["nome"],
+        "classe_id": p["classe_id"],
+        "nivel": p["nivel"],
+        "hp": p["hp_atual"],
+        "hp_max": p["hp_max"],
+        "mana": p["mana_atual"] or 100,
+        "mana_max": p["mana_max"] or 100,
+        "ataque": p["ataque"],
+        "defesa": p["defesa"],
+        "efeitos": {},
+        "passiva": Passiva(p["classe_id"]),
+        "racial": PassivaRacial(p.get("raca_id", "humano")),
+        "skills": skills,
+        "batk": batk,
+        "bdfs": bdfs,
+        "emoji": EMOJI_CLASSE.get(p["classe_id"], "⚔️"),
+        "vivo": True,
     }
 
 def barra_status_grupo(jogadores: list, hp_m: int, hp_mmx: int, monstro: dict) -> str:
     linhas = []
     for j in jogadores:
         if j["vivo"]:
-            linhas.append(f"{j['emoji']} **{j['nome']}** ❤️`{barra_hp(j['hp'],j['hp_max'])}`**{j['hp']}/{j['hp_max']}**")
+            linhas.append(f"{j['emoji']} **{j['nome']}** ❤️`{barra_hp(j['hp'], j['hp_max'])}`**{j['hp']}/{j['hp_max']}**")
         else:
             linhas.append(f"💀 ~~{j['nome']}~~")
-    linhas.append(f"{monstro['emoji']} **{monstro['nome']}** ❤️`{barra_hp(hp_m,hp_mmx)}`**{hp_m}/{hp_mmx}**")
+    linhas.append(f"{monstro['emoji']} **{monstro['nome']}** ❤️`{barra_hp(hp_m, hp_mmx)}`**{hp_m}/{hp_mmx}**")
     return "\n".join(linhas)
 
 async def rodar_combate_expedicao(canal: discord.TextChannel, participantes_ids: list,
@@ -80,13 +80,14 @@ async def rodar_combate_expedicao(canal: discord.TextChannel, participantes_ids:
                 BATALHAS_ATIVAS.add(uid)
 
     if not jogadores:
-        return {"sucesso": False, "sobreviventes": [], "derrotados": participantes_ids}
+        return {"sucesso": False, "sobreviventes": [], "derrotados": participantes_ids,
+                "sobreviventes_nomes": [], "derrotados_nomes": []}
 
     # Configura monstro com HP escalado
     monstro_base = get_monstro_por_nome(nome_monstro)
     monstro = dict(monstro_base)
-    monstro["nome"] = nome_monstro  # usa nome exato da IA
-    hp_m   = monstro["hp"] * max(1, len(jogadores) // 2 + 1)
+    monstro["nome"] = nome_monstro
+    hp_m = monstro["hp"] * max(1, len(jogadores) // 2 + 1) * quantidade
     hp_mmx = hp_m
     timeout_count = {}
 
@@ -103,42 +104,36 @@ async def rodar_combate_expedicao(canal: discord.TextChannel, participantes_ids:
     await asyncio.sleep(1)
 
     turno = 1
-    msgs  = []
 
     while hp_m > 0 and any(j["vivo"] for j in jogadores):
         vivos = [j for j in jogadores if j["vivo"]]
 
-        # Efeitos de status no monstro
-        de_m, _, _ = processar_efeitos_turno({})
-        if de_m > 0: hp_m = max(0, hp_m - de_m)
-        if hp_m <= 0: break
-
         # Turno de cada jogador
         for j in vivos:
-            if hp_m <= 0: break
+            if hp_m <= 0:
+                break
             uid = j["user_id"]
-            tc  = timeout_count.get(uid, 0)
+            tc = timeout_count.get(uid, 0)
 
             pocoes = await get_pocoes_inv(uid)
-            view   = BatalhaView(uid, j["skills"], pocoes, nivel=j["nivel"])
+            view = BatalhaView(uid, j["skills"], pocoes, nivel=j["nivel"])
             embed_vez = discord.Embed(
                 title=f"Turno {turno} — {j['emoji']} {j['nome']}, sua vez!",
                 description=barra_status_grupo(jogadores, hp_m, hp_mmx, monstro),
                 color=0x378ADD
             )
-            # Menciona o jogador
             membro = canal.guild.get_member(uid)
-            msg_v  = await canal.send(
+            msg_v = await canal.send(
                 content=membro.mention if membro else "",
                 embed=embed_vez, view=view)
-            msgs.append(msg_v)
             await view.wait()
-            try: await msg_v.edit(view=None)
-            except: pass
+            try:
+                await msg_v.edit(view=None)
+            except:
+                pass
 
             acao, val = view.acao or ("timeout", None)
 
-            # Inatividade
             if acao == "timeout":
                 tc += 1
                 timeout_count[uid] = tc
@@ -154,17 +149,18 @@ async def rodar_combate_expedicao(canal: discord.TextChannel, participantes_ids:
                 timeout_count[uid] = 0
 
             # Processa ação
-            dano_j = 0; linha = ""
+            dano_j = 0
+            linha = ""
             if acao == "fugir":
                 await canal.send(f"🏃 **{j['nome']}** fugiu do combate!")
                 j["vivo"] = False
                 BATALHAS_ATIVAS.discard(uid)
                 continue
             elif acao == "atk_basico":
-                mult  = 1.0 + (j["nivel"]//10)*0.1
+                mult = 1.0 + (j["nivel"] // 10) * 0.1
                 dano_j = calc_dano(j["ataque"], monstro["defesa"], mult, bonus_atk=j["batk"])
-                hp_m   = max(0, hp_m - dano_j)
-                linha  = f"{j['emoji']} **{j['nome']}** — Ataque Básico: **{dano_j} de dano**!"
+                hp_m = max(0, hp_m - dano_j)
+                linha = f"{j['emoji']} **{j['nome']}** — Ataque Básico: **{dano_j} de dano**!"
             elif acao == "defesa_basica":
                 add_efeito(j["efeitos"], "defesa_basica", 1)
                 linha = f"{j['emoji']} **{j['nome']}** — Postura defensiva!"
@@ -172,14 +168,14 @@ async def rodar_combate_expedicao(canal: discord.TextChannel, participantes_ids:
                 sk = j["skills"][val] if val < len(j["skills"]) else j["skills"][0]
                 if j["mana"] >= sk.get("mana", 0):
                     j["mana"] -= sk.get("mana", 0)
-                    dano_j = calc_dano(j["ataque"], monstro["defesa"], sk.get("dano",1.0), bonus_atk=j["batk"])
+                    dano_j = calc_dano(j["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=j["batk"])
                     dano_j = int(dano_j * j["passiva"].multiplicador_dano())
-                    hp_m   = max(0, hp_m - dano_j)
-                    linha  = f"{j['emoji']} **{j['nome']}** — {sk['emoji']} **{sk['nome']}**: **{dano_j} de dano**!"
+                    hp_m = max(0, hp_m - dano_j)
+                    linha = f"{j['emoji']} **{j['nome']}** — {sk['emoji']} **{sk['nome']}**: **{dano_j} de dano**!"
                 else:
                     dano_j = calc_dano(j["ataque"], monstro["defesa"], bonus_atk=j["batk"])
-                    hp_m   = max(0, hp_m - dano_j)
-                    linha  = f"{j['emoji']} **{j['nome']}** — Sem mana! Ataque: **{dano_j} de dano**."
+                    hp_m = max(0, hp_m - dano_j)
+                    linha = f"{j['emoji']} **{j['nome']}** — Sem mana! Ataque: **{dano_j} de dano**."
             elif acao == "pocao" and val:
                 j["hp"], j["mana"], linha = aplicar_efeito_pocao(val, j["hp"], j["hp_max"], j["mana"], j["mana_max"])
                 await remover_pocao(uid, val)
@@ -191,22 +187,26 @@ async def rodar_combate_expedicao(canal: discord.TextChannel, participantes_ids:
                     description=f"{linha}\n\n{barra_status_grupo(jogadores, hp_m, hp_mmx, monstro)}",
                     color=cor))
 
-            if hp_m <= 0: break
+            if hp_m <= 0:
+                break
 
-        if hp_m <= 0: break
+        if hp_m <= 0:
+            break
 
         # Ataque do monstro em todos os vivos
         vivos = [j for j in jogadores if j["vivo"]]
-        if not vivos: break
+        if not vivos:
+            break
 
         linhas_m = []
         for j in vivos:
             dano_m = calc_dano(monstro["ataque"], j["defesa"], bonus_atk=j["bdfs"])
             red = j["racial"].reducao_dano()
-            if red > 0: dano_m = max(1, int(dano_m * (1 - red)))
+            if red > 0:
+                dano_m = max(1, int(dano_m * (1 - red)))
             if efeito_ativo(j["efeitos"], "defesa_basica") or efeito_ativo(j["efeitos"], "defesa"):
                 dano_m = max(1, dano_m // 5)
-            j["hp"]   = max(0, j["hp"] - dano_m)
+            j["hp"] = max(0, j["hp"] - dano_m)
             j["mana"] = min(j["mana_max"], j["mana"] + 8)
             linhas_m.append(f"{monstro['emoji']} → {j['emoji']} **{j['nome']}**: **{dano_m} de dano**")
             if j["hp"] <= 0:
@@ -227,8 +227,8 @@ async def rodar_combate_expedicao(canal: discord.TextChannel, participantes_ids:
         BATALHAS_ATIVAS.discard(j["user_id"])
 
     sobreviventes = [j for j in jogadores if j["vivo"]]
-    derrotados    = [j for j in jogadores if not j["vivo"]]
-    sucesso       = hp_m <= 0
+    derrotados = [j for j in jogadores if not j["vivo"]]
+    sucesso = hp_m <= 0
 
     embed_res = discord.Embed(
         title="🏆 Vitória!" if sucesso else "💀 Derrota...",
@@ -244,9 +244,9 @@ async def rodar_combate_expedicao(canal: discord.TextChannel, participantes_ids:
     await canal.send(embed=embed_res)
 
     return {
-        "sucesso":      sucesso,
-        "sobreviventes":[j["user_id"] for j in sobreviventes],
-        "derrotados":   [j["user_id"] for j in derrotados],
+        "sucesso": sucesso,
+        "sobreviventes": [j["user_id"] for j in sobreviventes],
+        "derrotados": [j["user_id"] for j in derrotados],
         "sobreviventes_nomes": [j["nome"] for j in sobreviventes],
-        "derrotados_nomes":    [j["nome"] for j in derrotados],
+        "derrotados_nomes": [j["nome"] for j in derrotados],
     }
