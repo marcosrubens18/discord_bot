@@ -32,8 +32,13 @@ from guildas import (cmd_guilda_criar, cmd_guilda_info, cmd_guilda_convidar, cmd
     cmd_guilda_expulsar, cmd_guilda_promover, cmd_guilda_depositar, cmd_guilda_retirar,
     cmd_guilda_ranking, cmd_guilda_missoes, init_db_guildas, dar_xp_guilda, atualizar_missao_guilda)
 from dupla import rodar_treino_dupla
-from expedicao import (cmd_expedicao_criar, cmd_expedicao_status, cmd_expedicao_encerrar, init_db_expedicao)
-from expedicao import cmd_expedicao_iniciar
+from expedicao import (
+    cmd_expedicao_criar, 
+    cmd_expedicao_status, 
+    cmd_expedicao_encerrar, 
+    cmd_expedicao_iniciar, 
+    init_db_expedicao
+)
 from torneio import (cmd_torneio_criar, cmd_torneio_status, cmd_torneio_lutar,
     cmd_torneio_fechar_inscricoes, cmd_torneio_cancelar, init_db_torneio)
 from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
@@ -50,17 +55,15 @@ from imagens import (
 
 # ─── DADOS ───────────────────────────────────────────────────────
 def calcular_stats(poder_valor, destino_id, nivel=1):
-    hp  = 80 + poder_valor*2 + nivel*5
-    atk = 8  + poder_valor//5 + nivel*2
-    dfs = 5  + poder_valor//6 + nivel*1
+    hp = 80 + poder_valor*2 + nivel*5
+    atk = 8 + poder_valor//5 + nivel*2
+    dfs = 5 + poder_valor//6 + nivel*1
     if destino_id == "prodigio":    atk = int(atk*1.12); dfs = int(dfs*0.95)
     elif destino_id == "guardiao":  dfs = int(dfs*1.12); atk = int(atk*0.95)
     elif destino_id == "abencado":  hp=int(hp*1.08); atk=int(atk*1.05); dfs=int(dfs*1.05)
     elif destino_id == "maldito":   atk=int(atk*0.85); dfs=int(dfs*0.85)
     elif destino_id == "amaldicoado": atk=random.randint(5,atk+5); dfs=random.randint(3,dfs+3)
     return hp, atk, dfs
-
-
 
 CLASSES = [
     {"id":"guerreiro","nome":"Guerreiro","emoji":"🗡️","raridade":"Comum","peso":30,"desc":"Combate corpo a corpo. Alta defesa."},
@@ -90,7 +93,7 @@ DESTINOS = [
     {"id":"filho_caos","nome":"Filho do Caos","emoji":"🌀"},
 ]
 EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
-COR_RAR_BOT  = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
+COR_RAR_BOT = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
 
 intents = discord.Intents.default()
 intents.members = True
@@ -128,7 +131,6 @@ async def incrementar_treino(user_id):
     except Exception as e:
         print(f'Erro incrementar_treino: {e}')
 
-
 def sortear_peso(lista, pesos):
     return random.choices(lista, weights=pesos, k=1)[0]
 
@@ -160,12 +162,10 @@ async def atualizar_cargo_rank(guild, member, rank):
 
 async def criar_canal_privado(guild, member, nome, classe):
     try:
-        # Busca categoria por varios nomes possiveis
         cat = (discord.utils.get(guild.categories, name="MEU PERFIL") or
                discord.utils.get(guild.categories, name="Meu Perfil") or
                discord.utils.get(guild.categories, name="PERFIL") or
                discord.utils.get(guild.categories, name="perfil"))
-        # Se nao existe, cria
         if not cat:
             cat = await guild.create_category("MEU PERFIL")
         overwrites = {
@@ -175,7 +175,6 @@ async def criar_canal_privado(guild, member, nome, classe):
         }
         nome_canal = f"{classe['emoji']}│{nome.lower()[:20]}"
         canal = await guild.create_text_channel(nome_canal, category=cat, overwrites=overwrites)
-        # Tutorial completo no canal privado
         cor = COR_RAR_BOT.get(classe.get("raridade","Comum"), 0x7F77DD)
         await canal.send(content=member.mention)
 
@@ -288,11 +287,9 @@ async def criar_canal_privado(guild, member, nome, classe):
     except Exception as e:
         print(f"Erro ao criar canal privado: {e}")
 
-
 # ─── AUTOCOMPLETE FUNCTIONS ──────────────────────────────────────
 
 async def autocomplete_item_categoria(interaction: discord.Interaction, current: str):
-    """Autocomplete de item baseado na categoria selecionada."""
     try:
         categoria = str(interaction.namespace.categoria or "")
     except:
@@ -308,7 +305,6 @@ async def autocomplete_item_categoria(interaction: discord.Interaction, current:
     ]
 
 async def autocomplete_item_todos(interaction: discord.Interaction, current: str):
-    """Autocomplete com todos os itens do catalogo."""
     itens = get_catalogo_completo()
     filtrado = [i for i in itens if current.lower() in i["nome"].lower() or current.lower() in i["raridade"].lower() or current.lower() in i["tipo"].lower()]
     return [
@@ -320,7 +316,6 @@ async def autocomplete_item_todos(interaction: discord.Interaction, current: str
     ]
 
 async def autocomplete_materiais(interaction: discord.Interaction, current: str):
-    """Autocomplete apenas de materiais e pocoes (para loot de dungeon)."""
     itens = get_catalogo_completo()
     filtrado = [i for i in itens if i["tipo"] in ("material","pocao") and (current.lower() in i["nome"].lower() or not current)]
     return [
@@ -331,9 +326,7 @@ async def autocomplete_materiais(interaction: discord.Interaction, current: str)
         for i in filtrado[:25]
     ]
 
-
 async def autocomplete_item_premio(interaction: discord.Interaction, current: str):
-    """Autocomplete para campo de premio — mostra itens se tipo=item, senao da exemplos."""
     try:
         premio_tipo = str(interaction.namespace.premio_tipo or "")
     except:
@@ -365,9 +358,7 @@ async def autocomplete_item_premio(interaction: discord.Interaction, current: st
         return [app_commands.Choice(name=f"{EMOJI_CLS[cl]} {cl.title()}", value=cl) for cl in classes if current.lower() in cl]
     return [app_commands.Choice(name=current or "Digite o valor do premio", value=current or "")]
 
-
 async def autocomplete_canal(interaction: discord.Interaction, current: str):
-    """Autocomplete para canais de texto — filtra pelo nome digitado."""
     if not interaction.guild: return []
     canais = [
         ch for ch in interaction.guild.channels
@@ -380,18 +371,13 @@ async def autocomplete_canal(interaction: discord.Interaction, current: str):
         for ch in canais[:25]
     ]
 
-
 def resolver_canal(guild, canal):
-    """Resolve canal seja string ID, nome ou AppCommandChannel."""
     if canal is None: return None
-    # AppCommandChannel ou TextChannel (objeto Discord)
     if hasattr(canal, 'id'):
         return guild.get_channel(canal.id) or canal
-    # String com ID numerico
     canal_str = str(canal)
     if canal_str.isdigit():
         return guild.get_channel(int(canal_str))
-    # Nome do canal
     return discord.utils.get(guild.channels, name=canal_str.lstrip('#'))
 
 # ─── /criar_personagem ───────────────────────────────────────────
@@ -404,7 +390,6 @@ async def criar_personagem(interaction: discord.Interaction):
         await interaction.followup.send("Voce ja tem personagem! Use /perfil.", ephemeral=True)
         return
 
-    # Passo 1: Raca
     embed_raca = discord.Embed(title="Passo 1 — Escolha sua Raca", color=0x7F77DD)
     for rid in RACAS_BASICAS:
         r = RACAS[rid]
@@ -434,7 +419,6 @@ async def criar_personagem(interaction: discord.Interaction):
         await msg.edit(content="Tempo esgotado!", embed=None, view=None); return
     raca = RACAS[vr.escolha]
 
-    # Passo 2: Classe
     BASICAS = [c for c in CLASSES if c["raridade"] == "Comum"]
     embed_cls = discord.Embed(title="Passo 2 — Escolha sua Classe", color=0xE4AF3C)
     for c in BASICAS:
@@ -468,14 +452,13 @@ async def criar_personagem(interaction: discord.Interaction):
         await msg.edit(content="Tempo esgotado!", embed=None, view=None); return
     classe = vc.escolha
 
-    # Passo 3: Roletas
     await msg.edit(embed=discord.Embed(
         title="As roletas giram...",
         description=f"{raca['emoji']} {raca['nome']} + {classe['emoji']} {classe['nome']}\n\nSortindo poder, destino e skills...",
         color=0x7F77DD), view=None)
     await asyncio.sleep(1.5)
 
-    poder   = sortear_peso(PODERES, PESOS_PODER)
+    poder = sortear_peso(PODERES, PESOS_PODER)
     destino = random.choice(DESTINOS)
     mana_max = calcular_mana_max(classe["id"], 1, poder["valor"], destino["id"])
     if raca["id"] == "elfo": mana_max += 20
@@ -520,24 +503,20 @@ async def criar_personagem(interaction: discord.Interaction):
     if guild:
         member = guild.get_member(uid)
         if member:
-            # Cargo de raca
             cargo_raca = discord.utils.get(guild.roles, name=raca.get("cargos",""))
             if cargo_raca:
                 try: await member.add_roles(cargo_raca)
                 except: pass
-            # Cargo base
             cargo_base = discord.utils.get(guild.roles, name="🏠 Morador da Vila")
             if not cargo_base:
                 cargo_base = discord.utils.get(guild.roles, name="Morador da Vila")
             if cargo_base:
                 try: await member.add_roles(cargo_base)
                 except: pass
-            # Remove recem-chegado
             recem = discord.utils.get(guild.roles, name="🌱 Recem-chegado")
             if recem and recem in member.roles:
                 try: await member.remove_roles(recem)
                 except: pass
-            # Cargo de rank/nivel
             await atualizar_todos_cargos(guild, member, 1)
         await criar_canal_privado(guild, member, nome, classe)
 
@@ -551,21 +530,20 @@ async def perfil(interaction: discord.Interaction, jogador: discord.Member = Non
     p = await get_personagem(alvo.id)
     if not p:
         await interaction.followup.send("Personagem nao encontrado!", ephemeral=True); return
-    cls    = next((c for c in CLASSES if c["id"]==p["classe_id"]), None)
+    cls = next((c for c in CLASSES if c["id"]==p["classe_id"]), None)
     raca_p = get_raca(p["raca_id"] if p["raca_id"] else "humano")
     rank_i = get_rank(p["nivel"])
     pool_db = await get_pool()
     async with pool_db.acquire() as conn:
         arma = await conn.fetchrow("SELECT * FROM inventario WHERE user_id=$1 AND tipo='arma' AND equipado=1", alvo.id)
-        arm  = await conn.fetchrow("SELECT * FROM inventario WHERE user_id=$1 AND tipo='armadura' AND equipado=1", alvo.id)
+        arm = await conn.fetchrow("SELECT * FROM inventario WHERE user_id=$1 AND tipo='armadura' AND equipado=1", alvo.id)
         ids_eq = await conn.fetch("SELECT skill_id FROM skills_equipadas WHERE user_id=$1 ORDER BY slot", alvo.id)
     from catalogo import SKILLS_COMPLETAS
     sk_nomes = []
     for r in ids_eq:
         for sk in SKILLS_COMPLETAS.get(p["classe_id"],[]):
             if sk["id"]==r["skill_id"]: sk_nomes.append(f"{sk['emoji']} {sk['nome']}"); break
-    xp_need = 100 + (p["nivel"]-1)*50
-    embed = discord.Embed(
+    xp_need = 100 + (p["nivel"]-1)*50    embed = discord.Embed(
         title=f"{cls['emoji'] if cls else '?'} {p['nome']}",
         description=(
             f"**Raca:** {raca_p['emoji']} {raca_p['nome']}\n"
@@ -597,11 +575,11 @@ async def inventario(interaction: discord.Interaction, jogador: discord.Member =
     pool_db = await get_pool()
     async with pool_db.acquire() as conn:
         itens = await conn.fetch("SELECT * FROM inventario WHERE user_id=$1 ORDER BY tipo,raridade", alvo.id)
-    armas  = [i for i in itens if i["tipo"]=="arma"]
+    armas = [i for i in itens if i["tipo"]=="arma"]
     armdrs = [i for i in itens if i["tipo"]=="armadura"]
     pocoes = [i for i in itens if i["tipo"]=="pocao" or i["item_id"]=="elixir"]
-    mats   = [i for i in itens if i["tipo"]=="material"]
-    embed  = discord.Embed(title=f"Inventario de {alvo.display_name}", color=0x7F77DD)
+    mats = [i for i in itens if i["tipo"]=="material"]
+    embed = discord.Embed(title=f"Inventario de {alvo.display_name}", color=0x7F77DD)
     def fmt(lista):
         if not lista: return "—"
         return "\n".join([f"{i['emoji']} **{i['nome']}** [{i['raridade']}] (x{i.get('quantidade',1)}){' ✅' if i.get('equipado') else ''}" for i in lista])
@@ -612,7 +590,6 @@ async def inventario(interaction: discord.Interaction, jogador: discord.Member =
     embed.set_footer(text=f"Moedas: {p['moedas']} 🪙")
     if IMG_INVENTARIO: embed.set_image(url=IMG_INVENTARIO)
 
-    # Botoes de equipar para armas e armaduras
     equipaveis = armas + armdrs
     if equipaveis and alvo.id == interaction.user.id:
         opcoes = [discord.SelectOption(
@@ -657,7 +634,7 @@ async def skills(interaction: discord.Interaction):
     from catalogo import SKILLS_COMPLETAS
     todas = SKILLS_COMPLETAS.get(p["classe_id"], [])
     ids_desbloq = await get_skills_desbloq(interaction.user.id)
-    ids_eq      = await get_skills_eq(interaction.user.id)
+    ids_eq = await get_skills_eq(interaction.user.id)
     disp = [s for s in todas if s["id"] in ids_desbloq]
     if not disp:
         await interaction.followup.send("Nenhuma skill desbloqueada ainda!", ephemeral=True); return
@@ -741,7 +718,6 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     p = await get_personagem(interaction.user.id)
     if not p:
         await interaction.followup.send("Use /criar_personagem primeiro!", ephemeral=True); return
-    # Cooldown
     count, reset_em = await get_treino_uso(interaction.user.id)
     if count >= 20 and reset_em:
         from datetime import datetime
@@ -754,7 +730,6 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
         await interaction.followup.send("Dificuldade invalida!", ephemeral=True); return
     monstro = random.choice(monstros_d)
 
-    # Seletor de arena com imagem
     view_arena = EscolherArenaView(interaction.user.id)
     embed_arena = discord.Embed(
         title="Escolha a Arena!",
@@ -900,7 +875,7 @@ async def ferreiro(interaction: discord.Interaction):
     pool_db = await get_pool()
     async with pool_db.acquire() as conn:
         inv = await conn.fetch("SELECT item_id,quantidade FROM inventario WHERE user_id=$1", interaction.user.id)
-        pf  = await conn.fetchrow("SELECT moedas FROM personagens WHERE user_id=$1", interaction.user.id)
+        pf = await conn.fetchrow("SELECT moedas FROM personagens WHERE user_id=$1", interaction.user.id)
     inv_map = {r["item_id"]:r["quantidade"] for r in inv}
     disp = [r for r in RECEITAS if all(inv_map.get(m,0)>=q for m,q in r["materiais"].items())]
     linhas = []
@@ -1008,10 +983,8 @@ async def set_item(interaction: discord.Interaction, jogador: discord.Member,
     if not await get_personagem(jogador.id):
         await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
 
-    # Busca item pelo chave unica
     it = get_item_por_chave(item)
     if not it:
-        # Fallback: busca por ID direto
         itens_cat = get_itens_por_categoria(categoria)
         it = next((i for i in itens_cat if i["id"] == item), None)
     if not it:
@@ -1038,7 +1011,6 @@ async def set_item(interaction: discord.Interaction, jogador: discord.Member,
             color=cor
         ), ephemeral=True
     )
-
 
 # ─── /set-moedas ─────────────────────────────────────────────────
 
@@ -1126,14 +1098,13 @@ async def deletar_personagem(interaction: discord.Interaction):
         await conn.execute("DELETE FROM personagens WHERE user_id=$1", interaction.user.id)
     await interaction.followup.send("Personagem deletado. Use /criar_personagem para recomecar.", ephemeral=True)
 
-
 # ─── /criar-evento ───────────────────────────────────────────────
 
 @bot.tree.command(name="criar-evento", description="[ADMIN] Cria um novo evento no servidor")
 @app_commands.describe(
     tipo="Tipo do evento",
     premio_tipo="Tipo de premio",
-    premio_valor="Valor do premio (moedas: 5000 | ficha: 3 | cargo: Nome do Cargo | classe: dracomante | item: id|nome|tipo|raridade|emoji|desc)",
+    premio_valor="Valor do premio",
     canal="Canal onde o evento sera anunciado"
 )
 @app_commands.choices(tipo=[
@@ -1158,13 +1129,11 @@ async def criar_evento(interaction: discord.Interaction, tipo: str, premio_tipo:
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
     await cmd_criar_evento(interaction, tipo, premio_tipo, premio_valor, canal_obj)
 
-
 # ─── /eventos ────────────────────────────────────────────────────
 
 @bot.tree.command(name="eventos", description="Lista os eventos ativos no servidor")
 async def eventos(interaction: discord.Interaction):
     await cmd_eventos(interaction)
-
 
 # ─── /evento-info ────────────────────────────────────────────────
 
@@ -1172,7 +1141,6 @@ async def eventos(interaction: discord.Interaction):
 @app_commands.describe(evento_id="ID do evento (0 = evento ativo atual)")
 async def evento_info(interaction: discord.Interaction, evento_id: int = 0):
     await cmd_evento_info(interaction, evento_id)
-
 
 # ─── /encerrar-evento ────────────────────────────────────────────
 
@@ -1182,7 +1150,6 @@ async def evento_info(interaction: discord.Interaction, evento_id: int = 0):
 async def encerrar_evento(interaction: discord.Interaction, evento_id: int):
     await cmd_encerrar_evento(interaction, evento_id)
 
-
 # ─── /add-pontos ─────────────────────────────────────────────────
 
 @bot.tree.command(name="add-pontos", description="[ADMIN] Adiciona pontos a um participante do evento")
@@ -1190,8 +1157,6 @@ async def encerrar_evento(interaction: discord.Interaction, evento_id: int):
 @app_commands.checks.has_permissions(administrator=True)
 async def add_pontos(interaction: discord.Interaction, jogador: discord.Member, pontos: int, evento_id: int = 0):
     await cmd_add_pontos(interaction, jogador, pontos, evento_id)
-
-
 
 # ─── /anunciar ───────────────────────────────────────────────────
 
@@ -1219,7 +1184,6 @@ async def anunciar(interaction: discord.Interaction, canal: str,
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
     await cmd_anunciar(interaction, canal_obj, cor, ping)
 
-
 # ─── /anunciar-evento ────────────────────────────────────────────
 
 @bot.tree.command(name="anunciar-evento", description="[ADMIN] Anuncia um evento com data e premio")
@@ -1234,7 +1198,6 @@ async def anunciar_evento(interaction: discord.Interaction, canal: str,
     canal_obj = resolver_canal(interaction.guild, canal)
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
     await cmd_anunciar_evento(interaction, canal_obj, ping)
-
 
 # ─── /agendar-anuncio ────────────────────────────────────────────
 
@@ -1260,8 +1223,6 @@ async def agendar_anuncio(interaction: discord.Interaction, canal: str,
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
     await cmd_agendar_anuncio(interaction, canal_obj, cor)
 
-
-
 # ─── /torneio-criar ──────────────────────────────────────────────
 
 @bot.tree.command(name="torneio-criar", description="[ADMIN] Cria um torneio PvP")
@@ -1279,14 +1240,12 @@ async def torneio_criar(interaction: discord.Interaction, canal: str,
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
     await cmd_torneio_criar(interaction, premio_1, premio_2, premio_3, canal_obj)
 
-
 # ─── /torneio-status ─────────────────────────────────────────────
 
 @bot.tree.command(name="torneio-status", description="Veja as chaves e status de um torneio")
 @app_commands.describe(torneio_id="ID do torneio")
 async def torneio_status(interaction: discord.Interaction, torneio_id: int):
     await cmd_torneio_status(interaction, torneio_id)
-
 
 # ─── /torneio-lutar ──────────────────────────────────────────────
 
@@ -1297,7 +1256,6 @@ async def torneio_lutar(interaction: discord.Interaction, torneio_id: int,
                          jogador1: discord.Member, jogador2: discord.Member):
     await cmd_torneio_lutar(interaction, torneio_id, jogador1, jogador2)
 
-
 # ─── /torneio-fechar-inscricoes ──────────────────────────────────
 
 @bot.tree.command(name="torneio-fechar-inscricoes", description="[ADMIN] Fecha inscricoes e monta as chaves")
@@ -1306,7 +1264,6 @@ async def torneio_lutar(interaction: discord.Interaction, torneio_id: int,
 async def torneio_fechar_inscricoes(interaction: discord.Interaction, torneio_id: int):
     await cmd_torneio_fechar_inscricoes(interaction, torneio_id)
 
-
 # ─── /torneio-cancelar ───────────────────────────────────────────
 
 @bot.tree.command(name="torneio-cancelar", description="[ADMIN] Cancela torneio e devolve inscricoes")
@@ -1314,7 +1271,6 @@ async def torneio_fechar_inscricoes(interaction: discord.Interaction, torneio_id
 @app_commands.checks.has_permissions(administrator=True)
 async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
     await cmd_torneio_cancelar(interaction, torneio_id)
-
 
 # ─── /dungeon-evento-criar ───────────────────────────────────────
 
@@ -1330,7 +1286,6 @@ async def dungeon_evento_criar(interaction: discord.Interaction, canal: str, pre
     canal_id = canal_obj.id if canal_obj else 0
     await interaction.response.send_modal(DungeonEventoCriarModal(interaction.guild, premio, canal_id))
 
-
 # ─── /dungeon-evento-configurar ──────────────────────────────────
 
 @bot.tree.command(name="dungeon-evento-configurar", description="[ADMIN] Configura os andares da dungeon de evento")
@@ -1338,7 +1293,6 @@ async def dungeon_evento_criar(interaction: discord.Interaction, canal: str, pre
 @app_commands.checks.has_permissions(administrator=True)
 async def dungeon_evento_configurar(interaction: discord.Interaction, dungeon_id: int):
     await interaction.response.send_modal(AdicionarAndarModal(dungeon_id))
-
 
 # ─── /dungeon-evento-ativar ──────────────────────────────────────
 
@@ -1348,14 +1302,12 @@ async def dungeon_evento_configurar(interaction: discord.Interaction, dungeon_id
 async def dungeon_evento_ativar(interaction: discord.Interaction, dungeon_id: int):
     await cmd_dungeon_evento_ativar(interaction, dungeon_id)
 
-
 # ─── /dungeon-evento-info ────────────────────────────────────────
 
 @bot.tree.command(name="dungeon-evento-info", description="Veja detalhes e andares de uma dungeon de evento")
 @app_commands.describe(dungeon_id="ID da dungeon")
 async def dungeon_evento_info(interaction: discord.Interaction, dungeon_id: int):
     await cmd_dungeon_evento_info(interaction, dungeon_id)
-
 
 # ─── /dungeon-evento-fechar ──────────────────────────────────────
 
@@ -1365,16 +1317,12 @@ async def dungeon_evento_info(interaction: discord.Interaction, dungeon_id: int)
 async def dungeon_evento_fechar(interaction: discord.Interaction, dungeon_id: int):
     await cmd_dungeon_evento_fechar(interaction, dungeon_id)
 
-
-
-
 # ─── /loja-sazonal ───────────────────────────────────────────────
 
 @bot.tree.command(name="loja-sazonal", description="Compre itens sazonais e ofertas do dia")
 async def loja_sazonal(interaction: discord.Interaction):
     if not await checar_batalha(interaction): return
     await cmd_loja_sazonal(interaction)
-
 
 # ─── /loja-sazonal-adicionar ─────────────────────────────────────
 
@@ -1399,7 +1347,6 @@ async def loja_sazonal_adicionar(interaction: discord.Interaction, item: str, pr
         f"Adicionado a loja sazonal! {it['emoji']} **{it['nome']}** [{it['raridade']}] — {preco} moedas | Estoque: {est_txt}",
         ephemeral=True)
 
-
 # ─── /loja-rotativa-adicionar ────────────────────────────────────
 
 @bot.tree.command(name="loja-rotativa-adicionar", description="[ADMIN] Adiciona oferta do dia na loja rotativa")
@@ -1422,7 +1369,6 @@ async def loja_rotativa_adicionar(interaction: discord.Interaction, item: str, p
         f"Adicionado a oferta do dia! {it['emoji']} **{it['nome']}** [{it['raridade']}] — {preco} moedas | Estoque: {estoque}",
         ephemeral=True)
 
-
 # ─── /loja-sazonal-remover ───────────────────────────────────────
 
 @bot.tree.command(name="loja-sazonal-remover", description="[ADMIN] Remove item da loja sazonal pelo ID")
@@ -1430,7 +1376,6 @@ async def loja_rotativa_adicionar(interaction: discord.Interaction, item: str, p
 @app_commands.checks.has_permissions(administrator=True)
 async def loja_sazonal_remover(interaction: discord.Interaction, item_id: int):
     await cmd_loja_sazonal_remover(interaction, item_id)
-
 
 # ─── /historico ──────────────────────────────────────────────────
 
@@ -1460,14 +1405,11 @@ async def historico(interaction: discord.Interaction):
     embed.description = "\n".join(linhas)
     await interaction.followup.send(embed=embed, ephemeral=True)
 
-
-
 # ─── /guilda-missoes ─────────────────────────────────────────────
 
 @bot.tree.command(name="guilda-missoes", description="Veja as missoes semanais da sua guilda")
 async def guilda_missoes(interaction: discord.Interaction):
     await cmd_guilda_missoes(interaction)
-
 
 # ─── /guilda-retirar ─────────────────────────────────────────────
 
@@ -1475,7 +1417,6 @@ async def guilda_missoes(interaction: discord.Interaction):
 @app_commands.describe(valor="Quantidade de moedas a retirar")
 async def guilda_retirar(interaction: discord.Interaction, valor: int):
     await cmd_guilda_retirar(interaction, valor)
-
 
 # ─── /treinar-dupla ──────────────────────────────────────────────
 
@@ -1490,7 +1431,6 @@ async def guilda_retirar(interaction: discord.Interaction, valor: int):
 async def treinar_dupla(interaction: discord.Interaction, parceiro: discord.Member,
                          dificuldade: str = "facil"):
     await interaction.response.defer()
-    # Validacoes
     if parceiro.bot or parceiro.id == interaction.user.id:
         await interaction.followup.send("Parceiro invalido!", ephemeral=True); return
     if em_batalha(interaction.user.id) or em_batalha(parceiro.id):
@@ -1500,7 +1440,6 @@ async def treinar_dupla(interaction: discord.Interaction, parceiro: discord.Memb
     if not p1 or not p2:
         await interaction.followup.send("Ambos precisam ter personagem!", ephemeral=True); return
 
-    # Convite ao parceiro
     class AceitarView(discord.ui.View):
         def __init__(self): super().__init__(timeout=60); self.ok = None
         @discord.ui.button(label="Aceitar!", style=discord.ButtonStyle.success)
@@ -1527,17 +1466,15 @@ async def treinar_dupla(interaction: discord.Interaction, parceiro: discord.Memb
     if not monstros_d:
         await interaction.followup.send("Dificuldade invalida!", ephemeral=True); return
     monstro = random.choice(monstros_d)
-    arena   = random.choice(ARENAS)
+    arena = random.choice(ARENAS)
     await rodar_treino_dupla(interaction, p1, p2, monstro, arena,
                               interaction.user, parceiro)
-
 
 # ─── /guilda-criar ───────────────────────────────────────────────
 
 @bot.tree.command(name="guilda-criar", description="Funda uma nova guilda (custa 5000 moedas)")
 async def guilda_criar(interaction: discord.Interaction):
     await cmd_guilda_criar(interaction)
-
 
 # ─── /guilda-info ────────────────────────────────────────────────
 
@@ -1546,7 +1483,6 @@ async def guilda_criar(interaction: discord.Interaction):
 async def guilda_info(interaction: discord.Interaction, nome: str = ""):
     await cmd_guilda_info(interaction, nome)
 
-
 # ─── /guilda-convidar ────────────────────────────────────────────
 
 @bot.tree.command(name="guilda-convidar", description="Convida um jogador para sua guilda")
@@ -1554,13 +1490,11 @@ async def guilda_info(interaction: discord.Interaction, nome: str = ""):
 async def guilda_convidar(interaction: discord.Interaction, jogador: discord.Member):
     await cmd_guilda_convidar(interaction, jogador)
 
-
 # ─── /guilda-sair ────────────────────────────────────────────────
 
 @bot.tree.command(name="guilda-sair", description="Sai da sua guilda atual")
 async def guilda_sair(interaction: discord.Interaction):
     await cmd_guilda_sair(interaction)
-
 
 # ─── /guilda-expulsar ────────────────────────────────────────────
 
@@ -1569,14 +1503,12 @@ async def guilda_sair(interaction: discord.Interaction):
 async def guilda_expulsar(interaction: discord.Interaction, jogador: discord.Member):
     await cmd_guilda_expulsar(interaction, jogador)
 
-
 # ─── /guilda-promover ────────────────────────────────────────────
 
 @bot.tree.command(name="guilda-promover", description="[Mestre] Promove um membro ou transfere lideranca")
 @app_commands.describe(jogador="Membro a promover")
 async def guilda_promover(interaction: discord.Interaction, jogador: discord.Member):
     await cmd_guilda_promover(interaction, jogador)
-
 
 # ─── /guilda-depositar ───────────────────────────────────────────
 
@@ -1585,14 +1517,11 @@ async def guilda_promover(interaction: discord.Interaction, jogador: discord.Mem
 async def guilda_depositar(interaction: discord.Interaction, valor: int):
     await cmd_guilda_depositar(interaction, valor)
 
-
 # ─── /guilda-ranking ─────────────────────────────────────────────
 
 @bot.tree.command(name="guilda-ranking", description="Ranking de todas as guildas do servidor")
 async def guilda_ranking(interaction: discord.Interaction):
     await cmd_guilda_ranking(interaction)
-
-
 
 # ─── /tutorial ───────────────────────────────────────────────────
 
@@ -1682,8 +1611,6 @@ async def tutorial(interaction: discord.Interaction, secao: str = "dicas"):
     embed.set_footer(text="Villa Eldoria RPG | Use /tutorial novamente para ver outra secao")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-
-
 # ─── /expedicao-criar ────────────────────────────────────────────
 
 @bot.tree.command(name="expedicao-criar", description="[ADMIN] Cria uma expedição narrativa com IA")
@@ -1693,9 +1620,9 @@ async def tutorial(interaction: discord.Interaction, secao: str = "dicas"):
 async def expedicao_criar(interaction: discord.Interaction, canal: str):
     canal_obj = resolver_canal(interaction.guild, canal)
     if not canal_obj:
-        await interaction.response.send_message("Canal nao encontrado!", ephemeral=True); return
-    await cmd_expedicao_criar(interaction, canal_obj)
-
+        await interaction.response.send_message("Canal não encontrado!", ephemeral=True)
+        return
+    await cmd_expedicao_criar(interaction, canal_obj, bot)
 
 # ─── /expedicao-iniciar ──────────────────────────────────────────
 
@@ -1705,7 +1632,6 @@ async def expedicao_criar(interaction: discord.Interaction, canal: str):
 async def expedicao_iniciar(interaction: discord.Interaction, expedicao_id: int):
     await cmd_expedicao_iniciar(interaction, expedicao_id)
 
-
 # ─── /expedicao-encerrar ─────────────────────────────────────────
 
 @bot.tree.command(name="expedicao-encerrar", description="[ADMIN] Encerra uma expedição manualmente")
@@ -1714,13 +1640,11 @@ async def expedicao_iniciar(interaction: discord.Interaction, expedicao_id: int)
 async def expedicao_encerrar(interaction: discord.Interaction, expedicao_id: int, sucesso: bool = True):
     await cmd_expedicao_encerrar(interaction, expedicao_id, sucesso)
 
-
 # ─── /expedicao-status ───────────────────────────────────────────
 
 @bot.tree.command(name="expedicao-status", description="Lista todas as expedições ativas")
 async def expedicao_status(interaction: discord.Interaction):
     await cmd_expedicao_status(interaction)
-
 
 # ─── /ajuda ──────────────────────────────────────────────────────
 
@@ -1729,16 +1653,16 @@ async def ajuda(interaction: discord.Interaction):
     embed = discord.Embed(title="Comandos — Villa Eldoria RPG", color=0x7F77DD)
     embed.add_field(name="Personagem", value="`/criar_personagem` `/perfil` `/skills` `/setup` `/deletar_personagem`", inline=False)
     embed.add_field(name="Inventario", value="`/inventario` `/equipar` `/jogar-fora` `/dar`", inline=False)
-    embed.add_field(name="Batalha",    value="`/treinar` `/desafiar` `/dungeon`", inline=False)
+    embed.add_field(name="Batalha",    value="`/treinar` `/desafiar` `/dungeon` `/treinar-dupla`", inline=False)
     embed.add_field(name="Economia",   value="`/loja` `/loja-sazonal` `/ferreiro` `/hospital` `/mercado` `/mercador`", inline=False)
     embed.add_field(name="Progresso",  value="`/missoes` `/conquistas` `/ranking` `/girar`", inline=False)
-    embed.add_field(name="Admin",      value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros` `/set-vida` `/set-mana`", inline=False)
+    embed.add_field(name="Admin",      value="`/set-item` `/set-moedas` `/set-nivel` `/set-giros`", inline=False)
     embed.add_field(name="Eventos",    value="`/criar-evento` `/eventos` `/evento-info` `/encerrar-evento` `/add-pontos`", inline=False)
     embed.add_field(name="Anuncios",   value="`/anunciar` `/anunciar-evento` `/agendar-anuncio`", inline=False)
     embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-missoes` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-retirar` `/guilda-ranking`", inline=False)
-    embed.add_field(name="Dupla",      value="`/treinar-dupla`", inline=False)
     embed.add_field(name="Torneio",    value="`/torneio-criar` `/torneio-status` `/torneio-lutar` `/torneio-fechar-inscricoes` `/torneio-cancelar`", inline=False)
     embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
+    embed.add_field(name="Expedição",  value="`/expedicao-criar` `/expedicao-status` `/expedicao-iniciar` `/expedicao-encerrar`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
@@ -1761,7 +1685,7 @@ async def sync_cmd(ctx):
 
 # ─── EVENTOS ─────────────────────────────────────────────────────
 
-_synced = False  # evita sync duplo ao reconectar
+_synced = False
 
 @bot.event
 async def on_ready():
@@ -1772,13 +1696,21 @@ async def on_ready():
 
     # DB
     try:
-        await init_db(); await init_db_batalha(); await init_db_hospital()
-        await init_db_missoes(); await init_conquistas()
+        await init_db()
+        await init_db_batalha()
+        await init_db_hospital()
+        await init_db_missoes()
+        await init_conquistas()
+        await init_db_eventos()
+        await init_db_loja_sazonal()
+        await init_db_guildas()
+        await init_db_torneio()
+        await init_db_dungeon_evento()
+        await init_db_expedicao()
         print("DB OK!")
     except Exception as e:
         print(f"ERRO DB: {e}")
 
-    # Sync apenas na primeira vez — evita rate limit no Discord
     if not _synced:
         try:
             guild_id = int(os.getenv("GUILD_ID","0"))
@@ -1800,13 +1732,11 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member: discord.Member):
-    # Cargo de recem-chegado
     cargo = discord.utils.get(member.guild.roles, name="🌱 Recem-chegado")
     if cargo:
         try: await member.add_roles(cargo)
         except: pass
 
-    # Mensagem de boas-vindas
     try:
         canal_bv = (
             discord.utils.get(member.guild.text_channels, name="📌┃boas-vindas") or
