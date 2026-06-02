@@ -46,12 +46,12 @@ from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_fechar, init_db_dungeon_evento)
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
-from imagens import (
-    IMG_, IMG_SETUP, IMG_INVENTARIO, IMG_SKILLS, IMG_AJUDA,
-    IMG_LOJA, IMG_FERREIRO, IMG_HOSPITAL, IMG_MERCADO, IMG_MERCADOR,
-    IMG_MISSOES, IMG_RANKING, IMG_CONQUISTAS, IMG_ROLETA,
-    IMG_BANNER_GERAL, IMG_VITORIA, IMG_DERROTA, IMG_LEVEL_UP, IMG_CLASSE
-)
+# from imagens import (
+#     IMG_, IMG_SETUP, IMG_INVENTARIO, IMG_SKILLS, IMG_AJUDA,
+#     IMG_LOJA, IMG_FERREIRO, IMG_HOSPITAL, IMG_MERCADO, IMG_MERCADOR,
+#     IMG_MISSOES, IMG_RANKING, IMG_CONQUISTAS, IMG_ROLETA,
+#     IMG_BANNER_GERAL, IMG_VITORIA, IMG_DERROTA, IMG_LEVEL_UP, IMG_CLASSE
+# )
 
 # ─── DADOS ───────────────────────────────────────────────────────
 def calcular_stats(poder_valor, destino_id, nivel=1):
