@@ -70,14 +70,20 @@ async def init_db_guildas():
                 concluida BOOLEAN DEFAULT FALSE
             )
         """)
-        # Adiciona colunas novas em tabelas existentes (migracao)
-        for col, tipo, default in [
-            ("nivel",    "INTEGER", "DEFAULT 1"),
-            ("xp",       "INTEGER", "DEFAULT 0"),
-            ("canal_id", "BIGINT",  "DEFAULT 0"),
-        ]:
+        # Migracao: adiciona colunas novas sem quebrar dados existentes
+        migracoes = [
+            ("guildas",       "nivel",    "INTEGER", "DEFAULT 1"),
+            ("guildas",       "xp",       "INTEGER", "DEFAULT 0"),
+            ("guildas",       "canal_id", "BIGINT",  "DEFAULT 0"),
+            ("guilda_missoes","semana",   "DATE",    "DEFAULT CURRENT_DATE"),
+            ("guilda_missoes","tipo",     "TEXT",    "DEFAULT ''"),
+            ("guilda_missoes","premio_xp","INTEGER", "DEFAULT 0"),
+            ("guilda_missoes","premio_moedas","INTEGER","DEFAULT 0"),
+        ]
+        for tabela, col, tipo, default in migracoes:
             try:
-                await conn.execute(f"ALTER TABLE guildas ADD COLUMN IF NOT EXISTS {col} {tipo} {default}")
+                await conn.execute(
+                    f"ALTER TABLE {tabela} ADD COLUMN IF NOT EXISTS {col} {tipo} {default}")
             except Exception:
                 pass
     print("DB guildas OK!")
