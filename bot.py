@@ -32,13 +32,6 @@ from guildas import (cmd_guilda_criar, cmd_guilda_info, cmd_guilda_convidar, cmd
     cmd_guilda_expulsar, cmd_guilda_promover, cmd_guilda_depositar, cmd_guilda_retirar,
     cmd_guilda_ranking, cmd_guilda_missoes, init_db_guildas, dar_xp_guilda, atualizar_missao_guilda)
 from dupla import rodar_treino_dupla
-from expedicao import (
-    cmd_expedicao_criar, 
-    cmd_expedicao_status, 
-    cmd_expedicao_encerrar, 
-    cmd_expedicao_iniciar, 
-    init_db_expedicao
-)
 from torneio import (cmd_torneio_criar, cmd_torneio_status, cmd_torneio_lutar,
     cmd_torneio_fechar_inscricoes, cmd_torneio_cancelar, init_db_torneio)
 from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
@@ -46,12 +39,18 @@ from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_fechar, init_db_dungeon_evento)
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
-# from imagens import (
-#     IMG_, IMG_SETUP, IMG_INVENTARIO, IMG_SKILLS, IMG_AJUDA,
-#     IMG_LOJA, IMG_FERREIRO, IMG_HOSPITAL, IMG_MERCADO, IMG_MERCADOR,
-#     IMG_MISSOES, IMG_RANKING, IMG_CONQUISTAS, IMG_ROLETA,
-#     IMG_BANNER_GERAL, IMG_VITORIA, IMG_DERROTA, IMG_LEVEL_UP, IMG_CLASSE
-# )
+
+# ─── EXPEDIÇÃO NOVA (SISTEMA AVANÇADO) ───────────────────────────
+from expedicao_comandos import register_commands
+from expedicao_executor import iniciar_expedicao
+from expedicao_db import init_db_expedicao_avancado
+
+# Configuração de imagens (desabilitadas)
+IMG_PERFIL = IMG_SETUP = IMG_INVENTARIO = IMG_SKILLS = IMG_AJUDA = ""
+IMG_LOJA = IMG_FERREIRO = IMG_HOSPITAL = IMG_MERCADO = IMG_MERCADOR = ""
+IMG_MISSOES = IMG_RANKING = IMG_CONQUISTAS = IMG_ROLETA = ""
+IMG_BANNER_GERAL = IMG_VITORIA = IMG_DERROTA = IMG_LEVEL_UP = ""
+IMG_CLASSE = {}
 
 # ─── DADOS ───────────────────────────────────────────────────────
 def calcular_stats(poder_valor, destino_id, nivel=1):
@@ -162,12 +161,12 @@ async def atualizar_cargo_rank(guild, member, rank):
 
 async def criar_canal_privado(guild, member, nome, classe):
     try:
-        cat = (discord.utils.get(guild.categories, name="MEU ") or
-               discord.utils.get(guild.categories, name="Meu ") or
-               discord.utils.get(guild.categories, name="") or
-               discord.utils.get(guild.categories, name=""))
+        cat = (discord.utils.get(guild.categories, name="MEU PERFIL") or
+               discord.utils.get(guild.categories, name="Meu Perfil") or
+               discord.utils.get(guild.categories, name="PERFIL") or
+               discord.utils.get(guild.categories, name="perfil"))
         if not cat:
-            cat = await guild.create_category("MEU ")
+            cat = await guild.create_category("MEU PERFIL")
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             member: discord.PermissionOverwrite(read_messages=True, send_messages=True),
@@ -187,7 +186,7 @@ async def criar_canal_privado(guild, member, nome, classe):
 
             ("Seu Personagem", 0x7F77DD,
              "**Comandos essenciais:**\n"
-             "`/` - Ver sua ficha completa\n"
+             "`/perfil` - Ver sua ficha completa\n"
              "`/inventario` - Ver seus itens\n"
              "`/skills` - Ver suas habilidades\n"
              "`/setup` - Equipar armas e armaduras\n\n"
@@ -387,7 +386,7 @@ async def criar_personagem(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     uid = interaction.user.id
     if await get_personagem(uid):
-        await interaction.followup.send("Voce ja tem personagem! Use /.", ephemeral=True)
+        await interaction.followup.send("Voce ja tem personagem! Use /perfil.", ephemeral=True)
         return
 
     embed_raca = discord.Embed(title="Passo 1 — Escolha sua Raca", color=0x7F77DD)
@@ -593,7 +592,6 @@ async def inventario(interaction: discord.Interaction, jogador: discord.Member =
     embed.add_field(name="Armaduras",value=fmt(armdrs) if armdrs else "—",inline=True)
     if mats: embed.add_field(name="Materiais", value=fmt(mats), inline=False)
     embed.set_footer(text=f"Moedas: {p['moedas']} 🪙")
-    if IMG_INVENTARIO: embed.set_image(url=IMG_INVENTARIO)
 
     equipaveis = armas + armdrs
     if equipaveis and alvo.id == interaction.user.id:
@@ -1616,41 +1614,6 @@ async def tutorial(interaction: discord.Interaction, secao: str = "dicas"):
     embed.set_footer(text="Villa Eldoria RPG | Use /tutorial novamente para ver outra secao")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# ─── /expedicao-criar ────────────────────────────────────────────
-
-@bot.tree.command(name="expedicao-criar", description="[ADMIN] Cria uma expedição narrativa com IA")
-@app_commands.describe(canal="Canal onde a expedição sera anunciada")
-@app_commands.autocomplete(canal=autocomplete_canal)
-@app_commands.checks.has_permissions(administrator=True)
-async def expedicao_criar(interaction: discord.Interaction, canal: str):
-    canal_obj = resolver_canal(interaction.guild, canal)
-    if not canal_obj:
-        await interaction.response.send_message("Canal não encontrado!", ephemeral=True)
-        return
-    await cmd_expedicao_criar(interaction, canal_obj, bot)
-
-# ─── /expedicao-iniciar ──────────────────────────────────────────
-
-@bot.tree.command(name="expedicao-iniciar", description="[ADMIN] Inicia a aventura de uma expedição")
-@app_commands.describe(expedicao_id="ID da expedição")
-@app_commands.checks.has_permissions(administrator=True)
-async def expedicao_iniciar(interaction: discord.Interaction, expedicao_id: int):
-    await cmd_expedicao_iniciar(interaction, expedicao_id)
-
-# ─── /expedicao-encerrar ─────────────────────────────────────────
-
-@bot.tree.command(name="expedicao-encerrar", description="[ADMIN] Encerra uma expedição manualmente")
-@app_commands.describe(expedicao_id="ID da expedição", sucesso="A expedição foi um sucesso?")
-@app_commands.checks.has_permissions(administrator=True)
-async def expedicao_encerrar(interaction: discord.Interaction, expedicao_id: int, sucesso: bool = True):
-    await cmd_expedicao_encerrar(interaction, expedicao_id, sucesso)
-
-# ─── /expedicao-status ───────────────────────────────────────────
-
-@bot.tree.command(name="expedicao-status", description="Lista todas as expedições ativas")
-async def expedicao_status(interaction: discord.Interaction):
-    await cmd_expedicao_status(interaction)
-
 # ─── /ajuda ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="ajuda", description="Lista todos os comandos do RPG")
@@ -1667,8 +1630,18 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-missoes` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-retirar` `/guilda-ranking`", inline=False)
     embed.add_field(name="Torneio",    value="`/torneio-criar` `/torneio-status` `/torneio-lutar` `/torneio-fechar-inscricoes` `/torneio-cancelar`", inline=False)
     embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
-    embed.add_field(name="Expedição",  value="`/expedicao-criar` `/expedicao-status` `/expedicao-iniciar` `/expedicao-encerrar`", inline=False)
+    embed.add_field(name="Expedição",  value="`/expedicao criar` `/expedicao visualizar` `/expedicao recompensa` `/expedicao monstro_criar` `/expedicao capitulo_adicionar` `/expedicao_avancada_iniciar`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ─── REGISTRO DOS COMANDOS DE EXPEDIÇÃO AVANÇADA ─────────────────
+register_commands(bot)
+
+# ─── COMANDO PARA INICIAR EXPEDIÇÃO AVANÇADA ─────────────────────
+@bot.tree.command(name="expedicao_avancada_iniciar", description="[ADMIN] Inicia uma expedição avançada")
+@app_commands.describe(expedicao_id="ID da expedição")
+@app_commands.checks.has_permissions(administrator=True)
+async def expedicao_avancada_iniciar(interaction: discord.Interaction, expedicao_id: int):
+    await iniciar_expedicao(interaction, expedicao_id)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
@@ -1711,7 +1684,7 @@ async def on_ready():
         await init_db_guildas()
         await init_db_torneio()
         await init_db_dungeon_evento()
-        await init_db_expedicao()
+        await init_db_expedicao_avancado()
         print("DB OK!")
     except Exception as e:
         print(f"ERRO DB: {e}")
