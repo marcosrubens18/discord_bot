@@ -377,7 +377,7 @@ def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=Fals
         div_forca = 0.58  # Rank SS
         mult_cap  = 1.80
     mult_real  = min(mult_cap, mult)
-    dano_minimo = max(2, int(atk * 0.10))  # min 10% ATK
+    dano_minimo = max(15, int(atk * 0.25))  # min 25% ATK ou 15
 
     if ignorar_defesa:
         base = int((atk / div_forca) * mult_real)
@@ -1479,29 +1479,41 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback=None):
         except: pass
 
         acao1, val1 = view1.acao or ("timeout", None)
-        if acao1 == "skill" and val1 is not None:
+        linha = ""
+        if acao1 == "atk_basico":
+            mult_b = 1.0 + (p1["nivel"]//10)*0.1
+            dano = calc_dano(p1["ataque"], p2["defesa"], mult_b, bonus_atk=bonus_atk1)
+            hp2  = max(0, hp2 - dano)
+            linha = f"{e1} Ataque Basico: **{dano} de dano**!"
+        elif acao1 == "defesa_basica":
+            add_efeito(efeitos1, "defesa_basica", 1)
+            linha = f"{e1} Postura defensiva!"
+        elif acao1 == "skill" and val1 is not None:
             sk = skills1[val1] if val1 < len(skills1) else skills1[0]
             if mana1 >= sk.get("mana", 0):
                 mana1 -= sk.get("mana", 0)
-                dano = calc_dano(p1["ataque"], p2["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk1)
+                dano = calc_dano(p1["ataque"], p2["defesa"], sk.get("dano",1.0), bonus_atk=bonus_atk1)
                 dano = int(dano * passiva1.multiplicador_dano())
                 hp2  = max(0, hp2 - dano)
                 linha = f"{e1} {sk['emoji']} **{sk['nome']}**: **{dano} de dano**!"
             else:
-                linha = f"{e1} Mana insuficiente! Ataque básico."
                 dano = calc_dano(p1["ataque"], p2["defesa"], bonus_atk=bonus_atk1)
                 hp2  = max(0, hp2 - dano)
-                linha += f" **{dano} de dano**."
+                linha = f"{e1} Sem mana! Ataque basico: **{dano} de dano**."
         elif acao1 == "pocao" and val1:
             hp1, mana1, linha = aplicar_efeito_pocao(val1, hp1, hp1mx, mana1, mana1mx)
             await remover_pocao(uid1, val1)
         elif acao1 == "fugir":
-            embed_f = discord.Embed(title=f"{e1} {p1['nome']} fugiu!", description="Vitória de **" + p2['nome'] + "** por abandono!", color=0x888780)
+            embed_f = discord.Embed(title=f"{e1} {p1['nome']} fugiu!", description=f"Vitoria de **{p2['nome']}** por abandono!", color=0x888780)
             await channel.send(embed=embed_f)
             for m in msgs:
                 try: await m.delete()
                 except: pass
             return
+        if not linha:
+            dano = calc_dano(p1["ataque"], p2["defesa"], bonus_atk=bonus_atk1)
+            hp2  = max(0, hp2 - dano)
+            linha = f"{e1} Ataque: **{dano} de dano**!"
         elif acao1 == "timeout":
             timeout1 += 1
             if timeout1 >= 3:
@@ -1550,23 +1562,32 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback=None):
         except: pass
 
         acao2, val2 = view2.acao or ("timeout", None)
-        if acao2 == "skill" and val2 is not None:
+        linha = ""
+        if acao2 == "atk_basico":
+            mult_b = 1.0 + (p2["nivel"]//10)*0.1
+            dano = calc_dano(p2["ataque"], p1["defesa"], mult_b, bonus_atk=bonus_atk2)
+            hp1  = max(0, hp1 - dano)
+            linha = f"{e2} Ataque Basico: **{dano} de dano**!"
+        elif acao2 == "defesa_basica":
+            add_efeito(efeitos2, "defesa_basica", 1)
+            linha = f"{e2} Postura defensiva!"
+        elif acao2 == "skill" and val2 is not None:
             sk = skills2[val2] if val2 < len(skills2) else skills2[0]
             if mana2 >= sk.get("mana", 0):
                 mana2 -= sk.get("mana", 0)
-                dano = calc_dano(p2["ataque"], p1["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk2)
+                dano = calc_dano(p2["ataque"], p1["defesa"], sk.get("dano",1.0), bonus_atk=bonus_atk2)
                 dano = int(dano * passiva2.multiplicador_dano())
                 hp1  = max(0, hp1 - dano)
                 linha = f"{e2} {sk['emoji']} **{sk['nome']}**: **{dano} de dano**!"
             else:
                 dano = calc_dano(p2["ataque"], p1["defesa"], bonus_atk=bonus_atk2)
                 hp1  = max(0, hp1 - dano)
-                linha = f"{e2} Mana insuficiente! Ataque básico: **{dano} de dano**."
+                linha = f"{e2} Sem mana! Ataque basico: **{dano} de dano**."
         elif acao2 == "pocao" and val2:
             hp2, mana2, linha = aplicar_efeito_pocao(val2, hp2, hp2mx, mana2, mana2mx)
             await remover_pocao(uid2, val2)
         elif acao2 == "fugir":
-            embed_f = discord.Embed(title=f"{e2} {p2['nome']} fugiu!", description=f"Vitória de **{p1['nome']}** por abandono!", color=0x888780)
+            embed_f = discord.Embed(title=f"{e2} {p2['nome']} fugiu!", description=f"Vitoria de **{p1['nome']}** por abandono!", color=0x888780)
             await channel.send(embed=embed_f)
             for m in msgs:
                 try: await m.delete()
