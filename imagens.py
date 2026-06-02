@@ -26,11 +26,11 @@ IMG_ROLETA          = ""   # Roleta / girar
 
 # ─── BATALHA — ARENAS ────────────────────────────────────────────
 IMG_ARENA = {
-    "floresta": "",   # Floresta Sombria
-    "vulcao":   "",   # Cratera Vulcanica
-    "gelo":     "",   # Pico de Gelo
-    "ruinas":   "",   # Ruinas Arcanas
-    "coloseu":  "",   # Coloseu Real
+    "floresta": "https://i.imgur.com/Z9fsexZ.png",   # Floresta Sombria
+    "vulcao":   "https://i.imgur.com/JV2tWaP.png",   # Cratera Vulcanica
+    "gelo":     "https://i.imgur.com/SbVQj5B.png",   # Pico de Gelo
+    "ruinas":   "https://i.imgur.com/xS9Vb2H.png",   # Ruinas Arcanas
+    "coloseu":  "https://i.imgur.com/9WGvnPb.png",   # Coloseu Real
 }
 
 # ─── DUNGEONS POR RANK ───────────────────────────────────────────
