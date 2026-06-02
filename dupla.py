@@ -168,7 +168,9 @@ async def rodar_treino_dupla(interaction: discord.Interaction, p1, p2, monstro, 
         for uid_a, p_a, hp_a, hp_amx, ef_a, bdfs_a, racial_a, mem_a, e_a, vivo_a in alvos:
             if not vivo_a: continue
             dano_m = calc_dano(monstro["ataque"], p_a["defesa"], bonus_atk=bdfs_a)
-            dano_m, _ = racial_a.modificar_dano_recebido(dano_m)
+            # Aplica reducao racial de dano
+            reducao = racial_a.reducao_dano()
+            if reducao > 0: dano_m = max(1, int(dano_m * (1 - reducao)))
             if efeito_ativo(ef_a, "defesa_basica") or efeito_ativo(ef_a, "defesa"):
                 dano_m = max(1, dano_m // 5)
             if uid_a == uid1: hp1 = max(0, hp1 - dano_m)
