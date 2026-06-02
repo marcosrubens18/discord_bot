@@ -7,6 +7,7 @@ IMG_SETUP           = ""
 IMG_INVENTARIO      = ""
 IMG_SKILLS          = ""
 IMG_AJUDA           = ""
+IMG_CRIACAO         = ""
 
 # ─── ECONOMIA ────────────────────────────────────────────────────
 IMG_LOJA            = ""
@@ -35,4 +36,63 @@ IMG_CLASSE = {
     "necromante": "",
     "dracomante": "",
     "arcano":     "",
+}
+
+# ─── DUNGEONS ────────────────────────────────────────────────────
+IMG_DUNGEON = {
+    "F":  "",   # Dungeon Rank F
+    "E":  "",   # Dungeon Rank E
+    "D":  "",   # Dungeon Rank D
+    "C":  "",   # Dungeon Rank C
+    "B":  "",   # Dungeon Rank B
+    "A":  "",   # Dungeon Rank A
+    "S":  "",   # Dungeon Rank S
+    "SS": "",   # Dungeon Rank SS
+}
+
+IMG_DUNGEON_MONSTRO = {
+    "Goblin":         "",
+    "Lobo Selvagem":  "",
+    "Esqueleto":      "",
+    "Orc Guerreiro":  "",
+    "Vampiro":        "",
+    "Lich":           "",
+    "Titan":          "",
+    "Dragao Anciao":  "",
+    "default":        "",
+}
+
+# ─── ARENAS ──────────────────────────────────────────────────────
+IMG_ARENA = {
+    "floresta": "",
+    "vulcao":   "",
+    "gelo":     "",
+    "ruinas":   "",
+    "coloseu":  "",
+}
+
+# ─── HOSPITAL ────────────────────────────────────────────────────
+IMG_HOSPITAL_BASICO   = ""
+IMG_HOSPITAL_COMPLETO = ""
+IMG_HOSPITAL_PREMIUM  = ""
+
+# ─── MONSTROS ────────────────────────────────────────────────────
+IMG_MONSTRO = {
+    "goblin":          "",
+    "lobo":            "",
+    "rato_gigante":    "",
+    "goblin_arqueiro": "",
+    "orc":             "",
+    "golem":           "",
+    "esqueleto":       "",
+    "troll_pantano":   "",
+    "vampiro":         "",
+    "troll_pedra":     "",
+    "bruxa":           "",
+    "grifo":           "",
+    "dragao":          "",
+    "quimera":         "",
+    "lich":            "",
+    "titan":           "",
+    "default":         "",
 }
