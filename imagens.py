@@ -46,9 +46,9 @@ IMG_DUNGEON = {
 }
 
 # ─── RESULTADO DE BATALHA ────────────────────────────────────────
-IMG_VITORIA         = ""   # Tela de vitoria
-IMG_DERROTA         = ""   # Tela de derrota
-IMG_LEVEL_UP        = ""   # Level up
+IMG_VITORIA         = "https://i.imgur.com/bVzZx9l.png"   # Tela de vitoria
+IMG_DERROTA         = "https://i.imgur.com/x3HAGIV.png"   # Tela de derrota
+IMG_LEVEL_UP        = "https://i.imgur.com/cHD1vKN.png"   # Level up
 
 # ─── CLASSES ─────────────────────────────────────────────────────
 IMG_CLASSE = {
