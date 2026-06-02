@@ -145,12 +145,13 @@ async def atualizar_missao_guilda(user_id: int, tipo: str, quantidade: int = 1):
             m = await conn.fetchrow("SELECT guilda_id FROM guilda_membros WHERE user_id=$1", user_id)
             if not m: return
             guilda_id = m["guilda_id"]
-            semana_atual = date.today().isocalendar()[1]  # número da semana
+            hoje = date.today()
+            inicio_semana = hoje - timedelta(days=hoje.weekday())
             missoes = await conn.fetch("""
                 SELECT * FROM guilda_missoes
                 WHERE guilda_id=$1 AND tipo=$2 AND NOT concluida
-                AND EXTRACT(WEEK FROM semana) = $3
-            """, guilda_id, tipo, semana_atual)
+                AND semana >= $3
+            """, guilda_id, tipo, inicio_semana)
             for miss in missoes:
                 novo_prog = miss["progresso"] + quantidade
                 if novo_prog >= miss["meta"]:
@@ -384,12 +385,13 @@ async def cmd_guilda_missoes(interaction: discord.Interaction):
 
     pool = await get_pool()
     async with pool.acquire() as conn:
-        semana_atual = date.today().isocalendar()[1]
+        hoje = date.today()
+        inicio_semana = hoje - timedelta(days=hoje.weekday())
         missoes = await conn.fetch("""
             SELECT * FROM guilda_missoes
-            WHERE guilda_id=$1 AND EXTRACT(WEEK FROM semana) = $2
+            WHERE guilda_id=$1 AND semana >= $2
             ORDER BY id
-        """, g["id"], semana_atual)
+        """, g["id"], inicio_semana)
 
     if not missoes:
         await interaction.followup.send("Nenhuma missao disponivel esta semana!", ephemeral=True); return
