@@ -37,13 +37,13 @@ def get_rank(nivel):
 # Nivel 1: guerreiro ~25, mago ~45
 # Nivel 50: guerreiro ~75, mago ~170
 MANA_CLASSE = {
-    "guerreiro":  {"base": 20,  "mult_nivel": 1.1, "mult_poder": 0.2},
-    "arqueiro":   {"base": 25,  "mult_nivel": 1.3, "mult_poder": 0.2},
-    "mago":       {"base": 40,  "mult_nivel": 2.6, "mult_poder": 0.5},
-    "paladino":   {"base": 30,  "mult_nivel": 1.8, "mult_poder": 0.3},
-    "necromante": {"base": 30,  "mult_nivel": 2.0, "mult_poder": 0.4},
-    "dracomante": {"base": 25,  "mult_nivel": 1.5, "mult_poder": 0.3},
-    "arcano":     {"base": 45,  "mult_nivel": 3.0, "mult_poder": 0.6},
+    "guerreiro":  {"base": 100, "mult_nivel": 10, "mult_poder": 0.3},
+    "arqueiro":   {"base": 105, "mult_nivel": 11, "mult_poder": 0.3},
+    "mago":       {"base": 120, "mult_nivel": 15, "mult_poder": 0.6},
+    "paladino":   {"base": 110, "mult_nivel": 12, "mult_poder": 0.4},
+    "necromante": {"base": 115, "mult_nivel": 13, "mult_poder": 0.5},
+    "dracomante": {"base": 105, "mult_nivel": 11, "mult_poder": 0.4},
+    "arcano":     {"base": 125, "mult_nivel": 16, "mult_poder": 0.7},
 }
 
 MANA_DESTINO = {
@@ -57,10 +57,10 @@ MANA_DESTINO = {
 }
 
 def calcular_mana_max(classe_id, nivel, poder_valor, destino_id):
-    cfg = MANA_CLASSE.get(classe_id, {"base": 80, "mult_nivel": 2.0, "mult_poder": 0.5})
-    base = cfg["base"] + nivel * cfg["mult_nivel"] + poder_valor * cfg["mult_poder"]
+    cfg  = MANA_CLASSE.get(classe_id, {"base": 100, "mult_nivel": 10, "mult_poder": 0.4})
+    base = cfg["base"] + (nivel - 1) * cfg["mult_nivel"] + poder_valor * cfg["mult_poder"]
     mult = MANA_DESTINO.get(destino_id, 1.0)
-    return max(30, int(base * mult))
+    return max(100, int(base * mult))
 
 # ─── ARMAS POR CLASSE (10 cada) ──────────────────────────────────
 
@@ -244,7 +244,7 @@ ARMADURAS_POR_CLASSE = {
 
 SKILLS_COMPLETAS = {
     "guerreiro": [
-        {"id":"golpe_basico",  "nome":"Golpe Basico",  "nivel":1,  "emoji":"⚔️","dano":1.0,"mana":0, "desc":"Ataque fisico direto. Sem custo de mana.",         "efeito":None},
+        {"id":"golpe_basico",  "nome":"Golpe Basico",  "nivel":1,  "emoji":"⚔️","dano":1.2,"mana":0, "desc":"Ataque fisico direto. Sem custo de mana.",         "efeito":None},
         {"id":"escudo",        "nome":"Postura de Escudo","nivel":3,"emoji":"🛡️","dano":0,  "mana":8, "desc":"Reduz 50% do dano recebido no proximo turno.",    "efeito":"defesa"},
         {"id":"golpe_brutal",  "nome":"Golpe Brutal",   "nivel":8, "emoji":"💥","dano":2.2,"mana":18,"desc":"Golpe devastador. Dano x2.2, ignora parte da defesa.","efeito":None},
         {"id":"investida",     "nome":"Investida",       "nivel":12,"emoji":"🏃","dano":1.4,"mana":15,"desc":"Corre em direcao ao inimigo. 30% chance atordoar.",  "efeito":"atordoar"},
@@ -257,12 +257,12 @@ SKILLS_COMPLETAS = {
     ],
     "arqueiro": [
         {"id":"tiro_preciso",  "nome":"Tiro Preciso",   "nivel":1, "emoji":"🎯","dano":1.0,"mana":0, "desc":"+40% chance de critico neste turno.",              "efeito":"critico_bonus"},
-        {"id":"tiro_rapido",   "nome":"Tiro Rapido",    "nivel":3, "emoji":"💨","dano":0.8,"mana":5, "desc":"Dois disparos rapidos. Menor dano individual.",     "efeito":"hits2"},
+        {"id":"tiro_rapido",   "nome":"Tiro Rapido",    "nivel":3, "emoji":"💨","dano":1.2,"mana":5, "desc":"Dois disparos rapidos. Menor dano individual.",     "efeito":"hits2"},
         {"id":"esquiva",       "nome":"Esquiva",          "nivel":5, "emoji":"💨","dano":0,  "mana":15,"desc":"Evita completamente o proximo ataque recebido.",   "efeito":"esquiva"},
         {"id":"flecha_veneno", "nome":"Flecha Venenosa", "nivel":10,"emoji":"🟢","dano":1.1,"mana":18,"desc":"Envenena o alvo. 10% HP de dano por 3 turnos.",    "efeito":"veneno"},
-        {"id":"tiro_multiplo", "nome":"Tiro Multiplo",   "nivel":14,"emoji":"🏹","dano":0.7,"mana":22,"desc":"Dispara 3 flechas simultaneamente.",                "efeito":"hits3"},
+        {"id":"tiro_multiplo", "nome":"Tiro Multiplo",   "nivel":14,"emoji":"🏹","dano":1.0,"mana":22,"desc":"Dispara 3 flechas simultaneamente.",                "efeito":"hits3"},
         {"id":"flecha_perf",   "nome":"Flecha Perfurante","nivel":20,"emoji":"🔱","dano":2.0,"mana":30,"desc":"Ignora 60% da defesa do alvo.",                   "efeito":"ignorar_defesa"},
-        {"id":"chuva_flechas", "nome":"Chuva de Flechas","nivel":28,"emoji":"☄️","dano":0.5,"mana":40,"desc":"5 flechas em rapida sucessao. Dano total alto.",   "efeito":"hits5"},
+        {"id":"chuva_flechas", "nome":"Chuva de Flechas","nivel":28,"emoji":"☄️","dano":0.8,"mana":40,"desc":"5 flechas em rapida sucessao. Dano total alto.",   "efeito":"hits5"},
         {"id":"tiro_fantasma", "nome":"Tiro Fantasma",   "nivel":35,"emoji":"👻","dano":2.5,"mana":50,"desc":"EPICO: Atravessa defesa. 100% ignorar defesa.",    "efeito":"ignorar_defesa"},
         {"id":"flecha_morte",  "nome":"Flecha da Morte", "nivel":45,"emoji":"💀","dano":3.0,"mana":60,"desc":"Flecha imbuida de morte. Alta chance de critico.",  "efeito":"critico_bonus"},
         {"id":"tiro_lendario", "nome":"Tiro Lendario",   "nivel":70,"emoji":"⭐","dano":6.0,"mana":90,"desc":"LENDARIO: O tiro definitivo do arqueiro lendario.", "efeito":None},
