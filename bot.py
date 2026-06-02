@@ -1123,14 +1123,16 @@ async def agendar_anuncio(interaction: discord.Interaction, canal: discord.TextC
 
 @bot.tree.command(name="torneio-criar", description="[ADMIN] Cria um torneio PvP")
 @app_commands.describe(
+    canal="Canal onde o torneio sera anunciado",
     premio_1="Premio do 1 lugar (obrigatorio)",
     premio_2="Premio do 2 lugar (opcional)",
     premio_3="Premio do 3 lugar (opcional)"
 )
 @app_commands.autocomplete(premio_1=autocomplete_item_premio, premio_2=autocomplete_item_premio, premio_3=autocomplete_item_premio)
 @app_commands.checks.has_permissions(administrator=True)
-async def torneio_criar(interaction: discord.Interaction, premio_1: str, premio_2: str = "", premio_3: str = ""):
-    await cmd_torneio_criar(interaction, premio_1, premio_2, premio_3)
+async def torneio_criar(interaction: discord.Interaction, canal: discord.TextChannel,
+                         premio_1: str, premio_2: str = "", premio_3: str = ""):
+    await cmd_torneio_criar(interaction, premio_1, premio_2, premio_3, canal)
 
 
 # ─── /torneio-status ─────────────────────────────────────────────
@@ -1172,11 +1174,14 @@ async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
 # ─── /dungeon-evento-criar ───────────────────────────────────────
 
 @bot.tree.command(name="dungeon-evento-criar", description="[ADMIN] Cria uma dungeon de evento customizada")
-@app_commands.describe(premio="Premio para quem completar a dungeon")
+@app_commands.describe(
+    canal="Canal onde a dungeon sera anunciada",
+    premio="Premio para quem completar"
+)
 @app_commands.autocomplete(premio=autocomplete_item_premio)
 @app_commands.checks.has_permissions(administrator=True)
-async def dungeon_evento_criar(interaction: discord.Interaction, premio: str):
-    await interaction.response.send_modal(DungeonEventoCriarModal(interaction.guild, premio))
+async def dungeon_evento_criar(interaction: discord.Interaction, canal: discord.TextChannel, premio: str):
+    await interaction.response.send_modal(DungeonEventoCriarModal(interaction.guild, premio, canal.id))
 
 
 # ─── /dungeon-evento-configurar ──────────────────────────────────
