@@ -96,6 +96,36 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ─── HELPERS ─────────────────────────────────────────────────────
 
+async def get_treino_uso(user_id):
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow('SELECT * FROM treino_uso WHERE user_id=$1', user_id)
+            if not row: return 0, None
+            from datetime import datetime
+            if row['reset_em'] and datetime.utcnow() >= row['reset_em']:
+                await conn.execute('UPDATE treino_uso SET count=0, reset_em=NULL WHERE user_id=$1', user_id)
+                return 0, None
+            return row['count'], row['reset_em']
+    except Exception as e:
+        print(f'Erro get_treino_uso: {e}')
+        return 0, None
+
+async def incrementar_treino(user_id):
+    try:
+        from datetime import datetime, timedelta
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow('SELECT count FROM treino_uso WHERE user_id=$1', user_id)
+            novo = (row['count'] if row else 0) + 1
+            reset_em = datetime.utcnow() + timedelta(hours=2) if novo >= 20 else None
+            await conn.execute(
+                'INSERT INTO treino_uso(user_id,count,reset_em) VALUES($1,$2,$3) ON CONFLICT(user_id) DO UPDATE SET count=$2, reset_em=COALESCE($3, treino_uso.reset_em)',
+                user_id, novo, reset_em)
+    except Exception as e:
+        print(f'Erro incrementar_treino: {e}')
+
+
 def sortear_peso(lista, pesos):
     return random.choices(lista, weights=pesos, k=1)[0]
 
