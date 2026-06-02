@@ -90,12 +90,12 @@ class ExpedicaoModal(discord.ui.Modal, title="Criar Expedição Narrativa"):
         max_length=800
     )
     config_input = discord.ui.TextInput(
-        label="Nível mín | Max jogadores | Horas inscrição | Dificuldade",
+        label="NívelMin|MaxJogadores|HorasInscrição|Dific.",
         placeholder="Ex: 5|5|24|Difícil",
         max_length=40
     )
     recomp_input = discord.ui.TextInput(
-        label="Recompensas (ouro|xp|fichas) e Monstros permitidos",
+        label="Recomp: ouro/xp/fichas | Monstros",
         placeholder="Ex: 5000|10000|1 | Goblin,Vampiro,Dragão",
         max_length=200
     )
