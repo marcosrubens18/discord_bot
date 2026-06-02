@@ -728,10 +728,6 @@ class BatalhaView(discord.ui.View):
             self.add_item(btn)
         self._max_slots = max_slots
 
-    async def on_timeout(self):
-        self.acao = ("timeout", None)
-        self.stop()
-
         # Ataque Basico — sempre visivel, sem mana, escala com rank
         atk_btn = discord.ui.Button(
             label="⚔️ Ataque Básico",
@@ -742,7 +738,7 @@ class BatalhaView(discord.ui.View):
         atk_btn.callback = self._atk_basico
         self.add_item(atk_btn)
 
-        # Defesa — sempre visivel, sem mana, 60% bloqueia 80% do dano
+        # Defesa — sempre visivel, sem mana
         def_btn = discord.ui.Button(
             label="🛡️ Defesa",
             style=discord.ButtonStyle.secondary,
@@ -752,6 +748,7 @@ class BatalhaView(discord.ui.View):
         def_btn.callback = self._defesa_basica
         self.add_item(def_btn)
 
+        # Mochila
         mochila_btn = discord.ui.Button(
             label=f"🎒 Mochila ({len(self._pocoes)})" if self._pocoes else "🎒 Mochila (vazia)",
             style=discord.ButtonStyle.secondary,
@@ -762,12 +759,17 @@ class BatalhaView(discord.ui.View):
         mochila_btn.callback = self._abrir_mochila
         self.add_item(mochila_btn)
 
+        # Fugir
         fugir_btn = discord.ui.Button(
             label="🏃 Fugir", style=discord.ButtonStyle.danger,
             row=3, custom_id="fugir"
         )
         fugir_btn.callback = self._fugir
         self.add_item(fugir_btn)
+
+    async def on_timeout(self):
+        self.acao = ("timeout", None)
+        self.stop()
 
     def _fazer_skill(self, idx):
         async def callback(inter: discord.Interaction):
