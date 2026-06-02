@@ -133,9 +133,10 @@ class TorneioModal(discord.ui.Modal, title="Criar Torneio"):
         max_length=200
     )
 
-    def __init__(self, guild, p1: str = "", p2: str = "", p3: str = ""):
+    def __init__(self, guild, p1: str = "", p2: str = "", p3: str = "", canal=None):
         super().__init__()
         self.guild = guild
+        self.canal_pre = canal
         if p1: self.premios_input.default = f"{p1}|{p2}|{p3}".rstrip("|")
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -170,76 +171,46 @@ class TorneioModal(discord.ui.Modal, title="Criar Torneio"):
             """, str(self.nome_input), str(self.descricao_input), img_url,
                 valor, fim, p1, p2, p3, interaction.user.id)
 
-        # ChannelSelect para escolher canal
-        class CanalView(discord.ui.View):
-            def __init__(self_v): super().__init__(timeout=120)
+        # Usa canal passado pelo comando
+        canal = self.canal_pre
+        if not canal:
+            await interaction.followup.send("Erro: informe o canal no comando!", ephemeral=True); return
 
-            @discord.ui.select(
-                cls=discord.ui.ChannelSelect,
-                placeholder="Escolha o canal de anuncio...",
-                
-            )
-            async def sel(self_v, inter: discord.Interaction, s: discord.ui.ChannelSelect):
-                if inter.user.id != interaction.user.id:
-                    await inter.response.defer(); return
-                canal_raw = s.values[0]
-                canal = interaction.guild.get_channel(canal_raw.id) or canal_raw
+        # Monta embed de anuncio
+        embed = discord.Embed(
+            title=f"🏆 {str(self.nome_input)}",
+            description=str(self.descricao_input),
+            color=0xE4AF3C
+        )
+        embed.add_field(name="Inscricao", value=f"{valor} moedas" if valor else "Gratuita", inline=True)
+        embed.add_field(name="Inscricoes ate", value=f"<t:{int(fim.timestamp())}:R>", inline=True)
+        if p1: embed.add_field(name="1 Lugar", value=p1, inline=False)
+        if p2: embed.add_field(name="2 Lugar", value=p2, inline=False)
+        if p3: embed.add_field(name="3 Lugar", value=p3, inline=False)
+        embed.set_footer(text=f"Torneio #{torneio['id']} | Clique para se inscrever!")
+        if img_url: embed.set_image(url=img_url)
 
-                # Monta embed de anuncio
-                embed = discord.Embed(
-                    title=f"🏆 {str(self.nome_input)}",
-                    description=str(self.descricao_input),
-                    color=0xE4AF3C
-                )
-                embed.add_field(
-                    name="Inscricao",
-                    value=f"{valor} moedas" if valor else "Gratuita",
-                    inline=True
-                )
-                embed.add_field(
-                    name="Inscricoes ate",
-                    value=f"<t:{int(fim.timestamp())}:R>",
-                    inline=True
-                )
-                if p1: embed.add_field(name="1 Lugar", value=p1, inline=False)
-                if p2: embed.add_field(name="2 Lugar", value=p2, inline=False)
-                if p3: embed.add_field(name="3 Lugar", value=p3, inline=False)
-                embed.set_footer(text=f"Torneio #{torneio['id']} | Clique para se inscrever!")
-                if img_url: embed.set_image(url=img_url)
+        class InscreverView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=None)
+            @discord.ui.button(label="Inscrever-se!", style=discord.ButtonStyle.success,
+                               custom_id=f"torneio_ins_{torneio['id']}")
+            async def btn(self, inter2: discord.Interaction, b):
+                await _inscrever(inter2, torneio["id"])
 
-                class InscreverView(discord.ui.View):
-                    def __init__(self):
-                        super().__init__(timeout=None)
-                    @discord.ui.button(
-                        label="Inscrever-se!",
-                        style=discord.ButtonStyle.success,
-                        custom_id=f"torneio_ins_{torneio['id']}"
-                    )
-                    async def btn(self, inter2: discord.Interaction, b):
-                        await _inscrever(inter2, torneio["id"])
-
-                msg = await canal.send(embed=embed, view=InscreverView())
-                pool2 = await get_pool()
-                async with pool2.acquire() as conn2:
-                    await conn2.execute(
-                        "UPDATE torneios SET msg_id=$1, canal_id=$2 WHERE id=$3",
-                        msg.id, canal.id, torneio["id"])
-
-                await inter.response.send_message(
-                    f"Torneio **{str(self.nome_input)}** criado! ID: `{torneio['id']}`\n"
-                    f"Inscricoes abertas por **{dur_txt}** em {canal.mention}\n\n"
-                    f"Use `/torneio-fechar-inscricoes {torneio['id']}` quando quiser fechar.",
-                    ephemeral=True
-                )
-                self_v.stop()
-                asyncio.create_task(
-                    _agendar_fechamento(torneio["id"], horas*3600, self.guild))
+        msg = await canal.send(embed=embed, view=InscreverView())
+        pool2 = await get_pool()
+        async with pool2.acquire() as conn2:
+            await conn2.execute("UPDATE torneios SET msg_id=$1, canal_id=$2 WHERE id=$3",
+                msg.id, canal.id, torneio["id"])
 
         await interaction.followup.send(
-            "Escolha o canal onde o torneio sera anunciado:",
-            view=CanalView(),
+            f"Torneio **{str(self.nome_input)}** criado! ID: `{torneio['id']}`\n"
+            f"Inscricoes abertas por **{dur_txt}** em {canal.mention}\n"
+            f"Use `/torneio-fechar-inscricoes {torneio['id']}` para fechar.",
             ephemeral=True
         )
+        asyncio.create_task(_agendar_fechamento(torneio["id"], horas*3600, self.guild))
 
 # ─── INSCRICAO ────────────────────────────────────────────────────
 
@@ -342,8 +313,8 @@ async def _agendar_fechamento(torneio_id, segundos, guild):
 
 # ─── COMANDOS EXPORTADOS ──────────────────────────────────────────
 
-async def cmd_torneio_criar(interaction: discord.Interaction, p1: str = "", p2: str = "", p3: str = ""):
-    await interaction.response.send_modal(TorneioModal(interaction.guild, p1, p2, p3))
+async def cmd_torneio_criar(interaction: discord.Interaction, p1: str = "", p2: str = "", p3: str = "", canal: discord.TextChannel = None):
+    await interaction.response.send_modal(TorneioModal(interaction.guild, p1, p2, p3, canal))
 
 async def cmd_torneio_status(interaction: discord.Interaction, torneio_id: int):
     await interaction.response.defer()
