@@ -88,7 +88,7 @@ DESTINOS = [
     {"id":"maldito","nome":"Maldito","emoji":"💀"},
     {"id":"guardiao","nome":"Guardiao","emoji":"🛡️"},
     {"id":"abencado","nome":"Abencado","emoji":"🌟"},
-    {"id":"amaldicoado","nome":"Amaldicado","emoji":"☠️"},
+    {"id":"amaldicoado","nome":"Amaldicoado","emoji":"☠️"},
     {"id":"filho_caos","nome":"Filho do Caos","emoji":"🌀"},
 ]
 EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
@@ -1630,10 +1630,12 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-missoes` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-retirar` `/guilda-ranking`", inline=False)
     embed.add_field(name="Torneio",    value="`/torneio-criar` `/torneio-status` `/torneio-lutar` `/torneio-fechar-inscricoes` `/torneio-cancelar`", inline=False)
     embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
-    embed.add_field(name="Expedição",  value="`/expedicao criar` `/expedicao visualizar` `/expedicao recompensa` `/expedicao monstro_criar` `/expedicao capitulo_adicionar` `/expedicao_avancada_iniciar`", inline=False)
+    embed.add_field(name="Expedição",  value="`/expedicao criar` `/expedicao visualizar` `/expedicao recompensa_adicionar` `/expedicao monstro_criar` `/expedicao capitulo_adicionar` `/expedicao_inscrever` `/expedicao_avancada_iniciar`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# ─── REGISTRO DOS COMANDOS DE EXPEDIÇÃO AVANÇADA ─────────────────
+# ─── COMANDOS DE EXPEDIÇÃO ────────────────────────────────────────
+
+# Registro dos comandos do grupo expedicao
 register_commands(bot)
 
 # ─── COMANDO PARA INICIAR EXPEDIÇÃO AVANÇADA ─────────────────────
@@ -1642,6 +1644,48 @@ register_commands(bot)
 @app_commands.checks.has_permissions(administrator=True)
 async def expedicao_avancada_iniciar(interaction: discord.Interaction, expedicao_id: int):
     await iniciar_expedicao(interaction, expedicao_id)
+
+# ─── COMANDO PARA INSCREVER JOGADOR NA EXPEDIÇÃO ─────────────────
+@bot.tree.command(name="expedicao_inscrever", description="Inscreve seu personagem em uma expedição")
+@app_commands.describe(expedicao_id="ID da expedição")
+async def expedicao_inscrever(interaction: discord.Interaction, expedicao_id: int):
+    await interaction.response.defer(ephemeral=True)
+    
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        exp = await conn.fetchrow("SELECT * FROM expedicoes_avancadas WHERE id=$1 AND status='rascunho'", expedicao_id)
+        if not exp:
+            await interaction.followup.send("Expedição não encontrada ou já iniciada!", ephemeral=True)
+            return
+        
+        p = await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", interaction.user.id)
+        if not p:
+            await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True)
+            return
+        
+        if p["nivel"] < exp["nivel_minimo"]:
+            await interaction.followup.send(f"Nível insuficiente! Precisa de nível {exp['nivel_minimo']}.", ephemeral=True)
+            return
+        
+        ex = await conn.fetchrow("SELECT id FROM expedicao_avancada_participantes WHERE expedicao_id=$1 AND user_id=$2", 
+                                 expedicao_id, interaction.user.id)
+        if ex:
+            await interaction.followup.send("Você já está inscrito!", ephemeral=True)
+            return
+        
+        total = await conn.fetchval("SELECT COUNT(*) FROM expedicao_avancada_participantes WHERE expedicao_id=$1", expedicao_id)
+        if total >= exp["max_participantes"]:
+            await interaction.followup.send("Vagas esgotadas!", ephemeral=True)
+            return
+        
+        await conn.execute("""
+            INSERT INTO expedicao_avancada_participantes (expedicao_id, user_id, nome, classe_id, nivel)
+            VALUES ($1, $2, $3, $4, $5)
+        """, expedicao_id, interaction.user.id, p["nome"], p["classe_id"], p["nivel"])
+        
+        novo_total = total + 1
+    
+    await interaction.followup.send(f"✅ Inscrito na expedição **{exp['nome']}**! ({novo_total}/{exp['max_participantes']})", ephemeral=True)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
