@@ -1634,7 +1634,7 @@ async def ajuda(interaction: discord.Interaction):
 # ─── COMANDOS DE EXPEDIÇÃO ────────────────────────────────────────
 
 # Registro dos comandos do grupo expedicao
-register_commands(bot)
+register_expedicao_commands(bot)
 
 # ─── COMANDO PARA INICIAR EXPEDIÇÃO AVANÇADA ─────────────────────
 @bot.tree.command(name="expedicao_avancada_iniciar", description="[ADMIN] Inicia uma expedição avançada")
