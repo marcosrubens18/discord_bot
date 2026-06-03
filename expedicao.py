@@ -15,25 +15,38 @@ from catalogo import MATERIAIS_CAT, POCOES_CAT, ARMAS_POR_CLASSE, ARMADURAS_POR_
 async def init_db_expedicao():
     pool = await get_pool()
     async with pool.acquire() as conn:
+        # Cria tabela principal se não existir
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS expedicoes (
                 id SERIAL PRIMARY KEY,
                 nome TEXT NOT NULL,
                 descricao TEXT DEFAULT '',
-                imagem_divulgacao TEXT DEFAULT '',
                 nivel_minimo INTEGER DEFAULT 1,
                 max_participantes INTEGER DEFAULT 5,
                 status TEXT DEFAULT 'rascunho',
-                recompensa_moedas INTEGER DEFAULT 0,
-                recompensa_xp INTEGER DEFAULT 0,
-                recompensa_fichas INTEGER DEFAULT 0,
-                recompensa_materiais JSONB DEFAULT '[]',
-                canal_divulgacao_id BIGINT DEFAULT 0,
-                msg_divulgacao_id BIGINT DEFAULT 0,
                 criado_por BIGINT,
                 criado_em TIMESTAMP DEFAULT NOW()
             )
         """)
+        
+        # Adiciona todas as colunas que podem estar faltando
+        colunas_para_adicionar = [
+            ("imagem_divulgacao", "TEXT DEFAULT ''"),
+            ("canal_divulgacao_id", "BIGINT DEFAULT 0"),
+            ("msg_divulgacao_id", "BIGINT DEFAULT 0"),
+            ("recompensa_moedas", "INTEGER DEFAULT 0"),
+            ("recompensa_xp", "INTEGER DEFAULT 0"),
+            ("recompensa_fichas", "INTEGER DEFAULT 0"),
+            ("recompensa_materiais", "JSONB DEFAULT '[]'"),
+        ]
+        
+        for coluna, tipo in colunas_para_adicionar:
+            try:
+                await conn.execute(f"ALTER TABLE expedicoes ADD COLUMN IF NOT EXISTS {coluna} {tipo}")
+            except Exception as e:
+                print(f"Erro ao adicionar coluna {coluna}: {e}")
+        
+        # Cria tabela de participantes
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS expedicao_participantes (
                 id SERIAL PRIMARY KEY,
@@ -45,6 +58,8 @@ async def init_db_expedicao():
                 UNIQUE(expedicao_id, user_id)
             )
         """)
+        
+        # Cria tabela de capítulos
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS expedicao_capitulos (
                 id SERIAL PRIMARY KEY,
@@ -59,6 +74,7 @@ async def init_db_expedicao():
                 monstro_qtd INTEGER DEFAULT 1
             )
         """)
+    
     print("DB expedição OK!")
 
 # ==================================================
