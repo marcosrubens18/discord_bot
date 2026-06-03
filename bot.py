@@ -41,9 +41,7 @@ from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
 
 # ─── EXPEDIÇÃO NOVA (SISTEMA AVANÇADO) ───────────────────────────
-from expedicao_comandos import register_commands
-from expedicao_executor import iniciar_expedicao
-from expedicao_db import init_db_expedicao_avancado
+from expedicao import register_expedicao_commands, init_db_expedicao
 
 # Configuração de imagens (desabilitadas)
 IMG_PERFIL = IMG_SETUP = IMG_INVENTARIO = IMG_SKILLS = IMG_AJUDA = ""
