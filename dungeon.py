@@ -1,18 +1,20 @@
-# -*- coding: utf-8 -*-
+# dungeon.py — Sistema de Dungeons com Lock e integração com Party
 import discord
-from discord import app_commands
-import asyncio, random
+import asyncio
+import random
 from db import get_pool
 from catalogo import get_rank, CARGOS_RANK, SKILLS_COMPLETAS
 from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA, IMG_DUNGEON_MONSTRO
 from utils import atualizar_todos_cargos
-from batalha import calc_dano, BATALHAS_ATIVAS
-
+from batalha import calc_dano, BATALHAS_ATIVAS, barra_hp, Passiva, PassivaRacial, aplicar_efeito_pocao, remover_pocao, get_pocoes_inv, get_skills_eq, get_arma_equipada, get_armadura_equipada, calcular_bonus_equip, EMOJI_CLASSE
+from dungeon_lock import dungeon_lock
+from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO
 
 EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
 COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
 
-# Usa SKILLS_COMPLETAS do catalogo (completo com todas as skills)
+# Usa SKILLS_COMPLETAS do catalogo
+from catalogo import SKILLS_COMPLETAS
 
 # ─── RANKS DE DUNGEON ────────────────────────────────────────────
 
@@ -136,111 +138,6 @@ RANKS = {
                  "loot_raro":("titulo_conquistador","Titulo: Conquistador S","titulo","Lendario","🌟","Titulo exclusivo no servidor"),
                  "loot_epico":("classe_deus","Classe: Deus da Guerra","classe_especial","Lendario","⚔️","CLASSE UNICA — obtida apenas aqui")},
     },
-}
-
-# ─── DB ──────────────────────────────────────────────────────────
-
-async def get_personagem(user_id):
-    pool = await get_pool()
-    pool = await get_pool()
-    async with pool.acquire() as db:
-        return await db.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
-
-async def get_skills_eq(user_id):
-    pool = await get_pool()
-    async with pool.acquire() as db:
-        async with db.execute("SELECT skill_id FROM skills_equipadas WHERE user_id=$1 ORDER BY slot", user_id) as c:
-            return [r["skill_id"] for r in await c.fetchall()]
-
-async def get_pocoes_inv(user_id):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        return await conn.fetch(
-            "SELECT * FROM inventario WHERE user_id=$1 AND (item_id LIKE 'pocao%' OR item_id='elixir')",
-            user_id
-        )
-
-async def get_skills_eq(user_id):
-    pool = await get_pool()
-    async with pool.acquire() as db:
-        rows = await db.fetch("SELECT skill_id FROM skills_equipadas WHERE user_id=$1 ORDER BY slot", user_id)
-        return [r["skill_id"] for r in rows]
-
-async def remover_pocao(user_id, item_id):
-    pool = await get_pool()
-    async with pool.acquire() as db:
-        row = await db.fetchrow("SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", user_id, item_id)
-        if row:
-            if row["quantidade"] > 1:
-                await db.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=$1", row["id"])
-            else:
-                await db.execute("DELETE FROM inventario WHERE id=$1", row["id"])
-
-
-def xp_needed_rank(nivel):
-    base = 100 + (nivel-1)*50
-    if nivel >= 60: return int(base * 3.0)
-    if nivel >= 40: return int(base * 2.0)
-    if nivel >= 20: return int(base * 1.5)
-    return base
-
-async def salvar_resultado_dungeon(user_id, hp_final, xp_total, classe_id, nivel):
-    """Salva resultado da dungeon. Sem moedas — ganhe vendendo loot!"""
-    pool = await get_pool()
-    async with pool.acquire() as db:
-        p = await db.fetchrow(
-            "SELECT xp,nivel,hp_max,ataque,defesa,poder_valor,destino_id FROM personagens WHERE user_id=$1",
-            user_id
-        )
-        if not p: return 0, nivel
-        novo_xp = p["xp"] + xp_total
-        nv = p["nivel"]
-        levelups = 0
-        needed = xp_needed_rank(nv)
-        while novo_xp >= needed:
-            novo_xp -= needed; nv += 1; needed = xp_needed_rank(nv); levelups += 1
-        hp_max = p["hp_max"] + levelups*5
-        atk    = p["ataque"] + levelups*2
-        dfs    = p["defesa"] + levelups*1
-        from catalogo import calcular_mana_max
-        mana_max = calcular_mana_max(classe_id, nv, p["poder_valor"], p["destino_id"])
-        hp_f = max(1, min(hp_final, hp_max))
-        await db.execute("""
-            UPDATE personagens
-            SET hp_atual=$1, hp_max=$2, xp=$3, nivel=$4,
-                ataque=$5, defesa=$6, mana_max=$7,
-                vitorias=vitorias+1
-            WHERE user_id=$8
-        """, hp_f, hp_max, novo_xp, nv, atk, dfs, mana_max, user_id)
-        from catalogo import SKILLS_COMPLETAS
-        for s in SKILLS_COMPLETAS.get(classe_id, []):
-            if s["nivel"] <= nv:
-                await db.execute(
-                    "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
-                    user_id, s["id"]
-                )
-        return levelups, nv
-
-async def add_item_dungeon(user_id, item):
-    iid, nome, tipo, rar, emoji, desc = item
-    pool = await get_pool()
-    async with pool.acquire() as db:
-        ex = await db.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", (user_id,iid))
-        if ex:
-            await db.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
-        else:
-            await db.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
-                             (user_id,iid,nome,tipo,rar,emoji,desc))
-
-# ─── HELPERS ─────────────────────────────────────────────────────
-
-POCOES_DEF = {
-    "pocao_hp_p":  {"nome":"Pocao de Cura P", "emoji":"🧪","tipo":"hp",  "valor":30},
-    "pocao_hp_m":  {"nome":"Pocao de Cura M", "emoji":"💊","tipo":"hp",  "valor":60},
-    "pocao_hp_g":  {"nome":"Pocao de Cura G", "emoji":"❤️","tipo":"hp",  "valor":120},
-    "pocao_mana_p":{"nome":"Pocao de Mana P", "emoji":"🔵","tipo":"mana","valor":20},
-    "pocao_mana_m":{"nome":"Pocao de Mana M", "emoji":"💙","tipo":"mana","valor":50},
-    "elixir":      {"nome":"Elixir Supremo",  "emoji":"✨","tipo":"full","valor":999},
     "SS": {
         "nome":"Dungeon Rank SS","rank_min":"SS","emoji":"💎","nivel_min":75,"cor":0xD85A30,
         "desc":"O conteudo final. Apenas os Transcendentes ousam entrar. Recompensa unica.",
@@ -262,40 +159,106 @@ POCOES_DEF = {
     },
 }
 
-def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False,
-              nivel=1, hp_max_monstro=None, passiva_mult=1.0):
-    """Calc de dano unificado — mesma logica do batalha.py"""
-    if nivel <= 9:    df, mc = 1.1,  1.10
-    elif nivel <= 19: df, mc = 0.95, 1.25
-    elif nivel <= 29: df, mc = 0.85, 1.45
-    elif nivel <= 39: df, mc = 0.78, 1.60
-    elif nivel <= 49: df, mc = 0.72, 1.70
-    elif nivel <= 59: df, mc = 0.67, 1.75
-    elif nivel <= 74: df, mc = 0.62, 1.80
-    else:             df, mc = 0.58, 1.80
-    mt  = min(mc, mult * min(float(passiva_mult), 1.40))
-    dm  = max(2, int(atk * 0.08))
-    if ignorar_defesa:
-        base = int((atk / df) * mt)
-    else:
-        ae   = max(1, atk - int(dfs * 0.30))
-        base = int((ae / df) * mt)
-    base = max(dm, base)
-    var  = random.randint(-max(1, base//12), max(1, base//12))
-    d    = max(dm, base + var)
-    d    = int(d * min(bonus_atk, 1.10))
-    if crit:
-        d = int(d * 1.25)
-    if hp_max_monstro and hp_max_monstro > 0:
-        d = min(d, max(dm, int(hp_max_monstro * 0.38)))
-    return max(dm, d)
+# ─── DB HELPERS ──────────────────────────────────────────────────
 
-def barra_hp(cur, mx):
-    if mx <= 0: return "░░░░░░░░░░"
-    p = max(0.0, cur/mx)
-    f = int(p*10)
-    c = "█" if p>0.6 else ("▓" if p>0.3 else "▒")
-    return c*f + "░"*(10-f)
+async def get_personagem(user_id):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
+
+async def get_skills_eq(user_id):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("SELECT skill_id FROM skills_equipadas WHERE user_id=$1 ORDER BY slot", user_id)
+        return [r["skill_id"] for r in rows]
+
+async def get_pocoes_inv(user_id):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            "SELECT * FROM inventario WHERE user_id=$1 AND (item_id LIKE 'pocao%' OR item_id='elixir')",
+            user_id
+        )
+
+async def remover_pocao(user_id, item_id):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", user_id, item_id)
+        if row:
+            if row["quantidade"] > 1:
+                await conn.execute("UPDATE inventario SET quantidade=quantidade-1 WHERE id=$1", row["id"])
+            else:
+                await conn.execute("DELETE FROM inventario WHERE id=$1", row["id"])
+
+
+def xp_needed_rank(nivel):
+    base = 100 + (nivel-1)*50
+    if nivel >= 60: return int(base * 3.0)
+    if nivel >= 40: return int(base * 2.0)
+    if nivel >= 20: return int(base * 1.5)
+    return base
+
+async def salvar_resultado_dungeon(user_id, hp_final, xp_total, classe_id, nivel):
+    """Salva resultado da dungeon. Sem moedas — ganhe vendendo loot!"""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        p = await conn.fetchrow(
+            "SELECT xp,nivel,hp_max,ataque,defesa,poder_valor,destino_id FROM personagens WHERE user_id=$1",
+            user_id
+        )
+        if not p: return 0, nivel
+        novo_xp = p["xp"] + xp_total
+        nv = p["nivel"]
+        levelups = 0
+        needed = xp_needed_rank(nv)
+        while novo_xp >= needed:
+            novo_xp -= needed
+            nv += 1
+            needed = xp_needed_rank(nv)
+            levelups += 1
+        hp_max = p["hp_max"] + levelups*5
+        atk    = p["ataque"] + levelups*2
+        dfs    = p["defesa"] + levelups*1
+        from catalogo import calcular_mana_max
+        mana_max = calcular_mana_max(classe_id, nv, p["poder_valor"], p["destino_id"])
+        hp_f = max(1, min(hp_final, hp_max))
+        await conn.execute("""
+            UPDATE personagens
+            SET hp_atual=$1, hp_max=$2, xp=$3, nivel=$4,
+                ataque=$5, defesa=$6, mana_max=$7,
+                vitorias=vitorias+1
+            WHERE user_id=$8
+        """, hp_f, hp_max, novo_xp, nv, atk, dfs, mana_max, user_id)
+        from catalogo import SKILLS_COMPLETAS
+        for s in SKILLS_COMPLETAS.get(classe_id, []):
+            if s["nivel"] <= nv:
+                await conn.execute(
+                    "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
+                    user_id, s["id"]
+                )
+        return levelups, nv
+
+async def add_item_dungeon(user_id, item):
+    iid, nome, tipo, rar, emoji, desc = item
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        ex = await conn.fetchrow("SELECT id,quantidade FROM inventario WHERE user_id=$1 AND item_id=$2", user_id, iid)
+        if ex:
+            await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
+        else:
+            await conn.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                               user_id, iid, nome, tipo, rar, emoji, desc)
+
+# ─── HELPERS ─────────────────────────────────────────────────────
+
+POCOES_DEF = {
+    "pocao_hp_p":  {"nome":"Pocao de Cura P", "emoji":"🧪","tipo":"hp",  "valor":30},
+    "pocao_hp_m":  {"nome":"Pocao de Cura M", "emoji":"💊","tipo":"hp",  "valor":60},
+    "pocao_hp_g":  {"nome":"Pocao de Cura G", "emoji":"❤️","tipo":"hp",  "valor":120},
+    "pocao_mana_p":{"nome":"Pocao de Mana P", "emoji":"🔵","tipo":"mana","valor":20},
+    "pocao_mana_m":{"nome":"Pocao de Mana M", "emoji":"💙","tipo":"mana","valor":50},
+    "elixir":      {"nome":"Elixir Supremo",  "emoji":"✨","tipo":"full","valor":999},
+}
 
 def get_skill(classe_id, skill_id):
     for s in SKILLS_COMPLETAS.get(classe_id,[]):
@@ -391,9 +354,7 @@ class DungeonBatalhaView(discord.ui.View):
         sel.callback = usar
         v = discord.ui.View(timeout=20); v.add_item(sel)
         try: await inter.response.send_message("🎒 Escolha uma pocao:", view=v, ephemeral=True)
-        except: pass
-
-    async def _atk_basico(self, inter: discord.Interaction):
+        except: pass    async def _atk_basico(self, inter: discord.Interaction):
         try: await inter.response.defer()
         except: pass
         if inter.user.id != self.user_id or self.acao_feita: return
@@ -427,13 +388,13 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
     efeitos = {}
     emoji_j = EMOJI_CLASSE.get(p["classe_id"],"⚔️")
     nivel_p = p["nivel"]
+    timeout_count = 0
 
     # Bonus de afinidade de arma
-    from batalha import calcular_bonus_equip as _cbe, get_arma_equipada as _gae, get_armadura_equipada as _garm
     try:
-        arma_eq = await _gae(p["user_id"])
-        arm_eq  = await _garm(p["user_id"])
-        bonus_atk, bonus_dfs = _cbe(p["classe_id"], arma_eq, arm_eq)
+        arma_eq = await get_arma_equipada(p["user_id"])
+        arm_eq  = await get_armadura_equipada(p["user_id"])
+        bonus_atk, bonus_dfs = calcular_bonus_equip(p["classe_id"], arma_eq, arm_eq)
     except Exception:
         bonus_atk, bonus_dfs = 1.0, 1.0
 
@@ -474,20 +435,20 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         if acao == "timeout":
             timeout_count += 1
             if timeout_count >= 3:
-                return hp_j, mana_j, False, False  # expulso
+                return hp_j, mana_j, False, False
             else:
                 aviso = discord.Embed(
                     title=f"Turno perdido! ({timeout_count}/3)",
                     description=f"Sem acao em 30s — turno ignorado. Mais {3-timeout_count}x = expulso!",
                     color=0xE4AF3C
                 )
-                await msg_turno.edit(embed=aviso, view=None)
+                await msg_vez.edit(embed=aviso, view=None)
                 continue
 
-        timeout_count = 0  # Reset ao agir
+        timeout_count = 0
 
         if acao == "fugir":
-            return hp_j, mana_j, False, True  # hp, mana, vitoria, fugiu
+            return hp_j, mana_j, False, True
 
         linha = ""
         cor   = 0x378ADD
@@ -509,45 +470,60 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
             if pd:
                 await remover_pocao(p["user_id"], val)
                 if pd["tipo"] == "hp":
-                    ganho = pd["valor"]; hp_j = min(hp_jmx, hp_j+ganho)
+                    ganho = pd["valor"]
+                    hp_j = min(hp_jmx, hp_j+ganho)
                     linha = f"🧪 **{pd['nome']}**: +{ganho} HP!"
                     cor = 0x1D9E75
                 elif pd["tipo"] == "mana":
-                    ganho = pd["valor"]; mana_j = min(mana_jmx, mana_j+ganho)
+                    ganho = pd["valor"]
+                    mana_j = min(mana_jmx, mana_j+ganho)
                     linha = f"🔵 **{pd['nome']}**: +{ganho} Mana!"
                 elif pd["tipo"] == "full":
-                    hp_j=hp_jmx; mana_j=mana_jmx
+                    hp_j = hp_jmx
+                    mana_j = mana_jmx
                     linha = "✨ **Elixir Supremo**: tudo restaurado!"
                     cor = 0xE4AF3C
 
         elif acao == "skill" and val is not None and val < len(skills):
-            sk = skills[val]; efeito = sk.get("efeito",""); custo = sk.get("mana",0)
+            sk = skills[val]
+            efeito = sk.get("efeito","")
+            custo = sk.get("mana",0)
             if custo > mana_j:
-                dano = calc_dano(p["ataque"], monstro["defesa"], _mult_basico(nivel_p), bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx); hp_m -= dano
+                dano = calc_dano(p["ataque"], monstro["defesa"], _mult_basico(nivel_p), bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx)
+                hp_m -= dano
                 linha = f"⚔️ Sem mana! Ataque básico: **{dano} dano**"
                 cor = 0x888780
             elif efeito == "cura":
-                mana_j -= custo; cura = int(hp_jmx*0.30); hp_j = min(hp_jmx, hp_j+cura)
+                mana_j -= custo
+                cura = int(hp_jmx*0.30)
+                hp_j = min(hp_jmx, hp_j+cura)
                 linha = f"{sk['emoji']} **{sk['nome']}**: +{cura} HP!"
                 cor = 0x1D9E75
             elif efeito in ("escudo","esquiva","armadura","reflexo"):
-                mana_j -= custo; efeitos[efeito] = 2
+                mana_j -= custo
+                efeitos[efeito] = 2
                 linha = f"{sk['emoji']} **{sk['nome']}**: efeito ativo!"
                 cor = 0x7F77DD
             elif efeito == "dreno":
-                mana_j -= custo; dano = calc_dano(p["ataque"],monstro["defesa"],sk.get("dano",1.0),bonus_atk=bonus_atk,nivel=nivel_p,hp_max_monstro=hp_mmx)
-                roubo = dano//2; hp_m -= dano; hp_j = min(hp_jmx, hp_j+roubo)
+                mana_j -= custo
+                dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano",1.0), bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx)
+                roubo = dano//2
+                hp_m -= dano
+                hp_j = min(hp_jmx, hp_j+roubo)
                 linha = f"{sk['emoji']} **{sk['nome']}**: {dano} dano! +{roubo} HP drenado!"
                 cor = 0x1D9E75
             else:
-                mana_j -= custo; crit = random.random()<0.15
+                mana_j -= custo
+                crit = random.random()<0.15
                 dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano",1.0), crit, bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx)
                 hp_m -= dano
                 linha = f"{sk['emoji']} **{sk['nome']}**: **{dano} dano!**{'  💥 CRITICO!' if crit else ''}"
                 cor = 0xD85A30 if crit else 0x378ADD
         else:
-            dano = calc_dano(p["ataque"], monstro["defesa"]); hp_m -= dano
-            linha = f"⚔️ Ataque basico: **{dano} dano**"; cor = 0x888780
+            dano = calc_dano(p["ataque"], monstro["defesa"])
+            hp_m -= dano
+            linha = f"⚔️ Ataque basico: **{dano} dano**"
+            cor = 0x888780
 
         hp_m = max(0, hp_m)
 
@@ -556,24 +532,25 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
             wait=True
         )
         msgs.append(msg_a)
-        if hp_m <= 0: break
+        if hp_m <= 0:
+            break
 
         await asyncio.sleep(1.0)
 
         # Monstro ataca
-        sk_m   = random.choice(monstro["skills"])
+        sk_m = random.choice(monstro["skills"])
         dano_m = calc_dano(monstro["ataque"], p["defesa"], nivel=nivel_p)
-        cor_m  = 0xE24B4A
+        cor_m = 0xE24B4A
 
         if efeitos.get("defesa_basica", 0) > 0:
             efeitos["defesa_basica"] = 0
             if random.random() < 0.60:
                 dano_red = max(1, int(dano_m * 0.20))
-                hp_j     = max(0, hp_j - dano_red)
-                linha_m  = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_red} dano** (🛡️ Defesa funcionou! -80%!)"
-                cor_m    = 0x378ADD
+                hp_j = max(0, hp_j - dano_red)
+                linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_red} dano** (🛡️ Defesa funcionou! -80%!)"
+                cor_m = 0x378ADD
             else:
-                hp_j    = max(0, hp_j - dano_m)
+                hp_j = max(0, hp_j - dano_m)
                 linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_m} dano** (❌ Defesa falhou! Dano total!)"
 
         elif efeitos.get("esquiva", 0) > 0:
@@ -588,13 +565,13 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
 
         elif efeitos.get("armadura", 0) > 0:
             dano_red = max(1, int(dano_m * 0.65))
-            hp_j     = max(0, hp_j - dano_red)
-            linha_m  = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_red} dano** (🐉 Armadura -35%!)"
+            hp_j = max(0, hp_j - dano_red)
+            linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_red} dano** (🐉 Armadura -35%!)"
             efeitos["armadura"] -= 1
             cor_m = 0xE67E22
 
         else:
-            hp_j    = max(0, hp_j - dano_m)
+            hp_j = max(0, hp_j - dano_m)
             linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji'] if 'emoji' in sk_m else '⚔️'} {sk_m['nome']}**: **{dano_m} dano!**"
 
         # Mana regen por rank
@@ -626,240 +603,248 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
 # ─── COMANDO PRINCIPAL: /dungeon ─────────────────────────────────
 
 async def cmd_dungeon(interaction: discord.Interaction, rank: str):
-    await interaction.response.defer()
-
-    p = await get_personagem(interaction.user.id)
-    if not p:
-        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True)
+    user_id = interaction.user.id
+    
+    # VERIFICA LOCK - evita entrar em duas dungeons ao mesmo tempo
+    if dungeon_lock.is_user_locked(user_id):
+        await interaction.response.send_message("❌ Você já está em uma dungeon!", ephemeral=True)
         return
-
-    dungeon = RANKS.get(rank.upper())
-    if not dungeon:
-        await interaction.followup.send("Rank invalido!", ephemeral=True)
+    
+    user_lock = dungeon_lock.get_user_lock(user_id)
+    
+    if user_lock.locked():
+        await interaction.response.send_message("❌ Você já está em uma dungeon!", ephemeral=True)
         return
+    
+    async with user_lock:
+        await interaction.response.defer()
 
-    if p["nivel"] < dungeon["nivel_min"]:
-        await interaction.followup.send(
-            embed=discord.Embed(
-                title="Nivel insuficiente!",
-                description=f"A **{dungeon['nome']}** requer nivel **{dungeon['nivel_min']}**.\nSeu nivel: **{p['nivel']}**",
-                color=0xE24B4A
-            ),
-            ephemeral=True
-        )
-        return
+        p = await get_personagem(interaction.user.id)
+        if not p:
+            await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True)
+            return
 
-    # Pega skills
-    ids_eq = await get_skills_eq(p["user_id"])
-    skills = get_skills_jogador(p, ids_eq)
-    if not skills:
-        cls = SKILLS_COMPLETAS.get(p["classe_id"], [])
-        skills = cls[:4] if cls else []
+        dungeon = RANKS.get(rank.upper())
+        if not dungeon:
+            await interaction.followup.send("Rank invalido!", ephemeral=True)
+            return
 
-    hp_j    = p["hp_atual"]
-    hp_jmx  = p["hp_max"]
-    mana_j  = p["mana_atual"] if "mana_atual" in p.keys() else 100
-    mana_jmx= p["mana_max"]   if "mana_max"   in p.keys() else 100
-    emoji_j = EMOJI_CLASSE.get(p["classe_id"],"⚔️")
+        if p["nivel"] < dungeon["nivel_min"]:
+            await interaction.followup.send(
+                embed=discord.Embed(
+                    title="Nivel insuficiente!",
+                    description=f"A **{dungeon['nome']}** requer nivel **{dungeon['nivel_min']}**.\nSeu nivel: **{p['nivel']}**",
+                    color=0xE24B4A
+                ),
+                ephemeral=True
+            )
+            return
 
-    xp_total      = 0
-    moedas_total  = 0
-    msgs_global   = []
-    timeout_count = 0
+        # Pega skills
+        ids_eq = await get_skills_eq(p["user_id"])
+        skills = get_skills_jogador(p, ids_eq)
+        if not skills:
+            cls = SKILLS_COMPLETAS.get(p["classe_id"], [])
+            skills = cls[:4] if cls else []
 
-    # ── Mensagem de entrada ──────────────────────────────────────
-    img_dg = IMG_DUNGEON.get(rank.upper(), IMG_DUNGEON["F"])
-    embed_entrada = discord.Embed(
-        title=f"{dungeon['emoji']} {dungeon['nome']}",
-        description=(
-            f"{dungeon['desc']}\n\n"
-            f"**{emoji_j} {p['nome']}** entrou na dungeon!\n\n"
-            f"❤️ HP: **{hp_j}/{hp_jmx}**\n"
-            f"💙 Mana: **{mana_j}/{mana_jmx}**\n\n"
-            f"🏆 **5 andares + 1 chefe final**\n"
-            f"💀 Se morrer, perde tudo que ganhou aqui!"
-        ),
-        color=dungeon["cor"]
-    )
-    embed_entrada.set_footer(text=f"Nivel minimo: {dungeon['nivel_min']} • Seu nivel: {p['nivel']}")
-    msg_ent = await interaction.followup.send(embed=embed_entrada, wait=True)
-    msgs_global.append(msg_ent)
-    await asyncio.sleep(2)
+        hp_j    = p["hp_atual"]
+        hp_jmx  = p["hp_max"]
+        mana_j  = p["mana_atual"] if "mana_atual" in p.keys() else 100
+        mana_jmx = p["mana_max"]   if "mana_max"   in p.keys() else 100
+        emoji_j = EMOJI_CLASSE.get(p["classe_id"],"⚔️")
 
-    # ── Loop dos andares ─────────────────────────────────────────
-    for info_andar in dungeon["andares"]:
-        andar  = info_andar["andar"]
-        monstro = info_andar["monstro"]
+        xp_total      = 0
+        moedas_total  = 0
+        msgs_global   = []
+        timeout_count = 0
 
-        # Anuncia o andar
-        img_m = IMG_DUNGEON_MONSTRO.get(monstro["nome"], IMG_DUNGEON_MONSTRO["default"])
-        embed_andar = discord.Embed(
-            title=f"Andar {andar}/5 — {info_andar['emoji']} {info_andar['nome']}",
+        # ── Mensagem de entrada ──────────────────────────────────────
+        img_dg = IMG_DUNGEON.get(rank.upper(), IMG_DUNGEON["F"])
+        embed_entrada = discord.Embed(
+            title=f"{dungeon['emoji']} {dungeon['nome']}",
             description=(
-                f"Um **{monstro['emoji']} {monstro['nome']}** bloqueia seu caminho!\n\n"
-                f"❤️ HP inimigo: **{monstro['hp']}**\n"
-                f"⚔️ Ataque: **{monstro['ataque']}** | 🛡️ Defesa: **{monstro['defesa']}**"
+                f"{dungeon['desc']}\n\n"
+                f"**{emoji_j} {p['nome']}** entrou na dungeon!\n\n"
+                f"❤️ HP: **{hp_j}/{hp_jmx}**\n"
+                f"💙 Mana: **{mana_j}/{mana_jmx}**\n\n"
+                f"🏆 **{len(dungeon['andares'])} andares + 1 chefe final**\n"
+                f"💀 Se morrer, perde tudo que ganhou aqui!"
             ),
             color=dungeon["cor"]
         )
-        embed_andar.set_thumbnail(url=img_m)
-        msg_an = await interaction.followup.send(embed=embed_andar, wait=True)
-        msgs_global.append(msg_an)
-        await asyncio.sleep(1.5)
+        embed_entrada.set_footer(text=f"Nivel minimo: {dungeon['nivel_min']} • Seu nivel: {p['nivel']}")
+        msg_ent = await interaction.followup.send(embed=embed_entrada, wait=True)
+        msgs_global.append(msg_ent)
+        await asyncio.sleep(2)
 
-        msgs_batalha = []
-        hp_j, mana_j, vitoria, fugiu = await batalha_dungeon(
-            interaction, p, monstro, skills, hp_j, mana_j, hp_jmx, mana_jmx, msgs_batalha
+        # ── Loop dos andares ─────────────────────────────────────────
+        for info_andar in dungeon["andares"]:
+            andar  = info_andar["andar"]
+            monstro = info_andar["monstro"]
+
+            # Anuncia o andar
+            img_m = IMG_DUNGEON_MONSTRO.get(monstro["nome"], IMG_DUNGEON_MONSTRO["default"])
+            embed_andar = discord.Embed(
+                title=f"Andar {andar}/{len(dungeon['andares'])} — {info_andar['emoji']} {info_andar['nome']}",
+                description=(
+                    f"Um **{monstro['emoji']} {monstro['nome']}** bloqueia seu caminho!\n\n"
+                    f"❤️ HP inimigo: **{monstro['hp']}**\n"
+                    f"⚔️ Ataque: **{monstro['ataque']}** | 🛡️ Defesa: **{monstro['defesa']}**"
+                ),
+                color=dungeon["cor"]
+            )
+            embed_andar.set_thumbnail(url=img_m)
+            msg_an = await interaction.followup.send(embed=embed_andar, wait=True)
+            msgs_global.append(msg_an)
+            await asyncio.sleep(1.5)
+
+            msgs_batalha = []
+            hp_j, mana_j, vitoria, fugiu = await batalha_dungeon(
+                interaction, p, monstro, skills, hp_j, mana_j, hp_jmx, mana_jmx, msgs_batalha
+            )
+            msgs_global.extend(msgs_batalha)
+
+            # Limpa mensagens do andar
+            await asyncio.sleep(0.5)
+            for m in msgs_batalha:
+                try: await m.delete()
+                except: pass
+
+            if fugiu:
+                for m in msgs_global:
+                    try: await m.delete()
+                    except: pass
+                await interaction.followup.send(embed=discord.Embed(
+                    title="🏃 Fugiu da Dungeon!",
+                    description=f"**{p['nome']}** saiu da dungeon no andar {andar}.\nNenhuma recompensa foi obtida.",
+                    color=0x888780
+                ))
+                return
+
+            if not vitoria:
+                pool = await get_pool()
+                async with pool.acquire() as conn:
+                    await conn.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
+                BATALHAS_ATIVAS.discard(p["user_id"])
+                for m in msgs_global:
+                    try: await m.delete()
+                    except: pass
+                await interaction.followup.send(embed=discord.Embed(
+                    title=f"💀 {p['nome']} foi derrotado no Andar {andar}!",
+                    description=(
+                        f"Voce foi derrotado por **{monstro['emoji']} {monstro['nome']}** no andar {andar}.\n\n"
+                        "Perdeu todas as recompensas da dungeon!\n"
+                        "Acordou na cidade com 10 HP."
+                    ),
+                    color=0xE24B4A
+                ))
+                return
+
+            # Vitoria no andar — recompensa
+            xp_andar     = dungeon["recompensa_andar"]["xp"]
+            moedas_andar = dungeon["recompensa_andar"]["moedas"]
+            xp_total     += xp_andar
+            moedas_total += moedas_andar
+            mana_j        = min(mana_jmx, mana_j + 15)
+
+            msg_vit = await interaction.followup.send(embed=discord.Embed(
+                title=f"✅ Andar {andar} concluido!",
+                description=(
+                    f"**{monstro['emoji']} {monstro['nome']}** foi derrotado!\n\n"
+                    f"+{xp_andar} XP | +{moedas_andar} 🪙\n"
+                    f"❤️ HP restante: **{hp_j}/{hp_jmx}**\n\n"
+                    f"{'➡️ Proximo andar...' if andar < len(dungeon['andares']) else '⚔️ O CHEFE FINAL AGUARDA!'}"
+                ),
+                color=0x1D9E75
+            ), wait=True)
+            msgs_global.append(msg_vit)
+            await asyncio.sleep(2)
+
+        # ── CHEFE FINAL ──────────────────────────────────────────────
+        chefe = dungeon["chefe"]
+
+        img_chefe = IMG_DUNGEON_MONSTRO.get(chefe["nome"], IMG_DUNGEON_MONSTRO["default"])
+        embed_chefe = discord.Embed(
+            title=f"👑 CHEFE FINAL: {chefe['emoji']} {chefe['nome']}",
+            description=(
+                f"O guardiao desta dungeon se revela!\n\n"
+                f"❤️ HP: **{chefe['hp']}**\n"
+                f"⚔️ Ataque: **{chefe['ataque']}** | 🛡️ Defesa: **{chefe['defesa']}**\n\n"
+                f"⚠️ **Esta e sua ultima chance. Nao falhe!**"
+            ),
+            color=0xE24B4A
         )
-        msgs_global.extend(msgs_batalha)
+        embed_chefe.set_thumbnail(url=img_chefe)
+        msg_ch = await interaction.followup.send(embed=embed_chefe, wait=True)
+        msgs_global.append(msg_ch)
+        await asyncio.sleep(2)
 
-        # Limpa mensagens do andar
-        await asyncio.sleep(0.5)
-        for m in msgs_batalha:
+        msgs_chefe = []
+        hp_j, mana_j, vitoria, fugiu = await batalha_dungeon(
+            interaction, p, chefe, skills, hp_j, mana_j, hp_jmx, mana_jmx, msgs_chefe
+        )
+        msgs_global.extend(msgs_chefe)
+
+        for m in msgs_chefe:
             try: await m.delete()
             except: pass
 
-        if fugiu:
-            # Limpa tudo e anuncia fuga
+        if fugiu or not vitoria:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await conn.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
             for m in msgs_global:
                 try: await m.delete()
                 except: pass
+            titulo = "Fugiu do chefe!" if fugiu else "Derrotado pelo chefe!"
             await interaction.followup.send(embed=discord.Embed(
-                title="🏃 Fugiu da Dungeon!",
-                description=f"**{p['nome']}** saiu da dungeon no andar {andar}.\nNenhuma recompensa foi obtida.",
-                color=0x888780
+                title=titulo,
+                description="Tao perto... mas voce falhou.\n Todas as recompensas foram perdidas!",
+                color=0xE24B4A
             ))
             return
 
-        if not vitoria:
-            # Morreu — perde tudo
-            pool = await get_pool()
-            async with pool.acquire() as db:
-                await db.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
-            BATALHAS_ATIVAS.discard(p["user_id"])
-            for m in msgs_global:
-                try: await m.delete()
-                except: pass
-            await interaction.followup.send(embed=discord.Embed(
-                title=f"💀 {p['nome']} foi derrotado no Andar {andar}!",
-                description=(
-                    f"Voce foi derrotado por **{monstro['emoji']} {monstro['nome']}** no andar {andar}.\n\n"
-                    "Perdeu todas as recompensas da dungeon!\n"
-                    "Acordou na cidade com 10 HP."
-                ),
-                color=0xE24B4A
-            ))
-            return  # ← ESSENCIAL: para execução aqui
+        # ── VITÓRIA TOTAL ────────────────────────────────────────────
+        xp_total     += dungeon["recompensa_chefe"]["xp"]
+        moedas_total += dungeon["recompensa_chefe"]["moedas"]
 
-        # Vitoria no andar — recompensa
-        xp_andar     = dungeon["recompensa_andar"]["xp"]
-        moedas_andar = dungeon["recompensa_andar"]["moedas"]
-        xp_total     += xp_andar
-        moedas_total += moedas_andar
-        mana_j        = min(mana_jmx, mana_j + 15)  # recupera um pouco de mana
+        # Loot
+        loot_obtido = []
+        if chefe["loot_raro"]:
+            await add_item_dungeon(p["user_id"], chefe["loot_raro"])
+            loot_obtido.append(f"{chefe['loot_raro'][4]} **{chefe['loot_raro'][1]}** [{chefe['loot_raro'][3]}]")
+        if chefe["loot_epico"] and random.random() < 0.40:
+            await add_item_dungeon(p["user_id"], chefe["loot_epico"])
+            loot_obtido.append(f"{chefe['loot_epico'][4]} **{chefe['loot_epico'][1]}** [{chefe['loot_epico'][3]}] 🎉")
 
-        msg_vit = await interaction.followup.send(embed=discord.Embed(
-            title=f"✅ Andar {andar} concluido!",
-            description=(
-                f"**{monstro['emoji']} {monstro['nome']}** foi derrotado!\n\n"
-                f"+{xp_andar} XP | +{moedas_andar} 🪙\n"
-                f"❤️ HP restante: **{hp_j}/{hp_jmx}**\n\n"
-                f"{'➡️ Proximo andar...' if andar < 5 else '⚔️ O CHEFE FINAL AGUARDA!'}"
-            ),
-            color=0x1D9E75
-        ), wait=True)
-        msgs_global.append(msg_vit)
-        await asyncio.sleep(2)
+        lvlups, nivel_novo_d = await salvar_resultado_dungeon(p["user_id"], hp_j, xp_total, p["classe_id"], p["nivel"])
 
-    # ── CHEFE FINAL ──────────────────────────────────────────────
-    chefe = dungeon["chefe"]
+        loot_txt = "\n".join(loot_obtido) if loot_obtido else "*Nenhum item obtido*"
+        rank_obj_d = get_rank(nivel_novo_d)
 
-    img_chefe = IMG_DUNGEON_MONSTRO.get(chefe["nome"], IMG_DUNGEON_MONSTRO["default"])
-    embed_chefe = discord.Embed(
-        title=f"👑 CHEFE FINAL: {chefe['emoji']} {chefe['nome']}",
-        description=(
-            f"O guardiao desta dungeon se revela!\n\n"
-            f"❤️ HP: **{chefe['hp']}**\n"
-            f"⚔️ Ataque: **{chefe['ataque']}** | 🛡️ Defesa: **{chefe['defesa']}**\n\n"
-            f"⚠️ **Esta e sua ultima chance. Nao falhe!**"
-        ),
-        color=0xE24B4A
-    )
-    embed_chefe.set_thumbnail(url=img_chefe)
-    msg_ch = await interaction.followup.send(embed=embed_chefe, wait=True)
-    msgs_global.append(msg_ch)
-    await asyncio.sleep(2)
+        desc_final = (
+            f"**{emoji_j} {p['nome']}** completou a **{dungeon['emoji']} {dungeon['nome']}**!\n\n"
+            f"👑 Chefe derrotado: **{chefe['emoji']} {chefe['nome']}**\n\n"
+            f"✨ **+{xp_total} XP** conquistados\n"
+            f"📦 **Venda o loot no** `/mercado` **para ganhar moedas!**\n\n"
+            f"🎁 **Loot obtido:**\n{loot_txt}"
+        )
+        if lvlups:
+            rank_txt = f"\n🏅 Novo rank: {rank_obj_d['emoji']} **{rank_obj_d['rank']}**!" if get_rank(p['nivel'])['rank'] != rank_obj_d['rank'] else ""
+            desc_final += f"\n\n🎉 **LEVEL UP! Nível {nivel_novo_d}!** (+{lvlups} nível){rank_txt}"
+            desc_final += f"\n+{lvlups*5} HP | +{lvlups*2} ATK | +{lvlups} DEF"
 
-    msgs_chefe = []
-    hp_j, mana_j, vitoria, fugiu = await batalha_dungeon(
-        interaction, p, chefe, skills, hp_j, mana_j, hp_jmx, mana_jmx, msgs_chefe
-    )
-    msgs_global.extend(msgs_chefe)
+        embed_recomp = discord.Embed(
+            title=f"🏆 Dungeon Concluída!",
+            description=desc_final,
+            color=dungeon["cor"]
+        )
+        embed_recomp.set_image(url=IMG_VITORIA)
+        embed_recomp.set_footer(text="Venda seus itens no /mercado para ganhar moedas!")
 
-    for m in msgs_chefe:
-        try: await m.delete()
-        except: pass
+        await interaction.followup.send(embed=embed_recomp)
+        await asyncio.sleep(1.5)
 
-
-    if fugiu or not vitoria:
-        pool = await get_pool()
-        async with pool.acquire() as db:
-            await db.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
         for m in msgs_global:
             try: await m.delete()
             except: pass
-        titulo = "Fugiu do chefe!" if fugiu else "Derrotado pelo chefe!"
-        await interaction.followup.send(embed=discord.Embed(
-            title=titulo,
-            description="Tao perto... mas voce falhou.\n Todas as recompensas foram perdidas!",
-            color=0xE24B4A
-        ))
-        return
-    # ── VITÓRIA TOTAL ────────────────────────────────────────────
-    xp_total     += dungeon["recompensa_chefe"]["xp"]
-    moedas_total += dungeon["recompensa_chefe"]["moedas"]
-
-    # Loot
-    loot_obtido = []
-    # Loot raro garantido
-    if chefe["loot_raro"]:
-        await add_item_dungeon(p["user_id"], chefe["loot_raro"])
-        loot_obtido.append(f"{chefe['loot_raro'][4]} **{chefe['loot_raro'][1]}** [{chefe['loot_raro'][3]}]")
-    # Loot épico com 40% de chance
-    if chefe["loot_epico"] and random.random() < 0.40:
-        await add_item_dungeon(p["user_id"], chefe["loot_epico"])
-        loot_obtido.append(f"{chefe['loot_epico'][4]} **{chefe['loot_epico'][1]}** [{chefe['loot_epico'][3]}] 🎉")
-
-    lvlups, nivel_novo_d = await salvar_resultado_dungeon(p["user_id"], hp_j, xp_total, p["classe_id"], p["nivel"])
-
-    loot_txt = "\n".join(loot_obtido) if loot_obtido else "*Nenhum item obtido*"
-    rank_obj_d = get_rank(nivel_novo_d)
-
-    desc_final = (
-        f"**{emoji_j} {p['nome']}** completou a **{dungeon['emoji']} {dungeon['nome']}**!\n\n"
-        f"👑 Chefe derrotado: **{chefe['emoji']} {chefe['nome']}**\n\n"
-        f"✨ **+{xp_total} XP** conquistados\n"
-        f"📦 **Venda o loot no** `/mercado` **para ganhar moedas!**\n\n"
-        f"🎁 **Loot obtido:**\n{loot_txt}"
-    )
-    if lvlups:
-        rank_txt = f"\n🏅 Novo rank: {rank_obj_d['emoji']} **{rank_obj_d['rank']}**!" if get_rank(p['nivel'])['rank'] != rank_obj_d['rank'] else ""
-        desc_final += f"\n\n🎉 **LEVEL UP! Nível {nivel_novo_d}!** (+{lvlups} nível){rank_txt}"
-        desc_final += f"\n+{lvlups*5} HP | +{lvlups*2} ATK | +{lvlups} DEF"
-
-    embed_recomp = discord.Embed(
-        title=f"🏆 Dungeon Concluída!",
-        description=desc_final,
-        color=dungeon["cor"]
-    )
-    embed_recomp.set_image(url=IMG_VITORIA)
-    embed_recomp.set_footer(text="Venda seus itens no /mercado para ganhar moedas!")
-
-    # Envia resultado ANTES de apagar mensagens
-    await interaction.followup.send(embed=embed_recomp)
-    await asyncio.sleep(1.5)
-
-    # Agora limpa mensagens antigas
-    for m in msgs_global:
-        try: await m.delete()
-        except: pass
