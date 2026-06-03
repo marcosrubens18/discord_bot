@@ -32,6 +32,7 @@ from guildas import (cmd_guilda_criar, cmd_guilda_info, cmd_guilda_convidar, cmd
     cmd_guilda_expulsar, cmd_guilda_promover, cmd_guilda_depositar, cmd_guilda_retirar,
     cmd_guilda_ranking, cmd_guilda_missoes, init_db_guildas, dar_xp_guilda, atualizar_missao_guilda)
 from dupla import rodar_treino_dupla
+from torneio import register_torneio_commands, init_db_torneio
 from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_ativar, cmd_dungeon_evento_info,
     cmd_dungeon_evento_fechar, init_db_dungeon_evento)
@@ -40,7 +41,7 @@ from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
 
 # ─── NOVOS SISTEMAS ───────────────────────────────────────────────
 from party import register_party_commands, init_db_party
-from torneio import register_torneio_commands, init_db_torneio
+from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO
 
 # Configuração de imagens (desabilitadas)
 IMG_PERFIL = IMG_SETUP = IMG_INVENTARIO = IMG_SKILLS = IMG_AJUDA = ""
@@ -95,6 +96,9 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# ─── VARIÁVEL GLOBAL ──────────────────────────────────────────────
+_synced = False
 
 # ─── HELPERS ─────────────────────────────────────────────────────
 
@@ -282,8 +286,7 @@ async def criar_canal_privado(guild, member, nome, classe):
 
     except Exception as e:
         print(f"Erro ao criar canal privado: {e}")
-
-# ─── AUTOCOMPLETE FUNCTIONS ──────────────────────────────────────
+        # ─── AUTOCOMPLETE FUNCTIONS ──────────────────────────────────────
 
 async def autocomplete_item_categoria(interaction: discord.Interaction, current: str):
     try:
@@ -867,8 +870,7 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
         else: await conn.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
             interaction.user.id, it["id"], it["nome"], categoria.rstrip("s"), it["raridade"], it["emoji"], it.get("desc",""))
     await interaction.followup.send(f"Comprou {it['emoji']} **{it['nome']}** por {preco} moedas!", ephemeral=True)
-
-# ─── /ferreiro ───────────────────────────────────────────────────
+    # ─── /ferreiro ───────────────────────────────────────────────────
 
 @bot.tree.command(name="ferreiro", description="Forje itens com materiais de dungeon")
 async def ferreiro(interaction: discord.Interaction):
@@ -1232,6 +1234,7 @@ async def agendar_anuncio(interaction: discord.Interaction, canal: str,
 @bot.tree.command(name="torneio_criar", description="[ADMIN] Cria um novo torneio")
 @app_commands.checks.has_permissions(administrator=True)
 async def torneio_criar(interaction: discord.Interaction):
+    from torneio import CriarTorneioModal
     await interaction.response.send_modal(CriarTorneioModal())
 
 # ─── /torneio_inscrever ──────────────────────────────────────────
@@ -1239,6 +1242,7 @@ async def torneio_criar(interaction: discord.Interaction):
 @bot.tree.command(name="torneio_inscrever", description="Inscreve seu personagem no torneio")
 @app_commands.describe(torneio_id="ID do torneio")
 async def torneio_inscrever(interaction: discord.Interaction, torneio_id: int):
+    from torneio import cmd_torneio_inscrever
     await cmd_torneio_inscrever(interaction, torneio_id)
 
 # ─── /torneio_fechar ─────────────────────────────────────────────
@@ -1247,6 +1251,7 @@ async def torneio_inscrever(interaction: discord.Interaction, torneio_id: int):
 @app_commands.describe(torneio_id="ID do torneio")
 @app_commands.checks.has_permissions(administrator=True)
 async def torneio_fechar(interaction: discord.Interaction, torneio_id: int):
+    from torneio import cmd_torneio_fechar
     await cmd_torneio_fechar(interaction, torneio_id)
 
 # ─── /torneio_lutar ──────────────────────────────────────────────
@@ -1255,6 +1260,7 @@ async def torneio_fechar(interaction: discord.Interaction, torneio_id: int):
 @app_commands.describe(torneio_id="ID do torneio", luta_num="Número da luta")
 @app_commands.checks.has_permissions(administrator=True)
 async def torneio_lutar(interaction: discord.Interaction, torneio_id: int, luta_num: int):
+    from torneio import cmd_torneio_lutar
     await cmd_torneio_lutar(interaction, torneio_id, luta_num)
 
 # ─── /torneio_status ─────────────────────────────────────────────
@@ -1262,6 +1268,7 @@ async def torneio_lutar(interaction: discord.Interaction, torneio_id: int, luta_
 @bot.tree.command(name="torneio_status", description="Mostra status do torneio")
 @app_commands.describe(torneio_id="ID do torneio")
 async def torneio_status(interaction: discord.Interaction, torneio_id: int):
+    from torneio import cmd_torneio_status
     await cmd_torneio_status(interaction, torneio_id)
 
 # ─── /torneio_cancelar ───────────────────────────────────────────
@@ -1270,18 +1277,21 @@ async def torneio_status(interaction: discord.Interaction, torneio_id: int):
 @app_commands.describe(torneio_id="ID do torneio")
 @app_commands.checks.has_permissions(administrator=True)
 async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
+    from torneio import cmd_torneio_cancelar
     await cmd_torneio_cancelar(interaction, torneio_id)
 
 # ─── /party_criar ────────────────────────────────────────────────
 
 @bot.tree.command(name="party_criar", description="Cria uma nova party")
 async def party_criar(interaction: discord.Interaction):
+    from party import cmd_party_criar
     await cmd_party_criar(interaction)
 
 # ─── /party_info ─────────────────────────────────────────────────
 
 @bot.tree.command(name="party_info", description="Mostra informações da sua party")
 async def party_info(interaction: discord.Interaction):
+    from party import cmd_party_info
     await cmd_party_info(interaction)
 
 # ─── /party_convidar ─────────────────────────────────────────────
@@ -1289,12 +1299,14 @@ async def party_info(interaction: discord.Interaction):
 @bot.tree.command(name="party_convidar", description="Convida um jogador para sua party")
 @app_commands.describe(jogador="Jogador a ser convidado")
 async def party_convidar(interaction: discord.Interaction, jogador: discord.Member):
+    from party import cmd_party_convidar
     await cmd_party_convidar(interaction, jogador)
 
 # ─── /party_sair ─────────────────────────────────────────────────
 
 @bot.tree.command(name="party_sair", description="Sai da sua party atual")
 async def party_sair(interaction: discord.Interaction):
+    from party import cmd_party_sair
     await cmd_party_sair(interaction)
 
 # ─── /party_expulsar ─────────────────────────────────────────────
@@ -1302,6 +1314,7 @@ async def party_sair(interaction: discord.Interaction):
 @bot.tree.command(name="party_expulsar", description="Expulsa um membro da party (apenas líder)")
 @app_commands.describe(jogador="Membro a ser expulso")
 async def party_expulsar(interaction: discord.Interaction, jogador: discord.Member):
+    from party import cmd_party_expulsar
     await cmd_party_expulsar(interaction, jogador)
 
 # ─── /party_lider ────────────────────────────────────────────────
@@ -1309,24 +1322,28 @@ async def party_expulsar(interaction: discord.Interaction, jogador: discord.Memb
 @bot.tree.command(name="party_lider", description="Transfere liderança para outro membro")
 @app_commands.describe(jogador="Novo líder")
 async def party_lider(interaction: discord.Interaction, jogador: discord.Member):
+    from party import cmd_party_lider
     await cmd_party_lider(interaction, jogador)
 
 # ─── /party_encerrar ─────────────────────────────────────────────
 
 @bot.tree.command(name="party_encerrar", description="Encerra sua party permanentemente (apenas líder)")
 async def party_encerrar(interaction: discord.Interaction):
+    from party import cmd_party_encerrar
     await cmd_party_encerrar(interaction)
 
 # ─── /party_painel ───────────────────────────────────────────────
 
 @bot.tree.command(name="party_painel", description="Mostra painel completo da party")
 async def party_painel(interaction: discord.Interaction):
+    from party import cmd_party_painel
     await cmd_party_painel(interaction)
 
 # ─── /party_convites ─────────────────────────────────────────────
 
 @bot.tree.command(name="party_convites", description="Lista convites pendentes da party")
 async def party_convites(interaction: discord.Interaction):
+    from party import cmd_party_convites
     await cmd_party_convites(interaction)
 
 # ─── /tutorial ───────────────────────────────────────────────────
@@ -1431,10 +1448,10 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Eventos",    value="`/criar-evento` `/eventos` `/evento-info` `/encerrar-evento` `/add-pontos`", inline=False)
     embed.add_field(name="Anuncios",   value="`/anunciar` `/anunciar-evento` `/agendar-anuncio`", inline=False)
     embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-missoes` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-retirar` `/guilda-ranking`", inline=False)
-    embed.add_field(name="Torneio",    value="`/torneio_criar` `/torneio_inscrever` `/torneio_fechar` `/torneio_lutar` `/torneio_status` `/torneio_cancelar`", inline=False)
+    embed.add_field(name="🏆 Torneio", value="`/torneio_criar` `/torneio_inscrever` `/torneio_fechar` `/torneio_lutar` `/torneio_status` `/torneio_cancelar`", inline=False)
     embed.add_field(name="🏰 Party",   value="`/party_criar` `/party_info` `/party_convidar` `/party_sair` `/party_expulsar` `/party_lider` `/party_encerrar` `/party_painel` `/party_convites`", inline=False)
     embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
@@ -1455,8 +1472,6 @@ async def sync_cmd(ctx):
         await ctx.send(f"❌ Erro: {e}")
 
 # ─── EVENTOS ─────────────────────────────────────────────────────
-
-_synced = False
 
 @bot.event
 async def on_ready():
