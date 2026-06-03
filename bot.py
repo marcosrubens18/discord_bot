@@ -458,7 +458,7 @@ async def on_ready():
             if guild_id:
                 guild_obj = discord.Object(id=guild_id)
                 bot.tree.copy_global_to(guild=guild_obj)
-                guild_ed = await bot.tree.(guild=guild_obj)
+                guild_ed = await bot.tree.sync(guild=guild_obj)
                 print(f"Comandos no servidor: {len(guild_ed)}")
             else:
                 global_ed = await bot.tree.sync()
