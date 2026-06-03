@@ -926,7 +926,7 @@ async def notificar_level_up(guild, user_id, nome, classe_id, nivel_novo, rank_m
         print(f"Erro notif level up: {e}")
 
 
-async def (interaction: discord.Interaction, p, monstro, arena):
+async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     uid = p["user_id"]
 
     # Verifica cooldown
