@@ -8,15 +8,15 @@ from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA, IMG_DUNGEON_MONSTRO
 from utils import atualizar_todos_cargos
 from batalha import calc_dano, BATALHAS_ATIVAS, barra_hp, Passiva, PassivaRacial, aplicar_efeito_pocao, remover_pocao, get_pocoes_inv, get_skills_eq, get_arma_equipada, get_armadura_equipada, calcular_bonus_equip, EMOJI_CLASSE
 from dungeon_lock import dungeon_lock
-from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO
 
 EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
 COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
 
-# Usa SKILLS_COMPLETAS do catalogo
 from catalogo import SKILLS_COMPLETAS
 
-# ─── RANKS DE DUNGEON ────────────────────────────────────────────
+# ==================================================
+# RANKS DE DUNGEON
+# ==================================================
 
 RANKS = {
     "F": {
@@ -25,11 +25,11 @@ RANKS = {
         "recompensa_andar":{"xp":30,"moedas":15},
         "recompensa_chefe":{"xp":150,"moedas":80},
         "andares": [
-            {"andar":1,"nome":"Caverna Rasa",      "emoji":"🕳️","monstro":{"nome":"Goblin",       "emoji":"👺","hp":90, "ataque":19, "defesa":2,"skills":[{"nome":"Mordida","emoji":"🦷","dano":8}]}},
-            {"andar":2,"nome":"Floresta Escura",   "emoji":"🌲","monstro":{"nome":"Lobo Selvagem", "emoji":"🐺","hp":126, "ataque":30,"defesa":4,"skills":[{"nome":"Investida","emoji":"💨","dano":12}]}},
-            {"andar":3,"nome":"Pântano Podre",     "emoji":"🌿","monstro":{"nome":"Sapo Gigante",  "emoji":"🐸","hp":153, "ataque":24, "defesa":6,"skills":[{"nome":"Veneno","emoji":"🟢","dano":10}]}},
-            {"andar":4,"nome":"Ruínas Abandonadas","emoji":"🏚️","monstro":{"nome":"Esqueleto",     "emoji":"💀","hp":171, "ataque":35,"defesa":5,"skills":[{"nome":"Golpe de Osso","emoji":"🦴","dano":14}]}},
-            {"andar":5,"nome":"Salão das Sombras", "emoji":"🌑","monstro":{"nome":"Sombra Menor",  "emoji":"👤","hp":198,"ataque":41,"defesa":7,"skills":[{"nome":"Toque Sombrio","emoji":"🌑","dano":16}]}},
+            {"andar":1,"nome":"Caverna Rasa","emoji":"🕳️","monstro":{"nome":"Goblin","emoji":"👺","hp":90,"ataque":19,"defesa":2,"skills":[{"nome":"Mordida","emoji":"🦷","dano":8}]}},
+            {"andar":2,"nome":"Floresta Escura","emoji":"🌲","monstro":{"nome":"Lobo Selvagem","emoji":"🐺","hp":126,"ataque":30,"defesa":4,"skills":[{"nome":"Investida","emoji":"💨","dano":12}]}},
+            {"andar":3,"nome":"Pântano Podre","emoji":"🌿","monstro":{"nome":"Sapo Gigante","emoji":"🐸","hp":153,"ataque":24,"defesa":6,"skills":[{"nome":"Veneno","emoji":"🟢","dano":10}]}},
+            {"andar":4,"nome":"Ruínas Abandonadas","emoji":"🏚️","monstro":{"nome":"Esqueleto","emoji":"💀","hp":171,"ataque":35,"defesa":5,"skills":[{"nome":"Golpe de Osso","emoji":"🦴","dano":14}]}},
+            {"andar":5,"nome":"Salão das Sombras","emoji":"🌑","monstro":{"nome":"Sombra Menor","emoji":"👤","hp":198,"ataque":41,"defesa":7,"skills":[{"nome":"Toque Sombrio","emoji":"🌑","dano":16}]}},
         ],
         "chefe":{"nome":"Rei Goblin","emoji":"👑","hp":250,"ataque":44,"defesa":10,
                  "skills":[{"nome":"Grito Real","emoji":"📣","dano":18},{"nome":"Garras","emoji":"🦷","dano":22},{"nome":"Invocar Gobelins","emoji":"👺","dano":15}],
@@ -42,13 +42,13 @@ RANKS = {
         "recompensa_andar":{"xp":60,"moedas":30},
         "recompensa_chefe":{"xp":300,"moedas":180},
         "andares": [
-            {"andar":1,"nome":"Mina Abandonada",   "emoji":"⛏️","monstro":{"nome":"Orc Minerador",  "emoji":"👹","hp":221,"ataque":48,"defesa":10,"skills":[{"nome":"Picareta","emoji":"⛏️","dano":20}]}},
-            {"andar":2,"nome":"Floresta Maldita",  "emoji":"🌳","monstro":{"nome":"Treant",          "emoji":"🌳","hp":272,"ataque":39,"defesa":18,"skills":[{"nome":"Galhos","emoji":"🌿","dano":17}]}},
-            {"andar":3,"nome":"Lago Envenenado",   "emoji":"💧","monstro":{"nome":"Hidra",            "emoji":"🐍","hp":306,"ataque":59,"defesa":12,"skills":[{"nome":"Mordida Tripla","emoji":"🐍","dano":24}]}},
-            {"andar":4,"nome":"Fortaleza em Ruinas","emoji":"🏰","monstro":{"nome":"Golem de Pedra",  "emoji":"🗿","hp":374,"ataque":55,"defesa":25,"skills":[{"nome":"Soco de Pedra","emoji":"👊","dano":28}]}},
-            {"andar":5,"nome":"Câmara Proibida",   "emoji":"🚪","monstro":{"nome":"Feiticeiro Renegado","emoji":"🧙","hp":340,"ataque":77,"defesa":10,"skills":[{"nome":"Feitico Negro","emoji":"🔮","dano":30}]}},
+            {"andar":1,"nome":"Mina Abandonada","emoji":"⛏️","monstro":{"nome":"Orc Minerador","emoji":"👹","hp":221,"ataque":48,"defesa":10,"skills":[{"nome":"Picareta","emoji":"⛏️","dano":20}]}},
+            {"andar":2,"nome":"Floresta Maldita","emoji":"🌳","monstro":{"nome":"Treant","emoji":"🌳","hp":272,"ataque":39,"defesa":18,"skills":[{"nome":"Galhos","emoji":"🌿","dano":17}]}},
+            {"andar":3,"nome":"Lago Envenenado","emoji":"💧","monstro":{"nome":"Hidra","emoji":"🐍","hp":306,"ataque":59,"defesa":12,"skills":[{"nome":"Mordida Tripla","emoji":"🐍","dano":24}]}},
+            {"andar":4,"nome":"Fortaleza em Ruinas","emoji":"🏰","monstro":{"nome":"Golem de Pedra","emoji":"🗿","hp":374,"ataque":55,"defesa":25,"skills":[{"nome":"Soco de Pedra","emoji":"👊","dano":28}]}},
+            {"andar":5,"nome":"Câmara Proibida","emoji":"🚪","monstro":{"nome":"Feiticeiro Renegado","emoji":"🧙","hp":340,"ataque":77,"defesa":10,"skills":[{"nome":"Feitico Negro","emoji":"🔮","dano":30}]}},
         ],
-        "chefe":{"nome":"Senhor das Trevas",  "emoji":"🧛","hp":500,"ataque":77,"defesa":20,
+        "chefe":{"nome":"Senhor das Trevas","emoji":"🧛","hp":500,"ataque":77,"defesa":20,
                  "skills":[{"nome":"Drenar Alma","emoji":"🩸","dano":32},{"nome":"Nuvem de Morcegos","emoji":"🦇","dano":25},{"nome":"Hipnose","emoji":"👁️","dano":20}],
                  "loot_raro":("capa_trevas","Capa das Trevas","armadura","Raro","🧛","Defesa +12, esquiva +5%"),
                  "loot_epico":("espada_maldita","Espada Maldita","arma","Epico","⚔️","Ataque +18, drena HP")},
@@ -59,11 +59,11 @@ RANKS = {
         "recompensa_andar":{"xp":100,"moedas":55},
         "recompensa_chefe":{"xp":500,"moedas":350},
         "andares": [
-            {"andar":1,"nome":"Cripta Antiga",     "emoji":"⚰️","monstro":{"nome":"Lich Menor",     "emoji":"💀","hp":400,"ataque":79,"defesa":15,"skills":[{"nome":"Raio de Morte","emoji":"💀","dano":33}]}},
-            {"andar":2,"nome":"Vulcão Ativo",      "emoji":"🌋","monstro":{"nome":"Elemental de Fogo","emoji":"🔥","hp":448,"ataque":92,"defesa":12,"skills":[{"nome":"Explosao","emoji":"💥","dano":38}]}},
-            {"andar":3,"nome":"Abismo Gelado",     "emoji":"❄️","monstro":{"nome":"Yeti",             "emoji":"🦴","hp":512,"ataque":72,"defesa":28,"skills":[{"nome":"Rajada de Gelo","emoji":"❄️","dano":30}]}},
-            {"andar":4,"nome":"Floresta Sangrenta","emoji":"🌹","monstro":{"nome":"Vampiro Anciao",   "emoji":"🧛","hp":560,"ataque":105,"defesa":20,"skills":[{"nome":"Drenar Sangue","emoji":"🩸","dano":42}]}},
-            {"andar":5,"nome":"Torre do Caos",     "emoji":"🗼","monstro":{"nome":"Mago do Caos",    "emoji":"🌀","hp":608,"ataque":118,"defesa":15,"skills":[{"nome":"Explosao Arcana","emoji":"✨","dano":48}]}},
+            {"andar":1,"nome":"Cripta Antiga","emoji":"⚰️","monstro":{"nome":"Lich Menor","emoji":"💀","hp":400,"ataque":79,"defesa":15,"skills":[{"nome":"Raio de Morte","emoji":"💀","dano":33}]}},
+            {"andar":2,"nome":"Vulcão Ativo","emoji":"🌋","monstro":{"nome":"Elemental de Fogo","emoji":"🔥","hp":448,"ataque":92,"defesa":12,"skills":[{"nome":"Explosao","emoji":"💥","dano":38}]}},
+            {"andar":3,"nome":"Abismo Gelado","emoji":"❄️","monstro":{"nome":"Yeti","emoji":"🦴","hp":512,"ataque":72,"defesa":28,"skills":[{"nome":"Rajada de Gelo","emoji":"❄️","dano":30}]}},
+            {"andar":4,"nome":"Floresta Sangrenta","emoji":"🌹","monstro":{"nome":"Vampiro Anciao","emoji":"🧛","hp":560,"ataque":105,"defesa":20,"skills":[{"nome":"Drenar Sangue","emoji":"🩸","dano":42}]}},
+            {"andar":5,"nome":"Torre do Caos","emoji":"🗼","monstro":{"nome":"Mago do Caos","emoji":"🌀","hp":608,"ataque":118,"defesa":15,"skills":[{"nome":"Explosao Arcana","emoji":"✨","dano":48}]}},
         ],
         "chefe":{"nome":"Hidra das Profundezas","emoji":"🐲","hp":900,"ataque":121,"defesa":30,
                  "skills":[{"nome":"Mordida Venenosa","emoji":"🐍","dano":50},{"nome":"Cauda","emoji":"🐲","dano":45},{"nome":"Regenerar","emoji":"💚","dano":0}],
@@ -76,11 +76,11 @@ RANKS = {
         "recompensa_andar":{"xp":180,"moedas":100},
         "recompensa_chefe":{"xp":900,"moedas":600},
         "andares": [
-            {"andar":1,"nome":"Cemitério Amaldicoado","emoji":"🪦","monstro":{"nome":"Banshee",        "emoji":"👻","hp":600,"ataque":132,"defesa":20,"skills":[{"nome":"Grito Mortal","emoji":"😱","dano":55}]}},
-            {"andar":2,"nome":"Pântano Demoníaco",  "emoji":"😈","monstro":{"nome":"Demônio Menor",   "emoji":"😈","hp":675,"ataque":145,"defesa":25,"skills":[{"nome":"Garras do Inferno","emoji":"🔥","dano":60}]}},
-            {"andar":3,"nome":"Caverna de Cristal", "emoji":"💎","monstro":{"nome":"Golem de Cristal", "emoji":"💎","hp":750,"ataque":125,"defesa":45,"skills":[{"nome":"Fragmento","emoji":"💎","dano":52}]}},
-            {"andar":4,"nome":"Templo Profanado",   "emoji":"⛩️","monstro":{"nome":"Sacerdote Corrompido","emoji":"🙏","hp":720,"ataque":158,"defesa":28,"skills":[{"nome":"Maldicao Divina","emoji":"☠️","dano":65}]}},
-            {"andar":5,"nome":"Salão do Rei Morto", "emoji":"👑","monstro":{"nome":"Cavaleiro Negro",  "emoji":"🏇","hp":900,"ataque":171,"defesa":40,"skills":[{"nome":"Golpe Sombrio","emoji":"⚔️","dano":70}]}},
+            {"andar":1,"nome":"Cemitério Amaldicoado","emoji":"🪦","monstro":{"nome":"Banshee","emoji":"👻","hp":600,"ataque":132,"defesa":20,"skills":[{"nome":"Grito Mortal","emoji":"😱","dano":55}]}},
+            {"andar":2,"nome":"Pântano Demoníaco","emoji":"😈","monstro":{"nome":"Demônio Menor","emoji":"😈","hp":675,"ataque":145,"defesa":25,"skills":[{"nome":"Garras do Inferno","emoji":"🔥","dano":60}]}},
+            {"andar":3,"nome":"Caverna de Cristal","emoji":"💎","monstro":{"nome":"Golem de Cristal","emoji":"💎","hp":750,"ataque":125,"defesa":45,"skills":[{"nome":"Fragmento","emoji":"💎","dano":52}]}},
+            {"andar":4,"nome":"Templo Profanado","emoji":"⛩️","monstro":{"nome":"Sacerdote Corrompido","emoji":"🙏","hp":720,"ataque":158,"defesa":28,"skills":[{"nome":"Maldicao Divina","emoji":"☠️","dano":65}]}},
+            {"andar":5,"nome":"Salão do Rei Morto","emoji":"👑","monstro":{"nome":"Cavaleiro Negro","emoji":"🏇","hp":900,"ataque":171,"defesa":40,"skills":[{"nome":"Golpe Sombrio","emoji":"⚔️","dano":70}]}},
         ],
         "chefe":{"nome":"Rei Lich","emoji":"💀","hp":1500,"ataque":176,"defesa":45,
                  "skills":[{"nome":"Colapso de Mana","emoji":"💀","dano":75},{"nome":"Exercito dos Mortos","emoji":"☠️","dano":60},{"nome":"Ressurreicao","emoji":"💚","dano":0}],
@@ -93,11 +93,11 @@ RANKS = {
         "recompensa_andar":{"xp":300,"moedas":180},
         "recompensa_chefe":{"xp":1500,"moedas":1000},
         "andares": [
-            {"andar":1,"nome":"Dimensao Proibida",  "emoji":"🌀","monstro":{"nome":"Criatura Dimensional","emoji":"👾","hp":979,"ataque":189,"defesa":40,"skills":[{"nome":"Distorcao","emoji":"🌀","dano":80}]}},
-            {"andar":2,"nome":"Floresta Eterna",    "emoji":"🌿","monstro":{"nome":"Anciao da Floresta","emoji":"🌲","hp":1120,"ataque":176,"defesa":60,"skills":[{"nome":"Raizes","emoji":"🌿","dano":75}]}},
-            {"andar":3,"nome":"Oceano de Lava",     "emoji":"🌋","monstro":{"nome":"Titan de Fogo",     "emoji":"🔥","hp":1260,"ataque":226,"defesa":50,"skills":[{"nome":"Erupcao","emoji":"🌋","dano":95}]}},
-            {"andar":4,"nome":"Tempestade Arcana",  "emoji":"⚡","monstro":{"nome":"Elemental Arcano",  "emoji":"✨","hp":1190,"ataque":213,"defesa":45,"skills":[{"nome":"Tempestade","emoji":"⚡","dano":90}]}},
-            {"andar":5,"nome":"Trono das Sombras",  "emoji":"🖤","monstro":{"nome":"Assassino das Sombras","emoji":"🗡️","hp":1330,"ataque":250,"defesa":55,"skills":[{"nome":"Golpe Fatal","emoji":"🗡️","dano":105}]}},
+            {"andar":1,"nome":"Dimensao Proibida","emoji":"🌀","monstro":{"nome":"Criatura Dimensional","emoji":"👾","hp":979,"ataque":189,"defesa":40,"skills":[{"nome":"Distorcao","emoji":"🌀","dano":80}]}},
+            {"andar":2,"nome":"Floresta Eterna","emoji":"🌿","monstro":{"nome":"Anciao da Floresta","emoji":"🌲","hp":1120,"ataque":176,"defesa":60,"skills":[{"nome":"Raizes","emoji":"🌿","dano":75}]}},
+            {"andar":3,"nome":"Oceano de Lava","emoji":"🌋","monstro":{"nome":"Titan de Fogo","emoji":"🔥","hp":1260,"ataque":226,"defesa":50,"skills":[{"nome":"Erupcao","emoji":"🌋","dano":95}]}},
+            {"andar":4,"nome":"Tempestade Arcana","emoji":"⚡","monstro":{"nome":"Elemental Arcano","emoji":"✨","hp":1190,"ataque":213,"defesa":45,"skills":[{"nome":"Tempestade","emoji":"⚡","dano":90}]}},
+            {"andar":5,"nome":"Trono das Sombras","emoji":"🖤","monstro":{"nome":"Assassino das Sombras","emoji":"🗡️","hp":1330,"ataque":250,"defesa":55,"skills":[{"nome":"Golpe Fatal","emoji":"🗡️","dano":105}]}},
         ],
         "chefe":{"nome":"Titan Primordial","emoji":"🗿","hp":3000,"ataque":264,"defesa":70,
                  "skills":[{"nome":"Terremoto","emoji":"🌋","dano":110},{"nome":"Rugido Primordial","emoji":"😤","dano":90},{"nome":"Crush","emoji":"💥","dano":130}],
@@ -110,11 +110,11 @@ RANKS = {
         "recompensa_andar":{"xp":500,"moedas":300},
         "recompensa_chefe":{"xp":2500,"moedas":2000},
         "andares": [
-            {"andar":1,"nome":"Portal do Inferno",  "emoji":"🔴","monstro":{"nome":"Arquidemônio",    "emoji":"😈","hp":1560,"ataque":327,"defesa":70,"skills":[{"nome":"Chamas do Inferno","emoji":"🔥","dano":140}]}},
-            {"andar":2,"nome":"Reino dos Mortos",   "emoji":"💀","monstro":{"nome":"Senhor dos Mortos","emoji":"💀","hp":1820,"ataque":303,"defesa":80,"skills":[{"nome":"Toque da Morte","emoji":"💀","dano":130}]}},
-            {"andar":3,"nome":"Abismo Eterno",      "emoji":"🕳️","monstro":{"nome":"Leviatã",          "emoji":"🐉","hp":2080,"ataque":378,"defesa":75,"skills":[{"nome":"Devorar","emoji":"🌊","dano":160}]}},
-            {"andar":4,"nome":"Fortaleza Celeste",  "emoji":"☁️","monstro":{"nome":"Anjo Caido",       "emoji":"👼","hp":1950,"ataque":365,"defesa":90,"skills":[{"nome":"Espadada Divina","emoji":"⚔️","dano":155}]}},
-            {"andar":5,"nome":"Sala do Julgamento", "emoji":"⚖️","monstro":{"nome":"Juiz Eterno",      "emoji":"⚖️","hp":2340,"ataque":404,"defesa":85,"skills":[{"nome":"Sentenca","emoji":"⚖️","dano":170}]}},
+            {"andar":1,"nome":"Portal do Inferno","emoji":"🔴","monstro":{"nome":"Arquidemônio","emoji":"😈","hp":1560,"ataque":327,"defesa":70,"skills":[{"nome":"Chamas do Inferno","emoji":"🔥","dano":140}]}},
+            {"andar":2,"nome":"Reino dos Mortos","emoji":"💀","monstro":{"nome":"Senhor dos Mortos","emoji":"💀","hp":1820,"ataque":303,"defesa":80,"skills":[{"nome":"Toque da Morte","emoji":"💀","dano":130}]}},
+            {"andar":3,"nome":"Abismo Eterno","emoji":"🕳️","monstro":{"nome":"Leviatã","emoji":"🐉","hp":2080,"ataque":378,"defesa":75,"skills":[{"nome":"Devorar","emoji":"🌊","dano":160}]}},
+            {"andar":4,"nome":"Fortaleza Celeste","emoji":"☁️","monstro":{"nome":"Anjo Caido","emoji":"👼","hp":1950,"ataque":365,"defesa":90,"skills":[{"nome":"Espadada Divina","emoji":"⚔️","dano":155}]}},
+            {"andar":5,"nome":"Sala do Julgamento","emoji":"⚖️","monstro":{"nome":"Juiz Eterno","emoji":"⚖️","hp":2340,"ataque":404,"defesa":85,"skills":[{"nome":"Sentenca","emoji":"⚖️","dano":170}]}},
         ],
         "chefe":{"nome":"Deus da Destruicao","emoji":"💥","hp":6000,"ataque":440,"defesa":100,
                  "skills":[{"nome":"Apocalipse","emoji":"💥","dano":190},{"nome":"Destrocar Realidade","emoji":"🌀","dano":170},{"nome":"Pulso Divino","emoji":"✨","dano":210}],
@@ -127,11 +127,11 @@ RANKS = {
         "recompensa_andar":{"xp":800,"moedas":500},
         "recompensa_chefe":{"xp":5000,"moedas":5000},
         "andares": [
-            {"andar":1,"nome":"Vazio Absoluto",     "emoji":"🌌","monstro":{"nome":"Entidade do Vazio", "emoji":"🌌","hp":2500,"ataque":484,"defesa":120,"skills":[{"nome":"Nulificar","emoji":"🌌","dano":210}]}},
-            {"andar":2,"nome":"Tempo Partido",      "emoji":"⏳","monstro":{"nome":"Guardiao do Tempo", "emoji":"⏳","hp":2750,"ataque":459,"defesa":140,"skills":[{"nome":"Paradoxo","emoji":"⏳","dano":200}]}},
-            {"andar":3,"nome":"Realidade Distorcida","emoji":"🔮","monstro":{"nome":"Espelho do Caos",  "emoji":"🔮","hp":3125,"ataque":532,"defesa":130,"skills":[{"nome":"Reflexo","emoji":"🔮","dano":230}]}},
-            {"andar":4,"nome":"Nucleo do Mundo",    "emoji":"🌍","monstro":{"nome":"Guardiao do Nucleo","emoji":"🌍","hp":3500,"ataque":580,"defesa":150,"skills":[{"nome":"Terremoto Total","emoji":"🌍","dano":250}]}},
-            {"andar":5,"nome":"Portal da Eternidade","emoji":"🌟","monstro":{"nome":"Ser Eterno",       "emoji":"🌟","hp":3750,"ataque":629,"defesa":160,"skills":[{"nome":"Raio Eterno","emoji":"🌟","dano":270}]}},
+            {"andar":1,"nome":"Vazio Absoluto","emoji":"🌌","monstro":{"nome":"Entidade do Vazio","emoji":"🌌","hp":2500,"ataque":484,"defesa":120,"skills":[{"nome":"Nulificar","emoji":"🌌","dano":210}]}},
+            {"andar":2,"nome":"Tempo Partido","emoji":"⏳","monstro":{"nome":"Guardiao do Tempo","emoji":"⏳","hp":2750,"ataque":459,"defesa":140,"skills":[{"nome":"Paradoxo","emoji":"⏳","dano":200}]}},
+            {"andar":3,"nome":"Realidade Distorcida","emoji":"🔮","monstro":{"nome":"Espelho do Caos","emoji":"🔮","hp":3125,"ataque":532,"defesa":130,"skills":[{"nome":"Reflexo","emoji":"🔮","dano":230}]}},
+            {"andar":4,"nome":"Nucleo do Mundo","emoji":"🌍","monstro":{"nome":"Guardiao do Nucleo","emoji":"🌍","hp":3500,"ataque":580,"defesa":150,"skills":[{"nome":"Terremoto Total","emoji":"🌍","dano":250}]}},
+            {"andar":5,"nome":"Portal da Eternidade","emoji":"🌟","monstro":{"nome":"Ser Eterno","emoji":"🌟","hp":3750,"ataque":629,"defesa":160,"skills":[{"nome":"Raio Eterno","emoji":"🌟","dano":270}]}},
         ],
         "chefe":{"nome":"O Criador","emoji":"🌟","hp":15000,"ataque":770,"defesa":200,
                  "skills":[{"nome":"Big Bang","emoji":"💥","dano":320},{"nome":"Singularidade","emoji":"⭐","dano":300},{"nome":"Recriar","emoji":"🌟","dano":0}],
@@ -144,12 +144,12 @@ RANKS = {
         "recompensa_andar":{"xp":800,"moedas":500},
         "recompensa_chefe":{"xp":5000,"moedas":5000},
         "andares": [
-            {"andar":1,"nome":"Portal do Vazio",    "emoji":"🌀","monstro":{"nome":"Guardiao do Vazio",  "emoji":"🌀","hp":720,"ataque":193,"defesa":50,"skills":[{"nome":"Colapso","emoji":"🌀","dano":90},{"nome":"Distorcao","emoji":"🌀","dano":65}]}},
-            {"andar":2,"nome":"Abismo Eterno",      "emoji":"🕳️","monstro":{"nome":"Devorador de Almas", "emoji":"👁️","hp":840,"ataque":217,"defesa":55,"skills":[{"nome":"Devorar","emoji":"💀","dano":100},{"nome":"Maldição Eterna","emoji":"🩸","dano":70}]}},
-            {"andar":3,"nome":"Salao dos Herois",   "emoji":"🏛️","monstro":{"nome":"Heroi Corrompido",   "emoji":"⚔️","hp":900,"ataque":228,"defesa":60,"skills":[{"nome":"Golpe Lendario","emoji":"⚔️","dano":110},{"nome":"Berserk","emoji":"🔥","dano":80}]}},
-            {"andar":4,"nome":"Trono das Sombras",  "emoji":"🌑","monstro":{"nome":"Senhor das Sombras", "emoji":"🌑","hp":960,"ataque":242,"defesa":65,"skills":[{"nome":"Trevas Absolutas","emoji":"🌑","dano":120},{"nome":"Medo","emoji":"😱","dano":85}]}},
-            {"andar":5,"nome":"Camara do Criador",  "emoji":"✨","monstro":{"nome":"Anjo Caido",         "emoji":"👼","hp":1080,"ataque":266,"defesa":70,"skills":[{"nome":"Juizo Divino","emoji":"☀️","dano":130},{"nome":"Purificar","emoji":"✨","dano":95}]}},
-            {"andar":6,"nome":"Nucleo do Mundo",    "emoji":"🌍","monstro":{"nome":"CHEFE — O Criador",  "emoji":"🌌","hp":2400,"ataque":363,"defesa":100,"skills":[{"nome":"Aniquilacao","emoji":"💥","dano":200},{"nome":"Singularidade","emoji":"🕳️","dano":180},{"nome":"Transcender","emoji":"✨","dano":160}],"chefe":True}},
+            {"andar":1,"nome":"Portal do Vazio","emoji":"🌀","monstro":{"nome":"Guardiao do Vazio","emoji":"🌀","hp":720,"ataque":193,"defesa":50,"skills":[{"nome":"Colapso","emoji":"🌀","dano":90},{"nome":"Distorcao","emoji":"🌀","dano":65}]}},
+            {"andar":2,"nome":"Abismo Eterno","emoji":"🕳️","monstro":{"nome":"Devorador de Almas","emoji":"👁️","hp":840,"ataque":217,"defesa":55,"skills":[{"nome":"Devorar","emoji":"💀","dano":100},{"nome":"Maldição Eterna","emoji":"🩸","dano":70}]}},
+            {"andar":3,"nome":"Salao dos Herois","emoji":"🏛️","monstro":{"nome":"Heroi Corrompido","emoji":"⚔️","hp":900,"ataque":228,"defesa":60,"skills":[{"nome":"Golpe Lendario","emoji":"⚔️","dano":110},{"nome":"Berserk","emoji":"🔥","dano":80}]}},
+            {"andar":4,"nome":"Trono das Sombras","emoji":"🌑","monstro":{"nome":"Senhor das Sombras","emoji":"🌑","hp":960,"ataque":242,"defesa":65,"skills":[{"nome":"Trevas Absolutas","emoji":"🌑","dano":120},{"nome":"Medo","emoji":"😱","dano":85}]}},
+            {"andar":5,"nome":"Camara do Criador","emoji":"✨","monstro":{"nome":"Anjo Caido","emoji":"👼","hp":1080,"ataque":266,"defesa":70,"skills":[{"nome":"Juizo Divino","emoji":"☀️","dano":130},{"nome":"Purificar","emoji":"✨","dano":95}]}},
+            {"andar":6,"nome":"Nucleo do Mundo","emoji":"🌍","monstro":{"nome":"CHEFE — O Criador","emoji":"🌌","hp":2400,"ataque":363,"defesa":100,"skills":[{"nome":"Aniquilacao","emoji":"💥","dano":200},{"nome":"Singularidade","emoji":"🕳️","dano":180},{"nome":"Transcender","emoji":"✨","dano":160}],"chefe":True}},
         ],
         "loot_chefe": [
             ("coroa_criador","Coroa do Criador","armadura","Lendario","👑","A armadura definitiva"),
@@ -159,7 +159,9 @@ RANKS = {
     },
 }
 
-# ─── DB HELPERS ──────────────────────────────────────────────────
+# ==================================================
+# DB HELPERS
+# ==================================================
 
 async def get_personagem(user_id):
     pool = await get_pool()
@@ -190,7 +192,6 @@ async def remover_pocao(user_id, item_id):
             else:
                 await conn.execute("DELETE FROM inventario WHERE id=$1", row["id"])
 
-
 def xp_needed_rank(nivel):
     base = 100 + (nivel-1)*50
     if nivel >= 60: return int(base * 3.0)
@@ -199,7 +200,6 @@ def xp_needed_rank(nivel):
     return base
 
 async def salvar_resultado_dungeon(user_id, hp_final, xp_total, classe_id, nivel):
-    """Salva resultado da dungeon. Sem moedas — ganhe vendendo loot!"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         p = await conn.fetchrow(
@@ -217,8 +217,8 @@ async def salvar_resultado_dungeon(user_id, hp_final, xp_total, classe_id, nivel
             needed = xp_needed_rank(nv)
             levelups += 1
         hp_max = p["hp_max"] + levelups*5
-        atk    = p["ataque"] + levelups*2
-        dfs    = p["defesa"] + levelups*1
+        atk = p["ataque"] + levelups*2
+        dfs = p["defesa"] + levelups*1
         from catalogo import calcular_mana_max
         mana_max = calcular_mana_max(classe_id, nv, p["poder_valor"], p["destino_id"])
         hp_f = max(1, min(hp_final, hp_max))
@@ -249,20 +249,23 @@ async def add_item_dungeon(user_id, item):
             await conn.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
                                user_id, iid, nome, tipo, rar, emoji, desc)
 
-# ─── HELPERS ─────────────────────────────────────────────────────
+# ==================================================
+# HELPERS
+# ==================================================
 
 POCOES_DEF = {
-    "pocao_hp_p":  {"nome":"Pocao de Cura P", "emoji":"🧪","tipo":"hp",  "valor":30},
-    "pocao_hp_m":  {"nome":"Pocao de Cura M", "emoji":"💊","tipo":"hp",  "valor":60},
-    "pocao_hp_g":  {"nome":"Pocao de Cura G", "emoji":"❤️","tipo":"hp",  "valor":120},
-    "pocao_mana_p":{"nome":"Pocao de Mana P", "emoji":"🔵","tipo":"mana","valor":20},
-    "pocao_mana_m":{"nome":"Pocao de Mana M", "emoji":"💙","tipo":"mana","valor":50},
-    "elixir":      {"nome":"Elixir Supremo",  "emoji":"✨","tipo":"full","valor":999},
+    "pocao_hp_p": {"nome":"Pocao de Cura P","emoji":"🧪","tipo":"hp","valor":30},
+    "pocao_hp_m": {"nome":"Pocao de Cura M","emoji":"💊","tipo":"hp","valor":60},
+    "pocao_hp_g": {"nome":"Pocao de Cura G","emoji":"❤️","tipo":"hp","valor":120},
+    "pocao_mana_p":{"nome":"Pocao de Mana P","emoji":"🔵","tipo":"mana","valor":20},
+    "pocao_mana_m":{"nome":"Pocao de Mana M","emoji":"💙","tipo":"mana","valor":50},
+    "elixir": {"nome":"Elixir Supremo","emoji":"✨","tipo":"full","valor":999},
 }
 
 def get_skill(classe_id, skill_id):
     for s in SKILLS_COMPLETAS.get(classe_id,[]):
-        if s["id"] == skill_id: return s
+        if s["id"] == skill_id:
+            return s
     return None
 
 def get_skills_jogador(p, ids):
@@ -272,15 +275,18 @@ def get_skills_jogador(p, ids):
         skills = cls[:4] if cls else []
     return skills
 
-# ─── VIEW DE BATALHA ─────────────────────────────────────────────
+# ==================================================
+# VIEW DE BATALHA DA DUNGEON
+# ==================================================
 
 class DungeonBatalhaView(discord.ui.View):
     def __init__(self, user_id, skills, pocoes):
         super().__init__(timeout=30)
-        self.user_id    = user_id
-        self.acao       = None
+        self.user_id = user_id
+        self.acao = None
         self.acao_feita = False
-        self._pocoes    = list(pocoes) if pocoes else []
+        self._pocoes = list(pocoes) if pocoes else []
+        self._skills = list(skills) if skills else []
 
         for i, sk in enumerate(skills[:4]):
             mana_txt = f"({sk.get('mana',0)}💙)" if sk.get("mana",0)>0 else ""
@@ -290,7 +296,7 @@ class DungeonBatalhaView(discord.ui.View):
                 row=0 if i<2 else 1,
                 custom_id=f"sk_{i}"
             )
-            btn.callback = self._sk(i)
+            btn.callback = self._make_skill_callback(i)
             self.add_item(btn)
 
         atk_btn = discord.ui.Button(
@@ -309,104 +315,137 @@ class DungeonBatalhaView(discord.ui.View):
         def_btn.callback = self._defesa_basica
         self.add_item(def_btn)
 
-        mochila = discord.ui.Button(
+        mochila_btn = discord.ui.Button(
             label=f"🎒 Mochila ({len(self._pocoes)})" if self._pocoes else "🎒 Mochila (vazia)",
             style=discord.ButtonStyle.secondary,
             disabled=not self._pocoes,
             row=3, custom_id="mochila"
         )
-        mochila.callback = self._mochila
-        self.add_item(mochila)
+        mochila_btn.callback = self._abrir_mochila
+        self.add_item(mochila_btn)
 
-        fugir = discord.ui.Button(label="🏃 Fugir da Dungeon", style=discord.ButtonStyle.danger, row=3, custom_id="fugir")
-        fugir.callback = self._fugir
-        self.add_item(fugir)
+        fugir_btn = discord.ui.Button(
+            label="🏃 Fugir da Dungeon",
+            style=discord.ButtonStyle.danger,
+            row=3, custom_id="fugir"
+        )
+        fugir_btn.callback = self._fugir
+        self.add_item(fugir_btn)
 
-    def _sk(self, idx):
-        async def cb(inter: discord.Interaction):
-            try: await inter.response.defer()
-            except: pass
-            if inter.user.id != self.user_id or self.acao_feita: return
+    def _make_skill_callback(self, idx):
+        async def callback(inter: discord.Interaction):
+            try:
+                await inter.response.defer()
+            except:
+                pass
+            if inter.user.id != self.user_id or self.acao_feita:
+                return
             self.acao_feita = True
             self.acao = ("skill", idx)
             self.stop()
-        return cb
+        return callback
 
-    async def _mochila(self, inter: discord.Interaction):
+    async def _abrir_mochila(self, inter: discord.Interaction):
         if inter.user.id != self.user_id or self.acao_feita:
-            try: await inter.response.defer()
-            except: pass
+            try:
+                await inter.response.defer()
+            except:
+                pass
             return
         if not self._pocoes:
-            try: await inter.response.send_message("Mochila vazia!", ephemeral=True)
-            except: pass
+            try:
+                await inter.response.send_message("Mochila vazia!", ephemeral=True)
+            except:
+                pass
             return
-        opcoes = [discord.SelectOption(label=f"{p['emoji']} {p['nome']} (x{p['quantidade']})", value=p["item_id"]) for p in self._pocoes[:10]]
+        opcoes = [
+            discord.SelectOption(
+                label=f"{p['emoji']} {p['nome']} (x{p['quantidade']})",
+                value=p["item_id"]
+            ) for p in self._pocoes[:10]
+        ]
         sel = discord.ui.Select(placeholder="Usar pocao...", options=opcoes)
-        parent = self
+        
         async def usar(inter2: discord.Interaction):
-            try: await inter2.response.defer()
-            except: pass
-            if inter2.user.id != parent.user_id or parent.acao_feita: return
-            parent.acao_feita = True
-            parent.acao = ("pocao", sel.values[0])
-            parent.stop()
+            try:
+                await inter2.response.defer()
+            except:
+                pass
+            if inter2.user.id != self.user_id or self.acao_feita:
+                return
+            self.acao_feita = True
+            self.acao = ("pocao", sel.values[0])
+            self.stop()
+        
         sel.callback = usar
-        v = discord.ui.View(timeout=20); v.add_item(sel)
-        try: await inter.response.send_message("🎒 Escolha uma pocao:", view=v, ephemeral=True)
-        except: pass    async def _atk_basico(self, inter: discord.Interaction):
-        try: await inter.response.defer()
-        except: pass
-        if inter.user.id != self.user_id or self.acao_feita: return
+        v = discord.ui.View(timeout=20)
+        v.add_item(sel)
+        try:
+            await inter.response.send_message("🎒 Escolha uma pocao:", view=v, ephemeral=True)
+        except:
+            pass
+
+    async def _atk_basico(self, inter: discord.Interaction):
+        try:
+            await inter.response.defer()
+        except:
+            pass
+        if inter.user.id != self.user_id or self.acao_feita:
+            return
         self.acao_feita = True
         self.acao = ("atk_basico", None)
         self.stop()
 
     async def _defesa_basica(self, inter: discord.Interaction):
-        try: await inter.response.defer()
-        except: pass
-        if inter.user.id != self.user_id or self.acao_feita: return
-        self.acao_feita = True
-        self.acao = ("defesa_basica", None)
+        try:
+            await inter.response.defer()
+        except:
+            pass
+        if inter.user.id != self.user_id or self.acao_feita:
+            return
+        self.acao_feita = True        self.acao = ("defesa_basica", None)
         self.stop()
 
     async def _fugir(self, inter: discord.Interaction):
-        try: await inter.response.defer()
-        except: pass
-        if inter.user.id != self.user_id or self.acao_feita: return
+        try:
+            await inter.response.defer()
+        except:
+            pass
+        if inter.user.id != self.user_id or self.acao_feita:
+            return
         self.acao_feita = True
         self.acao = ("fugir", None)
         self.stop()
 
-# ─── ENGINE DE BATALHA DA DUNGEON ────────────────────────────────
+# ==================================================
+# ENGINE DE BATALHA DA DUNGEON
+# ==================================================
 
 async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx, mana_jmx, msgs):
-    """Batalha contra um andar/chefe. Retorna (hp_j, mana_j, vitoria, fugiu)"""
-    hp_m    = monstro["hp"]
-    hp_mmx  = monstro["hp"]
-    turno   = 1
+    hp_m = monstro["hp"]
+    hp_mmx = monstro["hp"]
+    turno = 1
     efeitos = {}
-    emoji_j = EMOJI_CLASSE.get(p["classe_id"],"⚔️")
+    emoji_j = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
     nivel_p = p["nivel"]
     timeout_count = 0
 
-    # Bonus de afinidade de arma
     try:
         arma_eq = await get_arma_equipada(p["user_id"])
-        arm_eq  = await get_armadura_equipada(p["user_id"])
+        arm_eq = await get_armadura_equipada(p["user_id"])
         bonus_atk, bonus_dfs = calcular_bonus_equip(p["classe_id"], arma_eq, arm_eq)
     except Exception:
         bonus_atk, bonus_dfs = 1.0, 1.0
 
     def _mult_basico(nv):
-        if nv <= 9:    return 1.0
+        if nv <= 9: return 1.0
         elif nv <= 19: return 1.1
         elif nv <= 29: return 1.2
         elif nv <= 39: return 1.3
         elif nv <= 49: return 1.4
         elif nv <= 59: return 1.5
         elif nv <= 74: return 1.6
-        else:          return 1.8
+        else: return 1.8
 
     def status():
         return (
@@ -416,7 +455,7 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
 
     while hp_j > 0 and hp_m > 0:
         pocoes = await get_pocoes_inv(p["user_id"])
-        view   = DungeonBatalhaView(p["user_id"], skills, pocoes)
+        view = DungeonBatalhaView(p["user_id"], skills, pocoes)
 
         embed_vez = discord.Embed(
             title=f"⚔️ Turno {turno} — Sua vez!",
@@ -427,8 +466,10 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         msgs.append(msg_vez)
         await view.wait()
 
-        try: await msg_vez.edit(view=None)
-        except: pass
+        try:
+            await msg_vez.edit(view=None)
+        except:
+            pass
 
         acao, val = view.acao or ("timeout", None)
 
@@ -451,19 +492,19 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
             return hp_j, mana_j, False, True
 
         linha = ""
-        cor   = 0x378ADD
+        cor = 0x378ADD
 
         if acao == "atk_basico":
             dano = calc_dano(p["ataque"], monstro["defesa"], _mult_basico(nivel_p),
                              bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx)
             hp_m = max(0, hp_m - dano)
             linha = f"⚔️ **Ataque Básico**: **{dano} de dano**! *(sem mana)*"
-            cor   = 0x888780
+            cor = 0x888780
 
         elif acao == "defesa_basica":
             efeitos["defesa_basica"] = 1
             linha = f"🛡️ **Postura Defensiva!** 60% de chance de reduzir 80% do próximo dano. *(sem mana)*"
-            cor   = 0x378ADD
+            cor = 0x378ADD
 
         elif acao == "pocao" and val:
             pd = POCOES_DEF.get(val)
@@ -486,8 +527,8 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
 
         elif acao == "skill" and val is not None and val < len(skills):
             sk = skills[val]
-            efeito = sk.get("efeito","")
-            custo = sk.get("mana",0)
+            efeito = sk.get("efeito", "")
+            custo = sk.get("mana", 0)
             if custo > mana_j:
                 dano = calc_dano(p["ataque"], monstro["defesa"], _mult_basico(nivel_p), bonus_atk=bonus_atk, nivel=nivel_p, hp_max_monstro=hp_mmx)
                 hp_m -= dano
@@ -537,7 +578,6 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
 
         await asyncio.sleep(1.0)
 
-        # Monstro ataca
         sk_m = random.choice(monstro["skills"])
         dano_m = calc_dano(monstro["ataque"], p["defesa"], nivel=nivel_p)
         cor_m = 0xE24B4A
@@ -572,17 +612,16 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
 
         else:
             hp_j = max(0, hp_j - dano_m)
-            linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['emoji'] if 'emoji' in sk_m else '⚔️'} {sk_m['nome']}**: **{dano_m} dano!**"
+            linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_m} dano!**"
 
-        # Mana regen por rank
-        if nivel_p <= 9:    regen = 3
+        if nivel_p <= 9: regen = 3
         elif nivel_p <= 19: regen = 5
         elif nivel_p <= 29: regen = 8
         elif nivel_p <= 39: regen = 12
         elif nivel_p <= 49: regen = 16
         elif nivel_p <= 59: regen = 22
         elif nivel_p <= 74: regen = 30
-        else:               regen = 40
+        else: regen = 40
         mana_j = min(mana_jmx, mana_j + regen)
 
         msg_m = await interaction.followup.send(
@@ -600,12 +639,13 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
     vitoria = hp_m <= 0
     return hp_j, mana_j, vitoria, False
 
-# ─── COMANDO PRINCIPAL: /dungeon ─────────────────────────────────
+# ==================================================
+# COMANDO PRINCIPAL
+# ==================================================
 
 async def cmd_dungeon(interaction: discord.Interaction, rank: str):
     user_id = interaction.user.id
     
-    # VERIFICA LOCK - evita entrar em duas dungeons ao mesmo tempo
     if dungeon_lock.is_user_locked(user_id):
         await interaction.response.send_message("❌ Você já está em uma dungeon!", ephemeral=True)
         return
@@ -640,25 +680,22 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
             )
             return
 
-        # Pega skills
         ids_eq = await get_skills_eq(p["user_id"])
         skills = get_skills_jogador(p, ids_eq)
         if not skills:
             cls = SKILLS_COMPLETAS.get(p["classe_id"], [])
             skills = cls[:4] if cls else []
 
-        hp_j    = p["hp_atual"]
-        hp_jmx  = p["hp_max"]
-        mana_j  = p["mana_atual"] if "mana_atual" in p.keys() else 100
-        mana_jmx = p["mana_max"]   if "mana_max"   in p.keys() else 100
-        emoji_j = EMOJI_CLASSE.get(p["classe_id"],"⚔️")
+        hp_j = p["hp_atual"]
+        hp_jmx = p["hp_max"]
+        mana_j = p["mana_atual"] if "mana_atual" in p.keys() else 100
+        mana_jmx = p["mana_max"] if "mana_max" in p.keys() else 100
+        emoji_j = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
 
-        xp_total      = 0
-        moedas_total  = 0
-        msgs_global   = []
-        timeout_count = 0
+        xp_total = 0
+        moedas_total = 0
+        msgs_global = []
 
-        # ── Mensagem de entrada ──────────────────────────────────────
         img_dg = IMG_DUNGEON.get(rank.upper(), IMG_DUNGEON["F"])
         embed_entrada = discord.Embed(
             title=f"{dungeon['emoji']} {dungeon['nome']}",
@@ -677,12 +714,10 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
         msgs_global.append(msg_ent)
         await asyncio.sleep(2)
 
-        # ── Loop dos andares ─────────────────────────────────────────
         for info_andar in dungeon["andares"]:
-            andar  = info_andar["andar"]
+            andar = info_andar["andar"]
             monstro = info_andar["monstro"]
 
-            # Anuncia o andar
             img_m = IMG_DUNGEON_MONSTRO.get(monstro["nome"], IMG_DUNGEON_MONSTRO["default"])
             embed_andar = discord.Embed(
                 title=f"Andar {andar}/{len(dungeon['andares'])} — {info_andar['emoji']} {info_andar['nome']}",
@@ -704,16 +739,19 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
             )
             msgs_global.extend(msgs_batalha)
 
-            # Limpa mensagens do andar
             await asyncio.sleep(0.5)
             for m in msgs_batalha:
-                try: await m.delete()
-                except: pass
+                try:
+                    await m.delete()
+                except:
+                    pass
 
             if fugiu:
                 for m in msgs_global:
-                    try: await m.delete()
-                    except: pass
+                    try:
+                        await m.delete()
+                    except:
+                        pass
                 await interaction.followup.send(embed=discord.Embed(
                     title="🏃 Fugiu da Dungeon!",
                     description=f"**{p['nome']}** saiu da dungeon no andar {andar}.\nNenhuma recompensa foi obtida.",
@@ -727,8 +765,10 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
                     await conn.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
                 BATALHAS_ATIVAS.discard(p["user_id"])
                 for m in msgs_global:
-                    try: await m.delete()
-                    except: pass
+                    try:
+                        await m.delete()
+                    except:
+                        pass
                 await interaction.followup.send(embed=discord.Embed(
                     title=f"💀 {p['nome']} foi derrotado no Andar {andar}!",
                     description=(
@@ -740,12 +780,11 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
                 ))
                 return
 
-            # Vitoria no andar — recompensa
-            xp_andar     = dungeon["recompensa_andar"]["xp"]
+            xp_andar = dungeon["recompensa_andar"]["xp"]
             moedas_andar = dungeon["recompensa_andar"]["moedas"]
-            xp_total     += xp_andar
+            xp_total += xp_andar
             moedas_total += moedas_andar
-            mana_j        = min(mana_jmx, mana_j + 15)
+            mana_j = min(mana_jmx, mana_j + 15)
 
             msg_vit = await interaction.followup.send(embed=discord.Embed(
                 title=f"✅ Andar {andar} concluido!",
@@ -760,7 +799,6 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
             msgs_global.append(msg_vit)
             await asyncio.sleep(2)
 
-        # ── CHEFE FINAL ──────────────────────────────────────────────
         chefe = dungeon["chefe"]
 
         img_chefe = IMG_DUNGEON_MONSTRO.get(chefe["nome"], IMG_DUNGEON_MONSTRO["default"])
@@ -786,16 +824,20 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
         msgs_global.extend(msgs_chefe)
 
         for m in msgs_chefe:
-            try: await m.delete()
-            except: pass
+            try:
+                await m.delete()
+            except:
+                pass
 
         if fugiu or not vitoria:
             pool = await get_pool()
             async with pool.acquire() as conn:
                 await conn.execute("UPDATE personagens SET hp_atual=10, derrotas=derrotas+1 WHERE user_id=$1", p["user_id"])
             for m in msgs_global:
-                try: await m.delete()
-                except: pass
+                try:
+                    await m.delete()
+                except:
+                    pass
             titulo = "Fugiu do chefe!" if fugiu else "Derrotado pelo chefe!"
             await interaction.followup.send(embed=discord.Embed(
                 title=titulo,
@@ -804,11 +846,9 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
             ))
             return
 
-        # ── VITÓRIA TOTAL ────────────────────────────────────────────
-        xp_total     += dungeon["recompensa_chefe"]["xp"]
+        xp_total += dungeon["recompensa_chefe"]["xp"]
         moedas_total += dungeon["recompensa_chefe"]["moedas"]
 
-        # Loot
         loot_obtido = []
         if chefe["loot_raro"]:
             await add_item_dungeon(p["user_id"], chefe["loot_raro"])
@@ -846,5 +886,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
         await asyncio.sleep(1.5)
 
         for m in msgs_global:
-            try: await m.delete()
-            except: pass
+            try:
+                await m.delete()
+            except:
+                pass
