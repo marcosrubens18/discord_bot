@@ -6,12 +6,13 @@ import random
 from datetime import datetime, timedelta
 from db import get_pool
 from batalha import rodar_pvp, ARENAS, BATALHAS_ATIVAS
+from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO, TEMPO_LUTA_TORNEIO
 
 # ==================================================
 # CONSTANTES
 # ==================================================
 
-TEMPO_INSCRICAO_PADRAO = 48  # horas
+TEMPO_INSCRICAO_PADRAO = 48
 
 # ==================================================
 # BANCO DE DADOS
@@ -75,13 +76,13 @@ async def init_db_torneio():
 # FUNÇÕES AUXILIARES
 # ==================================================
 
-def proxima_potencia_2(n):
+def proxima_potencia_2(n: int) -> int:
     p = 1
     while p < n:
         p *= 2
     return p
 
-def nome_fase(total_lutas):
+def nome_fase(total_lutas: int) -> str:
     if total_lutas == 1:
         return "FINAL"
     if total_lutas == 2:
@@ -90,10 +91,11 @@ def nome_fase(total_lutas):
         return "QUARTAS"
     if total_lutas == 8:
         return "OITAVAS"
+    if total_lutas == 16:
+        return "OITAVAS"
     return f"RODADA {total_lutas}"
 
 async def entregar_premio(guild, user_id, premio_str):
-    """Entrega prêmio ao jogador"""
     if not premio_str or not premio_str.strip():
         return
     
@@ -141,6 +143,23 @@ async def entregar_premio(guild, user_id, premio_str):
     except Exception as e:
         print(f"Erro premio: {e}")
 
+async def notificar_jogador(guild, user_id, torneio_nome, luta_num, adversario_nome):
+    user = guild.get_member(user_id)
+    if not user:
+        return
+    
+    embed = discord.Embed(
+        title=f"🏆 Sua vez no torneio {torneio_nome}!",
+        description=f"Você está na **Luta #{luta_num}** contra **{adversario_nome}**.\n\n"
+                   f"O administrador iniciará a luta em breve.\n"
+                   f"Fique atento ao canal do torneio!",
+        color=COR_PRIMARY
+    )
+    try:
+        await user.send(embed=embed)
+    except:
+        pass
+
 # ==================================================
 # MODAL DE CRIAÇÃO
 # ==================================================
@@ -185,7 +204,7 @@ class CriarTorneioModal(discord.ui.Modal, title="Criar Torneio"):
         embed = discord.Embed(
             title=f"🏆 {self.nome.value}",
             description=self.descricao.value or "Torneio PvP",
-            color=0xE4AF3C
+            color=COR_PRIMARY
         )
         embed.add_field(name="💰 Inscrição", value=f"{valor} moedas" if valor else "Gratuita", inline=True)
         embed.add_field(name="⏰ Inscrições até", value=f"<t:{int(fim.timestamp())}:R>", inline=True)
@@ -205,7 +224,6 @@ class CriarTorneioModal(discord.ui.Modal, title="Criar Torneio"):
             ephemeral=True
         )
         
-        # Mostra embed de divulgação no canal (opcional)
         canal = interaction.channel
         msg = await canal.send(embed=embed)
         async with pool.acquire() as conn:
@@ -230,13 +248,11 @@ async def cmd_torneio_inscrever(interaction: discord.Interaction, torneio_id: in
             await interaction.followup.send("❌ Crie seu personagem primeiro!", ephemeral=True)
             return
         
-        # Verifica se já está inscrito
         existe = await conn.fetchrow("SELECT id FROM torneio_inscritos WHERE torneio_id = $1 AND user_id = $2", torneio_id, interaction.user.id)
         if existe:
             await interaction.followup.send("❌ Você já está inscrito neste torneio!", ephemeral=True)
             return
         
-        # Cobra inscrição
         if t["valor_inscricao"] > 0:
             if p["moedas"] < t["valor_inscricao"]:
                 await interaction.followup.send(f"❌ Moedas insuficientes! Precisa de {t['valor_inscricao']} moedas.", ephemeral=True)
@@ -276,20 +292,17 @@ async def cmd_torneio_fechar(interaction: discord.Interaction, torneio_id: int):
             await interaction.followup.send("❌ Torneio cancelado! Número insuficiente de participantes (mínimo 2).", ephemeral=True)
             return
         
-        # 1. CRIA CARGO TEMPORÁRIO
         cargo = await interaction.guild.create_role(
             name=f"🏆 {t['nome'][:20]}",
             color=discord.Color.gold(),
             mentionable=True
         )
         
-        # 2. ADICIONA PARTICIPANTES AO CARGO
         for ins in inscritos:
             member = interaction.guild.get_member(ins["user_id"])
             if member:
                 await member.add_roles(cargo)
         
-        # 3. CRIA CANAL PRIVADO DO TORNEIO
         cat = discord.utils.get(interaction.guild.categories, name="TORNEIOS")
         if not cat:
             cat = await interaction.guild.create_category("TORNEIOS")
@@ -303,13 +316,11 @@ async def cmd_torneio_fechar(interaction: discord.Interaction, torneio_id: int):
         nome_canal = f"🏆┃{t['nome'][:25].lower().replace(' ', '-')}"
         canal = await interaction.guild.create_text_channel(nome_canal, category=cat, overwrites=overwrites)
         
-        # 4. ATUALIZA BANCO
         await conn.execute("""
             UPDATE torneios SET status = 'em_andamento', canal_id = $1, cargo_id = $2
             WHERE id = $3
         """, canal.id, cargo.id, torneio_id)
         
-        # 5. GERA CHAVES
         n = len(inscritos)
         pot2 = proxima_potencia_2(n)
         byes = pot2 - n
@@ -320,7 +331,6 @@ async def cmd_torneio_fechar(interaction: discord.Interaction, torneio_id: int):
         
         luta_num = 1
         
-        # Byes (avançam automaticamente)
         for i in range(byes):
             await conn.execute("""
                 INSERT INTO torneio_lutas (torneio_id, fase, luta_num, user1_id, user1_nome, bye, concluida)
@@ -328,7 +338,6 @@ async def cmd_torneio_fechar(interaction: discord.Interaction, torneio_id: int):
             """, torneio_id, fase, luta_num, lista_ids[i], lista_nomes[i])
             luta_num += 1
         
-        # Pares
         restantes_ids = lista_ids[byes:]
         restantes_nomes = lista_nomes[byes:]
         
@@ -343,13 +352,11 @@ async def cmd_torneio_fechar(interaction: discord.Interaction, torneio_id: int):
         
         await conn.execute("UPDATE torneios SET fase_atual = $1 WHERE id = $2", fase, torneio_id)
     
-    # 6. ENVIA MENSAGEM COM AS CHAVES
     await enviar_chaves(canal, torneio_id, t["nome"], fase, interaction.guild)
     
     await interaction.followup.send(f"✅ Torneio **{t['nome']}** iniciado!\n📢 Canal: {canal.mention}\n👥 Cargo: {cargo.mention}", ephemeral=True)
 
 async def enviar_chaves(canal, torneio_id, nome_torneio, fase, guild):
-    """Envia as chaves do torneio no canal"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         lutas = await conn.fetch("""
@@ -361,7 +368,7 @@ async def enviar_chaves(canal, torneio_id, nome_torneio, fase, guild):
     embed = discord.Embed(
         title=f"🏆 {nome_torneio}",
         description=f"**Fase: {fase}**\n\nAs chaves foram sorteadas!",
-        color=0xE4AF3C
+        color=COR_PRIMARY
     )
     
     for l in lutas:
@@ -405,7 +412,6 @@ async def cmd_torneio_lutar(interaction: discord.Interaction, torneio_id: int, l
             await interaction.followup.send("❌ Luta não encontrada, já concluída ou é BYE!", ephemeral=True)
             return
         
-        # Pega os jogadores
         p1 = await conn.fetchrow("SELECT * FROM personagens WHERE user_id = $1", luta["user1_id"])
         p2 = await conn.fetchrow("SELECT * FROM personagens WHERE user_id = $1", luta["user2_id"])
         
@@ -413,13 +419,15 @@ async def cmd_torneio_lutar(interaction: discord.Interaction, torneio_id: int, l
             await interaction.followup.send("❌ Um dos jogadores não tem personagem!", ephemeral=True)
             return
         
-        # Verifica se estão em batalha
         if luta["user1_id"] in BATALHAS_ATIVAS or luta["user2_id"] in BATALHAS_ATIVAS:
             await interaction.followup.send("❌ Um dos jogadores já está em batalha!", ephemeral=True)
             return
         
         membro1 = interaction.guild.get_member(luta["user1_id"])
         membro2 = interaction.guild.get_member(luta["user2_id"])
+        
+        await notificar_jogador(interaction.guild, luta["user1_id"], t["nome"], luta_num, luta["user2_nome"])
+        await notificar_jogador(interaction.guild, luta["user2_id"], t["nome"], luta_num, luta["user1_nome"])
         
         arena = random.choice(ARENAS)
         
@@ -429,46 +437,38 @@ async def cmd_torneio_lutar(interaction: discord.Interaction, torneio_id: int, l
                        f"⚔️ {membro1.mention if membro1 else luta['user1_nome']} vs {membro2.mention if membro2 else luta['user2_nome']}\n"
                        f"🏟️ Arena: {arena['emoji']} {arena['nome']}\n\n"
                        f"⚔️ A batalha vai começar!",
-            color=0xE4AF3C
+            color=COR_PRIMARY
         )
         await interaction.followup.send(embed=embed_pre)
         
-        # Callback para registrar resultado
         async def registrar_resultado(vencedor_id, perdedor_id):
             await _registrar_vencedor(torneio_id, luta["id"], vencedor_id, perdedor_id, interaction.guild, interaction.channel)
         
-        # Inicia batalha
         await rodar_pvp(interaction.channel, p1, p2, membro1, membro2, arena, callback=registrar_resultado)
 
 async def _registrar_vencedor(torneio_id, luta_id, vencedor_id, perdedor_id, guild, canal):
-    """Registra vencedor e avança para próxima fase"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         luta = await conn.fetchrow("SELECT * FROM torneio_lutas WHERE id = $1", luta_id)
         if not luta or luta["concluida"]:
             return
         
-        # Pega nomes
         vencedor_nome = await conn.fetchval("SELECT nome FROM personagens WHERE user_id = $1", vencedor_id)
         perdedor_nome = await conn.fetchval("SELECT nome FROM personagens WHERE user_id = $1", perdedor_id)
         
-        # Atualiza luta
         await conn.execute("""
             UPDATE torneio_lutas 
             SET vencedor_id = $1, vencedor_nome = $2, concluida = TRUE
             WHERE id = $3
         """, vencedor_id, vencedor_nome, luta_id)
         
-        # Marca perdedor como eliminado
         await conn.execute("""
             UPDATE torneio_inscritos SET eliminado = TRUE 
             WHERE torneio_id = $1 AND user_id = $2
         """, torneio_id, perdedor_id)
         
-        # Anuncia resultado
         await canal.send(f"🏆 **{vencedor_nome}** venceu a luta e avançou para a próxima fase!")
         
-        # Verifica se a fase atual terminou
         fase = luta["fase"]
         pendentes = await conn.fetchval("""
             SELECT COUNT(*) FROM torneio_lutas 
@@ -478,7 +478,6 @@ async def _registrar_vencedor(torneio_id, luta_id, vencedor_id, perdedor_id, gui
         if pendentes > 0:
             return
         
-        # Pega vencedores da fase
         vencedores = await conn.fetch("""
             SELECT vencedor_id, vencedor_nome FROM torneio_lutas 
             WHERE torneio_id = $1 AND fase = $2 AND concluida = TRUE
@@ -488,18 +487,14 @@ async def _registrar_vencedor(torneio_id, luta_id, vencedor_id, perdedor_id, gui
         nomes_v = [v["vencedor_nome"] for v in vencedores]
         
         if len(ids_v) == 1:
-            # TORNEIO FINALIZADO
             await conn.execute("UPDATE torneios SET status = 'finalizado' WHERE id = $1", torneio_id)
             t = await conn.fetchrow("SELECT * FROM torneios WHERE id = $1", torneio_id)
             
-            # Entrega prêmios
             await entregar_premio(guild, ids_v[0], t["premio_1"])
             
-            # Busca 2º e 3º lugar
             segundo = None
             terceiro = None
             
-            # Pega finalistas
             final = await conn.fetchrow("""
                 SELECT user1_id, user2_id, vencedor_id FROM torneio_lutas 
                 WHERE torneio_id = $1 AND fase = 'FINAL'
@@ -507,7 +502,6 @@ async def _registrar_vencedor(torneio_id, luta_id, vencedor_id, perdedor_id, gui
             if final:
                 segundo = final["user2_id"] if final["vencedor_id"] == final["user1_id"] else final["user1_id"]
             
-            # Busca semifinalistas para 3º
             semis = await conn.fetch("""
                 SELECT user1_id, user2_id, vencedor_id FROM torneio_lutas 
                 WHERE torneio_id = $1 AND fase = 'SEMIFINAL'
@@ -522,34 +516,29 @@ async def _registrar_vencedor(torneio_id, luta_id, vencedor_id, perdedor_id, gui
             if terceiro and t["premio_3"]:
                 await entregar_premio(guild, terceiro, t["premio_3"])
             
-            # Anuncia final
             campeao = guild.get_member(ids_v[0])
             embed_final = discord.Embed(
                 title=f"🏆 TORNEIO FINALIZADO!",
                 description=f"**{t['nome']}**\n\n"
                            f"🥇 **{campeao.mention if campeao else ids_v[0]}** é o campeão!\n\n"
                            f"🏆 Prêmio: {t['premio_1']}",
-                color=0xE4AF3C
+                color=COR_SUCCESS
             )
             await canal.send(embed=embed_final)
             
-            # Limpa cargo e canal após 1 minuto
             await asyncio.sleep(60)
             
-            # Remove cargo
             if t["cargo_id"]:
                 cargo = guild.get_role(t["cargo_id"])
                 if cargo:
                     await cargo.delete()
             
-            # Deleta canal
             if t["canal_id"]:
                 canal_t = guild.get_channel(t["canal_id"])
                 if canal_t:
                     await canal_t.delete()
             
         else:
-            # PRÓXIMA FASE
             prox_fase = nome_fase(len(ids_v) // 2)
             await conn.execute("UPDATE torneios SET fase_atual = $1 WHERE id = $2", prox_fase, torneio_id)
             
@@ -561,15 +550,13 @@ async def _registrar_vencedor(torneio_id, luta_id, vencedor_id, perdedor_id, gui
                 """, torneio_id, prox_fase, luta_num, ids_v[i], nomes_v[i], ids_v[i+1], nomes_v[i+1])
                 luta_num += 1
             
-            # Anuncia próxima fase
             embed_prox = discord.Embed(
                 title=f"📢 PRÓXIMA FASE: {prox_fase}",
                 description=f"Os vencedores avançaram! Use `/torneio_status {torneio_id}` para ver as novas chaves.",
-                color=0x1D9E75
+                color=COR_INFO
             )
             await canal.send(embed=embed_prox)
             
-            # Mostra novas chaves
             await enviar_chaves(canal, torneio_id, t["nome"], prox_fase, guild)
 
 # ==================================================
@@ -600,7 +587,7 @@ async def cmd_torneio_status(interaction: discord.Interaction, torneio_id: int):
         title=f"🏆 {t['nome']}",
         description=f"**Status:** {status_map.get(t['status'], t['status'])}\n"
                    f"**Inscritos:** {len(inscritos)}",
-        color=0xE4AF3C
+        color=COR_PRIMARY
     )
     
     if t["status"] == "inscricoes" and t["fim_inscricoes"]:
@@ -613,7 +600,6 @@ async def cmd_torneio_status(interaction: discord.Interaction, torneio_id: int):
     if t["premio_3"]:
         embed.add_field(name="🥉 3º Lugar", value=t["premio_3"], inline=True)
     
-    # Mostra chaves por fase
     fases = {}
     for l in lutas:
         fases.setdefault(l["fase"], []).append(l)
@@ -649,7 +635,6 @@ async def cmd_torneio_cancelar(interaction: discord.Interaction, torneio_id: int
             await interaction.followup.send("❌ Torneio não encontrado!", ephemeral=True)
             return
         
-        # Devolve inscrições
         if t["valor_inscricao"] > 0 and t["status"] == "inscricoes":
             inscritos = await conn.fetch("SELECT user_id FROM torneio_inscritos WHERE torneio_id = $1", torneio_id)
             for ins in inscritos:
@@ -657,13 +642,11 @@ async def cmd_torneio_cancelar(interaction: discord.Interaction, torneio_id: int
         
         await conn.execute("UPDATE torneios SET status = 'cancelado' WHERE id = $1", torneio_id)
         
-        # Remove cargo se existir
         if t["cargo_id"]:
             cargo = interaction.guild.get_role(t["cargo_id"])
             if cargo:
                 await cargo.delete()
         
-        # Deleta canal se existir
         if t["canal_id"]:
             canal = interaction.guild.get_channel(t["canal_id"])
             if canal:
