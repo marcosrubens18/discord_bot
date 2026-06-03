@@ -152,20 +152,45 @@ async def remover_giro(user_id, roleta_id, raridade):
             WHERE user_id=$1 AND roleta_id=$2 AND raridade=$3 AND quantidade > 0
         """, user_id, roleta_id, raridade)
 
-(pool_items, raridade_minima):
-    idx_min = RARIDADES.index(raridade_minima) if raridade_minima in RARIDADES else 0
-    disponiveis = [item for item in pool_items if RARIDADES.index(item["raridade"]) >= idx_min]
+def sortear_ficha(pool_items, raridade_minima):
+    """Sorteia um item da pool baseado na raridade mínima"""
+    # Normaliza raridade (remove acentos)
+    raridade_minima = raridade_minima.replace("É", "E").replace("é", "e")
+    
+    try:
+        idx_min = RARIDADES.index(raridade_minima) if raridade_minima in RARIDADES else 0
+    except ValueError:
+        idx_min = 0
+    
+    # Filtra itens com raridade >= raridade mínima
+    disponiveis = []
+    for item in pool_items:
+        item_rar = item.get("raridade", "Comum").replace("É", "E").replace("é", "e")
+        try:
+            item_idx = RARIDADES.index(item_rar)
+            if item_idx >= idx_min:
+                disponiveis.append(item)
+        except ValueError:
+            disponiveis.append(item)
+    
     if not disponiveis:
         disponiveis = pool_items
-    pesos_base = {"Comum":40,"Incomum":25,"Raro":15,"Epico":8,"Lendario":3}
-    pesos = [pesos_base.get(item["raridade"], 10) for item in disponiveis]
+    
+    # Pesos por raridade
+    pesos_base = {"Comum": 40, "Incomum": 25, "Raro": 15, "Epico": 8, "Lendario": 3}
+    pesos = []
+    for item in disponiveis:
+        item_rar = item.get("raridade", "Comum").replace("É", "E").replace("é", "e")
+        peso = pesos_base.get(item_rar, 10)
+        pesos.append(peso)
+    
     total = sum(pesos)
     r = random.random() * total
     for i, item in enumerate(disponiveis):
         r -= pesos[i]
         if r <= 0:
             return item
-    return disponiveis[-1]
+    return disponiveis[0]
 
 async def animar_roleta(msg, opcoes, resultado, cor):
     for _ in range(8):
@@ -180,7 +205,6 @@ async def animar_roleta(msg, opcoes, resultado, cor):
         color=cor
     )
     await msg.edit(embed=embed)
-
 
 async def get_personagem_hospital(user_id):
     pool = await get_pool()
@@ -216,7 +240,6 @@ def build_pool_filtrado(roleta_id, classe_id, ids_ja_tem):
         ] or [{"id": armaduras[0]["id"], "nome": armaduras[0]["nome"], "emoji": armaduras[0]["emoji"], "raridade": "Comum", "tipo": "armadura", "desc": armaduras[0]["desc"]}]
 
     return []
-
 
 async def get_descanso(user_id):
     """Retorna None se pode descansar, ou datetime do proximo descanso disponivel."""
@@ -286,7 +309,6 @@ async def cmd_hospital(interaction: discord.Interaction):
 
     sel.callback = escolher
     v = discord.ui.View(timeout=60); v.add_item(sel)
-    # Botao descanso gratis
     proximo_desc = await get_descanso(interaction.user.id)
     pode_descansar = proximo_desc is None
     if not pode_descansar and proximo_desc:
@@ -349,11 +371,9 @@ async def cmd_girar(interaction: discord.Interaction):
         if not roleta: return
         await remover_giro(inter.user.id, info["roleta_id"], raridade)
 
-        # Busca personagem para filtrar por classe
         p_girar = await get_personagem_hospital(inter.user.id)
         classe_id_g = p_girar["classe_id"] if p_girar else "guerreiro"
 
-        # Busca o que o jogador ja tem para nao repetir
         pool_db2 = await get_pool()
         async with pool_db2.acquire() as conn2:
             if info["roleta_id"] == "skill":
@@ -363,7 +383,6 @@ async def cmd_girar(interaction: discord.Interaction):
                 rows_tem = await conn2.fetch("SELECT item_id FROM inventario WHERE user_id=$1 AND tipo=$2", inter.user.id, info["roleta_id"])
                 ids_ja_tem = {r["item_id"] for r in rows_tem}
 
-        # Usa pool filtrado por classe e sem repetir
         if info["roleta_id"] in ("skill", "arma", "armadura"):
             pool_filtrado = build_pool_filtrado(info["roleta_id"], classe_id_g, ids_ja_tem)
         else:
@@ -395,7 +414,6 @@ async def cmd_girar(interaction: discord.Interaction):
                 aplicado = f"Poder base alterado para **{resultado['nome']}** ({resultado.get('valor','?')})!"
             elif rid == "raca":
                 await conn.execute("UPDATE personagens SET raca_id=$1 WHERE user_id=$2", resultado["id"], inter.user.id)
-                # Atualiza cargo de raca
                 guild = inter.guild
                 if guild:
                     member = guild.get_member(inter.user.id)
@@ -403,13 +421,11 @@ async def cmd_girar(interaction: discord.Interaction):
                         from racas import RACAS
                         raca_obj = RACAS.get(resultado["id"])
                         if raca_obj:
-                            # Remove cargos de raca antigos
                             for r in RACAS.values():
                                 cargo_old = discord.utils.get(guild.roles, name=r["cargos"])
                                 if cargo_old and cargo_old in member.roles:
                                     try: await member.remove_roles(cargo_old)
                                     except: pass
-                            # Adiciona novo
                             cargo_new = discord.utils.get(guild.roles, name=raca_obj["cargos"])
                             if cargo_new:
                                 try: await member.add_roles(cargo_new)
