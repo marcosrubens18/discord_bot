@@ -16,6 +16,7 @@ from catalogo import (
 from utils import atualizar_cargo_nivel, atualizar_cargo_rank, atualizar_todos_cargos
 from setup_cmd import cmd_setup
 from dungeon import cmd_dungeon
+from party import register_party_commands, init_db_party
 from hospital import cmd_hospital, cmd_girar, cmd_set_giros, init_db_hospital, COR_RAR, EMOJI_FICHA
 from batalha import (
     rodar_pvp, rodar_treino, MONSTROS, SKILLS_POR_CLASSE, BATALHAS_ATIVAS,
@@ -402,6 +403,7 @@ async def ajuda(interaction: discord.Interaction):
 # ─── REGISTRO DOS COMANDOS DE EXPEDIÇÃO ──────────────────────────
 # IMPORTANTE: Isso deve ser chamado DEPOIS de todos os comandos e ANTES do sync
 register_expedicao_commands(bot)
+register_party_commands(bot)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
@@ -445,20 +447,21 @@ async def on_ready():
         await init_db_torneio()
         await init_db_dungeon_evento()
         await init_db_expedicao()  # ← Inicializa banco da expedição
+        await init_db_party()
         print("DB OK!")
     except Exception as e:
         print(f"ERRO DB: {e}")
 
-    if not _synced:
+    if not _ed:
         try:
             guild_id = int(os.getenv("GUILD_ID","0"))
             if guild_id:
                 guild_obj = discord.Object(id=guild_id)
                 bot.tree.copy_global_to(guild=guild_obj)
-                guild_synced = await bot.tree.sync(guild=guild_obj)
-                print(f"Comandos no servidor: {len(guild_synced)}")
+                guild_ed = await bot.tree.(guild=guild_obj)
+                print(f"Comandos no servidor: {len(guild_ed)}")
             else:
-                global_synced = await bot.tree.sync()
+                global_ed = await bot.tree.sync()
                 print(f"Comandos globais: {len(global_synced)}")
             _synced = True
         except Exception as e:
