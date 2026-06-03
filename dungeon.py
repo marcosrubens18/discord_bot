@@ -402,8 +402,8 @@ class DungeonBatalhaView(discord.ui.View):
         except:
             pass
         if inter.user.id != self.user_id or self.acao_feita:
-            return
-        self.acao_feita = True        self.acao = ("defesa_basica", None)
+            return        self.acao_feita = True
+        self.acao = ("defesa_basica", None)
         self.stop()
 
     async def _fugir(self, inter: discord.Interaction):
