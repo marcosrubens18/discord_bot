@@ -1,4 +1,4 @@
-# expedicao.py — Sistema de Expedições Simplificado com Divulgação
+# expedicao.py — Sistema de Expedições Simplificado e Funcional
 import discord
 from discord import app_commands
 import json
@@ -62,7 +62,7 @@ async def init_db_expedicao():
     print("DB expedição OK!")
 
 # ==================================================
-# MODAL DE CRIAÇÃO DA EXPEDIÇÃO (COM IMAGEM)
+# MODAL DE CRIAÇÃO DA EXPEDIÇÃO
 # ==================================================
 
 class CriarExpedicaoModal(discord.ui.Modal, title="Nova Expedição"):
@@ -294,135 +294,24 @@ class MaterialQuantidadeModal(discord.ui.Modal, title="Quantidade do Material"):
         await interaction.response.send_message(f"✅ Adicionado **{self.quantidade.value}x** do material!", ephemeral=True)
 
 # ==================================================
-# COMANDO: PUBLICAR EXPEDIÇÃO (DIVULGAR)
+# FUNÇÕES DOS COMANDOS
 # ==================================================
 
-async def cmd_expedicao_publicar(interaction: discord.Interaction, expedicao_id: int, canal: discord.TextChannel):
-    await interaction.response.defer(ephemeral=True)
-    
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        exp = await conn.fetchrow("SELECT * FROM expedicoes WHERE id=$1 AND status='rascunho'", expedicao_id)
-        if not exp:
-            await interaction.followup.send("Expedição não encontrada ou já publicada!", ephemeral=True)
-            return
-        
-        capitulos = await conn.fetch("SELECT COUNT(*) FROM expedicao_capitulos WHERE expedicao_id=$1", expedicao_id)
-        if capitulos[0]["count"] == 0:
-            await interaction.followup.send("Adicione pelo menos um capítulo antes de publicar!", ephemeral=True)
-            return
-        
-        # Atualiza status e canal de divulgação
-        await conn.execute("""
-            UPDATE expedicoes 
-            SET status = 'aberta', canal_divulgacao_id = $1 
-            WHERE id = $2
-        """, canal.id, expedicao_id)
-    
-    # Cria embed de divulgação
-    embed = discord.Embed(
-        title=f"🧭 {exp['nome']}",
-        description=exp['descricao'],
-        color=0x7F77DD
-    )
-    if exp['imagem_divulgacao']:
-        embed.set_image(url=exp['imagem_divulgacao'])
-    
-    embed.add_field(name="🎯 Nível mínimo", value=str(exp['nivel_minimo']), inline=True)
-    embed.add_field(name="👥 Vagas", value=f"0/{exp['max_participantes']}", inline=True)
-    
-    # Mostra recompensas
-    recomp_txt = []
-    if exp['recompensa_moedas'] > 0:
-        recomp_txt.append(f"🪙 {exp['recompensa_moedas']} moedas")
-    if exp['recompensa_xp'] > 0:
-        recomp_txt.append(f"⭐ {exp['recompensa_xp']} XP")
-    if exp['recompensa_fichas'] > 0:
-        recomp_txt.append(f"🎰 {exp['recompensa_fichas']} fichas")
-    
-    materiais = json.loads(exp['recompensa_materiais']) if exp['recompensa_materiais'] else []
-    for m in materiais:
-        recomp_txt.append(f"📦 {m['quantidade']}x {m['id']}")
-    
-    if recomp_txt:
-        embed.add_field(name="💰 Recompensas", value="\n".join(recomp_txt), inline=False)
-    
-    embed.set_footer(text=f"Expedição #{exp['id']} • Clique no botão abaixo para participar!")
-    
-    class ParticiparView(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=None)
-        
-        @discord.ui.button(label="🧭 Participar da Expedição!", style=discord.ButtonStyle.success, emoji="🧭")
-        async def participar(self, inter: discord.Interaction, button):
-            await cmd_expedicao_inscrever(inter, expedicao_id)
-    
-    msg = await canal.send(embed=embed, view=ParticiparView())
-    
-    async with pool.acquire() as conn:
-        await conn.execute("UPDATE expedicoes SET msg_divulgacao_id = $1 WHERE id = $2", msg.id, expedicao_id)
-    
-    await interaction.followup.send(f"✅ Expedição **{exp['nome']}** publicada em {canal.mention}!", ephemeral=True)
+async def cmd_expedicao_criar(interaction: discord.Interaction):
+    """Cria uma nova expedição"""
+    await interaction.response.send_modal(CriarExpedicaoModal())
 
-# ==================================================
-# COMANDO: INSCREVER (VIA BOTÃO OU COMANDO)
-# ==================================================
+async def cmd_expedicao_add_capitulo(interaction: discord.Interaction, expedicao_id: int):
+    """Adiciona um capítulo à expedição"""
+    await interaction.response.send_modal(AdicionarCapituloModal(expedicao_id))
 
-async def cmd_expedicao_inscrever(interaction: discord.Interaction, expedicao_id: int):
-    await interaction.response.defer(ephemeral=True)
-    
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        exp = await conn.fetchrow("SELECT * FROM expedicoes WHERE id=$1 AND status='aberta'", expedicao_id)
-        if not exp:
-            await interaction.followup.send("Expedição não encontrada ou inscrições encerradas!", ephemeral=True)
-            return
-        
-        p = await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", interaction.user.id)
-        if not p:
-            await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True)
-            return
-        
-        if p["nivel"] < exp["nivel_minimo"]:
-            await interaction.followup.send(f"Nível insuficiente! Precisa de nível {exp['nivel_minimo']}.", ephemeral=True)
-            return
-        
-        total = await conn.fetchval("SELECT COUNT(*) FROM expedicao_participantes WHERE expedicao_id=$1", expedicao_id)
-        if total >= exp["max_participantes"]:
-            await interaction.followup.send("Vagas esgotadas!", ephemeral=True)
-            return
-        
-        await conn.execute("""
-            INSERT INTO expedicao_participantes (expedicao_id, user_id, nome, nivel)
-            VALUES ($1, $2, $3, $4)
-        """, expedicao_id, interaction.user.id, p["nome"], p["nivel"])
-        
-        novo_total = total + 1
-        
-        # Atualiza mensagem de divulgação com novo número de vagas
-        if exp["msg_divulgacao_id"]:
-            canal = interaction.guild.get_channel(exp["canal_divulgacao_id"])
-            if canal:
-                try:
-                    msg = await canal.fetch_message(exp["msg_divulgacao_id"])
-                    embed = msg.embeds[0] if msg.embeds else None
-                    if embed:
-                        # Atualiza campo de vagas
-                        for i, field in enumerate(embed.fields):
-                            if field.name == "👥 Vagas":
-                                embed.set_field_at(i, name="👥 Vagas", value=f"{novo_total}/{exp['max_participantes']}", inline=True)
-                                break
-                        await msg.edit(embed=embed)
-                except:
-                    pass
-    
-    await interaction.followup.send(f"✅ Inscrito em **{exp['nome']}**! ({novo_total}/{exp['max_participantes']})\nAguarde o início da expedição!", ephemeral=True)
-
-# ==================================================
-# COMANDO: VER EXPEDIÇÃO
-# ==================================================
+async def cmd_expedicao_add_recompensa(interaction: discord.Interaction, expedicao_id: int):
+    """Adiciona recompensa à expedição"""
+    view = AdicionarRecompensaView(expedicao_id)
+    await interaction.response.send_message("**Selecione o tipo de recompensa:**", view=view, ephemeral=True)
 
 async def cmd_expedicao_ver(interaction: discord.Interaction, expedicao_id: int):
+    """Ver detalhes de uma expedição"""
     await interaction.response.defer(ephemeral=True)
     
     pool = await get_pool()
@@ -467,11 +356,8 @@ async def cmd_expedicao_ver(interaction: discord.Interaction, expedicao_id: int)
     
     await interaction.followup.send(embed=embed, ephemeral=True)
 
-# ==================================================
-# COMANDO: LISTAR EXPEDIÇÕES ABERTAS
-# ==================================================
-
 async def cmd_expedicao_listar(interaction: discord.Interaction):
+    """Lista expedições abertas para inscrição"""
     await interaction.response.defer(ephemeral=True)
     
     pool = await get_pool()
@@ -498,11 +384,123 @@ async def cmd_expedicao_listar(interaction: discord.Interaction):
         )
     await interaction.followup.send(embed=embed, ephemeral=True)
 
-# ==================================================
-# COMANDO: INICIAR EXPEDIÇÃO
-# ==================================================
+async def cmd_expedicao_inscrever(interaction: discord.Interaction, expedicao_id: int):
+    """Inscreve seu personagem em uma expedição"""
+    await interaction.response.defer(ephemeral=True)
+    
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        exp = await conn.fetchrow("SELECT * FROM expedicoes WHERE id=$1 AND status='aberta'", expedicao_id)
+        if not exp:
+            await interaction.followup.send("Expedição não encontrada ou inscrições encerradas!", ephemeral=True)
+            return
+        
+        p = await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", interaction.user.id)
+        if not p:
+            await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True)
+            return
+        
+        if p["nivel"] < exp["nivel_minimo"]:
+            await interaction.followup.send(f"Nível insuficiente! Precisa de nível {exp['nivel_minimo']}.", ephemeral=True)
+            return
+        
+        total = await conn.fetchval("SELECT COUNT(*) FROM expedicao_participantes WHERE expedicao_id=$1", expedicao_id)
+        if total >= exp["max_participantes"]:
+            await interaction.followup.send("Vagas esgotadas!", ephemeral=True)
+            return
+        
+        await conn.execute("""
+            INSERT INTO expedicao_participantes (expedicao_id, user_id, nome, nivel)
+            VALUES ($1, $2, $3, $4)
+        """, expedicao_id, interaction.user.id, p["nome"], p["nivel"])
+        
+        novo_total = total + 1
+        
+        # Atualiza mensagem de divulgação
+        if exp["msg_divulgacao_id"]:
+            canal = interaction.guild.get_channel(exp["canal_divulgacao_id"])
+            if canal:
+                try:
+                    msg = await canal.fetch_message(exp["msg_divulgacao_id"])
+                    if msg.embeds:
+                        embed = msg.embeds[0]
+                        for i, field in enumerate(embed.fields):
+                            if field.name == "👥 Vagas":
+                                embed.set_field_at(i, name="👥 Vagas", value=f"{novo_total}/{exp['max_participantes']}", inline=True)
+                                break
+                        await msg.edit(embed=embed)
+                except:
+                    pass
+    
+    await interaction.followup.send(f"✅ Inscrito em **{exp['nome']}**! ({novo_total}/{exp['max_participantes']})\nAguarde o início da expedição!", ephemeral=True)
+
+async def cmd_expedicao_publicar(interaction: discord.Interaction, expedicao_id: int, canal: discord.TextChannel):
+    """Publica a expedição em um canal para inscrições"""
+    await interaction.response.defer(ephemeral=True)
+    
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        exp = await conn.fetchrow("SELECT * FROM expedicoes WHERE id=$1 AND status='rascunho'", expedicao_id)
+        if not exp:
+            await interaction.followup.send("Expedição não encontrada ou já publicada!", ephemeral=True)
+            return
+        
+        capitulos = await conn.fetchval("SELECT COUNT(*) FROM expedicao_capitulos WHERE expedicao_id=$1", expedicao_id)
+        if capitulos == 0:
+            await interaction.followup.send("Adicione pelo menos um capítulo antes de publicar!", ephemeral=True)
+            return
+        
+        await conn.execute("""
+            UPDATE expedicoes 
+            SET status = 'aberta', canal_divulgacao_id = $1 
+            WHERE id = $2
+        """, canal.id, expedicao_id)
+    
+    materiais = json.loads(exp["recompensa_materiais"]) if exp["recompensa_materiais"] else []
+    
+    embed = discord.Embed(
+        title=f"🧭 {exp['nome']}",
+        description=exp['descricao'],
+        color=0x7F77DD
+    )
+    if exp['imagem_divulgacao']:
+        embed.set_image(url=exp['imagem_divulgacao'])
+    
+    embed.add_field(name="🎯 Nível mínimo", value=str(exp['nivel_minimo']), inline=True)
+    embed.add_field(name="👥 Vagas", value=f"0/{exp['max_participantes']}", inline=True)
+    
+    recomp_txt = []
+    if exp['recompensa_moedas'] > 0:
+        recomp_txt.append(f"🪙 {exp['recompensa_moedas']} moedas")
+    if exp['recompensa_xp'] > 0:
+        recomp_txt.append(f"⭐ {exp['recompensa_xp']} XP")
+    if exp['recompensa_fichas'] > 0:
+        recomp_txt.append(f"🎰 {exp['recompensa_fichas']} fichas")
+    for m in materiais:
+        recomp_txt.append(f"📦 {m['quantidade']}x {m['id']}")
+    
+    if recomp_txt:
+        embed.add_field(name="💰 Recompensas", value="\n".join(recomp_txt), inline=False)
+    
+    embed.set_footer(text=f"Expedição #{exp['id']} • Clique no botão abaixo para participar!")
+    
+    class ParticiparView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=None)
+        
+        @discord.ui.button(label="🧭 Participar da Expedição!", style=discord.ButtonStyle.success, emoji="🧭")
+        async def participar(self, inter: discord.Interaction, button):
+            await cmd_expedicao_inscrever(inter, expedicao_id)
+    
+    msg = await canal.send(embed=embed, view=ParticiparView())
+    
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE expedicoes SET msg_divulgacao_id = $1 WHERE id = $2", msg.id, expedicao_id)
+    
+    await interaction.followup.send(f"✅ Expedição **{exp['nome']}** publicada em {canal.mention}!", ephemeral=True)
 
 async def cmd_expedicao_iniciar(interaction: discord.Interaction, expedicao_id: int):
+    """Inicia a expedição (admin)"""
     await interaction.response.defer(ephemeral=True)
     
     pool = await get_pool()
@@ -552,6 +550,7 @@ async def cmd_expedicao_iniciar(interaction: discord.Interaction, expedicao_id: 
 # ==================================================
 
 async def executar_expedicao(exp, participantes, capitulos, canal, guild, bot):
+    """Executa a expedição capítulo por capítulo"""
     participantes_vivos = [p["user_id"] for p in participantes]
     
     # Mensagem de boas-vindas
@@ -722,7 +721,6 @@ async def finalizar_expedicao(exp, canal, guild, sucesso=True, participantes_viv
     
     await canal.send(embed=embed)
     
-    # Atualiza status no banco
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("UPDATE expedicoes SET status='finalizada' WHERE id=$1", exp["id"])
@@ -755,16 +753,6 @@ def register_expedicao_commands(bot):
     async def exp_add_recompensa(interaction: discord.Interaction, expedicao_id: int):
         await cmd_expedicao_add_recompensa(interaction, expedicao_id)
     
-    @bot.tree.command(name="expedicao_publicar", description="Publica a expedição em um canal para inscrições")
-    @app_commands.describe(expedicao_id="ID da expedição", canal="Canal onde será divulgada")
-    @app_commands.autocomplete(canal=autocomplete_canal)
-    async def exp_publicar(interaction: discord.Interaction, expedicao_id: int, canal: str):
-        canal_obj = resolver_canal(interaction.guild, canal)
-        if not canal_obj:
-            await interaction.response.send_message("Canal não encontrado!", ephemeral=True)
-            return
-        await cmd_expedicao_publicar(interaction, expedicao_id, canal_obj)
-    
     @bot.tree.command(name="expedicao_ver", description="Ver detalhes de uma expedição")
     @app_commands.describe(expedicao_id="ID da expedição")
     async def exp_ver(interaction: discord.Interaction, expedicao_id: int):
@@ -779,25 +767,13 @@ def register_expedicao_commands(bot):
     async def exp_inscrever(interaction: discord.Interaction, expedicao_id: int):
         await cmd_expedicao_inscrever(interaction, expedicao_id)
     
+    @bot.tree.command(name="expedicao_publicar", description="Publica a expedição em um canal para inscrições")
+    @app_commands.describe(expedicao_id="ID da expedição", canal="Canal onde será divulgada")
+    async def exp_publicar(interaction: discord.Interaction, expedicao_id: int, canal: discord.TextChannel):
+        await cmd_expedicao_publicar(interaction, expedicao_id, canal)
+    
     @bot.tree.command(name="expedicao_iniciar", description="[ADMIN] Inicia uma expedição")
     @app_commands.describe(expedicao_id="ID da expedição")
     @app_commands.checks.has_permissions(administrator=True)
     async def exp_iniciar(interaction: discord.Interaction, expedicao_id: int):
         await cmd_expedicao_iniciar(interaction, expedicao_id)
-
-# Helper para autocomplete de canais
-async def autocomplete_canal(interaction: discord.Interaction, current: str):
-    if not interaction.guild:
-        return []
-    canais = [ch for ch in interaction.guild.text_channels if current.lower() in ch.name.lower()]
-    return [app_commands.Choice(name=f"#{ch.name}", value=str(ch.id)) for ch in canais[:25]]
-
-def resolver_canal(guild, canal):
-    if canal is None:
-        return None
-    if hasattr(canal, 'id'):
-        return guild.get_channel(canal.id) or canal
-    canal_str = str(canal)
-    if canal_str.isdigit():
-        return guild.get_channel(int(canal_str))
-    return discord.utils.get(guild.text_channels, name=canal_str.lstrip('#'))
