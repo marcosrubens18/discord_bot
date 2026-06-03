@@ -152,7 +152,7 @@ async def remover_giro(user_id, roleta_id, raridade):
             WHERE user_id=$1 AND roleta_id=$2 AND raridade=$3 AND quantidade > 0
         """, user_id, roleta_id, raridade)
 
-def sortear_ficha(pool_items, raridade_minima):
+(pool_items, raridade_minima):
     idx_min = RARIDADES.index(raridade_minima) if raridade_minima in RARIDADES else 0
     disponiveis = [item for item in pool_items if RARIDADES.index(item["raridade"]) >= idx_min]
     if not disponiveis:
