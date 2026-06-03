@@ -32,16 +32,15 @@ from guildas import (cmd_guilda_criar, cmd_guilda_info, cmd_guilda_convidar, cmd
     cmd_guilda_expulsar, cmd_guilda_promover, cmd_guilda_depositar, cmd_guilda_retirar,
     cmd_guilda_ranking, cmd_guilda_missoes, init_db_guildas, dar_xp_guilda, atualizar_missao_guilda)
 from dupla import rodar_treino_dupla
-from torneio import (cmd_torneio_criar, cmd_torneio_status, cmd_torneio_lutar,
-    cmd_torneio_fechar_inscricoes, cmd_torneio_cancelar, init_db_torneio)
 from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_ativar, cmd_dungeon_evento_info,
     cmd_dungeon_evento_fechar, init_db_dungeon_evento)
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
 
-# ─── PARTY (NOVO SISTEMA) ─────────────────────────────────────────
+# ─── NOVOS SISTEMAS ───────────────────────────────────────────────
 from party import register_party_commands, init_db_party
+from torneio import register_torneio_commands, init_db_torneio
 
 # Configuração de imagens (desabilitadas)
 IMG_PERFIL = IMG_SETUP = IMG_INVENTARIO = IMG_SKILLS = IMG_AJUDA = ""
@@ -376,6 +375,10 @@ def resolver_canal(guild, canal):
     if canal_str.isdigit():
         return guild.get_channel(int(canal_str))
     return discord.utils.get(guild.channels, name=canal_str.lstrip('#'))
+
+# ==================================================
+# COMANDOS DO BOT
+# ==================================================
 
 # ─── /criar_personagem ───────────────────────────────────────────
 
@@ -1224,305 +1227,107 @@ async def agendar_anuncio(interaction: discord.Interaction, canal: str,
     if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
     await cmd_agendar_anuncio(interaction, canal_obj, cor)
 
-# ─── /torneio-criar ──────────────────────────────────────────────
+# ─── /torneio_criar ──────────────────────────────────────────────
 
-@bot.tree.command(name="torneio-criar", description="[ADMIN] Cria um torneio PvP")
-@app_commands.describe(
-    canal="Canal onde o torneio sera anunciado",
-    premio_1="Premio do 1 lugar (obrigatorio)",
-    premio_2="Premio do 2 lugar (opcional)",
-    premio_3="Premio do 3 lugar (opcional)"
-)
-@app_commands.autocomplete(premio_1=autocomplete_item_premio, premio_2=autocomplete_item_premio, premio_3=autocomplete_item_premio, canal=autocomplete_canal)
+@bot.tree.command(name="torneio_criar", description="[ADMIN] Cria um novo torneio")
 @app_commands.checks.has_permissions(administrator=True)
-async def torneio_criar(interaction: discord.Interaction, canal: str,
-                         premio_1: str, premio_2: str = "", premio_3: str = ""):
-    canal_obj = resolver_canal(interaction.guild, canal)
-    if not canal_obj: await interaction.response.send_message('Canal nao encontrado!', ephemeral=True); return
-    await cmd_torneio_criar(interaction, premio_1, premio_2, premio_3, canal_obj)
+async def torneio_criar(interaction: discord.Interaction):
+    await interaction.response.send_modal(CriarTorneioModal())
 
-# ─── /torneio-status ─────────────────────────────────────────────
+# ─── /torneio_inscrever ──────────────────────────────────────────
 
-@bot.tree.command(name="torneio-status", description="Veja as chaves e status de um torneio")
+@bot.tree.command(name="torneio_inscrever", description="Inscreve seu personagem no torneio")
+@app_commands.describe(torneio_id="ID do torneio")
+async def torneio_inscrever(interaction: discord.Interaction, torneio_id: int):
+    await cmd_torneio_inscrever(interaction, torneio_id)
+
+# ─── /torneio_fechar ─────────────────────────────────────────────
+
+@bot.tree.command(name="torneio_fechar", description="[ADMIN] Encerra inscrições e gera chaves")
+@app_commands.describe(torneio_id="ID do torneio")
+@app_commands.checks.has_permissions(administrator=True)
+async def torneio_fechar(interaction: discord.Interaction, torneio_id: int):
+    await cmd_torneio_fechar(interaction, torneio_id)
+
+# ─── /torneio_lutar ──────────────────────────────────────────────
+
+@bot.tree.command(name="torneio_lutar", description="[ADMIN] Inicia uma luta do torneio")
+@app_commands.describe(torneio_id="ID do torneio", luta_num="Número da luta")
+@app_commands.checks.has_permissions(administrator=True)
+async def torneio_lutar(interaction: discord.Interaction, torneio_id: int, luta_num: int):
+    await cmd_torneio_lutar(interaction, torneio_id, luta_num)
+
+# ─── /torneio_status ─────────────────────────────────────────────
+
+@bot.tree.command(name="torneio_status", description="Mostra status do torneio")
 @app_commands.describe(torneio_id="ID do torneio")
 async def torneio_status(interaction: discord.Interaction, torneio_id: int):
     await cmd_torneio_status(interaction, torneio_id)
 
-# ─── /torneio-lutar ──────────────────────────────────────────────
+# ─── /torneio_cancelar ───────────────────────────────────────────
 
-@bot.tree.command(name="torneio-lutar", description="[ADMIN] Inicia uma luta do torneio")
-@app_commands.describe(torneio_id="ID do torneio", jogador1="Jogador 1", jogador2="Jogador 2")
-@app_commands.checks.has_permissions(administrator=True)
-async def torneio_lutar(interaction: discord.Interaction, torneio_id: int,
-                         jogador1: discord.Member, jogador2: discord.Member):
-    await cmd_torneio_lutar(interaction, torneio_id, jogador1, jogador2)
-
-# ─── /torneio-fechar-inscricoes ──────────────────────────────────
-
-@bot.tree.command(name="torneio-fechar-inscricoes", description="[ADMIN] Fecha inscricoes e monta as chaves")
-@app_commands.describe(torneio_id="ID do torneio")
-@app_commands.checks.has_permissions(administrator=True)
-async def torneio_fechar_inscricoes(interaction: discord.Interaction, torneio_id: int):
-    await cmd_torneio_fechar_inscricoes(interaction, torneio_id)
-
-# ─── /torneio-cancelar ───────────────────────────────────────────
-
-@bot.tree.command(name="torneio-cancelar", description="[ADMIN] Cancela torneio e devolve inscricoes")
+@bot.tree.command(name="torneio_cancelar", description="[ADMIN] Cancela um torneio")
 @app_commands.describe(torneio_id="ID do torneio")
 @app_commands.checks.has_permissions(administrator=True)
 async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
     await cmd_torneio_cancelar(interaction, torneio_id)
 
-# ─── /dungeon-evento-criar ───────────────────────────────────────
+# ─── /party_criar ────────────────────────────────────────────────
 
-@bot.tree.command(name="dungeon-evento-criar", description="[ADMIN] Cria uma dungeon de evento customizada")
-@app_commands.describe(
-    canal="Canal onde a dungeon sera anunciada",
-    premio="Premio para quem completar"
-)
-@app_commands.autocomplete(premio=autocomplete_item_premio, canal=autocomplete_canal)
-@app_commands.checks.has_permissions(administrator=True)
-async def dungeon_evento_criar(interaction: discord.Interaction, canal: str, premio: str):
-    canal_obj = resolver_canal(interaction.guild, canal)
-    canal_id = canal_obj.id if canal_obj else 0
-    await interaction.response.send_modal(DungeonEventoCriarModal(interaction.guild, premio, canal_id))
+@bot.tree.command(name="party_criar", description="Cria uma nova party")
+async def party_criar(interaction: discord.Interaction):
+    await cmd_party_criar(interaction)
 
-# ─── /dungeon-evento-configurar ──────────────────────────────────
+# ─── /party_info ─────────────────────────────────────────────────
 
-@bot.tree.command(name="dungeon-evento-configurar", description="[ADMIN] Configura os andares da dungeon de evento")
-@app_commands.describe(dungeon_id="ID da dungeon")
-@app_commands.checks.has_permissions(administrator=True)
-async def dungeon_evento_configurar(interaction: discord.Interaction, dungeon_id: int):
-    await interaction.response.send_modal(AdicionarAndarModal(dungeon_id))
+@bot.tree.command(name="party_info", description="Mostra informações da sua party")
+async def party_info(interaction: discord.Interaction):
+    await cmd_party_info(interaction)
 
-# ─── /dungeon-evento-ativar ──────────────────────────────────────
+# ─── /party_convidar ─────────────────────────────────────────────
 
-@bot.tree.command(name="dungeon-evento-ativar", description="[ADMIN] Ativa e anuncia a dungeon de evento")
-@app_commands.describe(dungeon_id="ID da dungeon")
-@app_commands.checks.has_permissions(administrator=True)
-async def dungeon_evento_ativar(interaction: discord.Interaction, dungeon_id: int):
-    await cmd_dungeon_evento_ativar(interaction, dungeon_id)
+@bot.tree.command(name="party_convidar", description="Convida um jogador para sua party")
+@app_commands.describe(jogador="Jogador a ser convidado")
+async def party_convidar(interaction: discord.Interaction, jogador: discord.Member):
+    await cmd_party_convidar(interaction, jogador)
 
-# ─── /dungeon-evento-info ────────────────────────────────────────
+# ─── /party_sair ─────────────────────────────────────────────────
 
-@bot.tree.command(name="dungeon-evento-info", description="Veja detalhes e andares de uma dungeon de evento")
-@app_commands.describe(dungeon_id="ID da dungeon")
-async def dungeon_evento_info(interaction: discord.Interaction, dungeon_id: int):
-    await cmd_dungeon_evento_info(interaction, dungeon_id)
+@bot.tree.command(name="party_sair", description="Sai da sua party atual")
+async def party_sair(interaction: discord.Interaction):
+    await cmd_party_sair(interaction)
 
-# ─── /dungeon-evento-fechar ──────────────────────────────────────
+# ─── /party_expulsar ─────────────────────────────────────────────
 
-@bot.tree.command(name="dungeon-evento-fechar", description="[ADMIN] Fecha uma dungeon de evento")
-@app_commands.describe(dungeon_id="ID da dungeon")
-@app_commands.checks.has_permissions(administrator=True)
-async def dungeon_evento_fechar(interaction: discord.Interaction, dungeon_id: int):
-    await cmd_dungeon_evento_fechar(interaction, dungeon_id)
+@bot.tree.command(name="party_expulsar", description="Expulsa um membro da party (apenas líder)")
+@app_commands.describe(jogador="Membro a ser expulso")
+async def party_expulsar(interaction: discord.Interaction, jogador: discord.Member):
+    await cmd_party_expulsar(interaction, jogador)
 
-# ─── /loja-sazonal ───────────────────────────────────────────────
+# ─── /party_lider ────────────────────────────────────────────────
 
-@bot.tree.command(name="loja-sazonal", description="Compre itens sazonais e ofertas do dia")
-async def loja_sazonal(interaction: discord.Interaction):
-    if not await checar_batalha(interaction): return
-    await cmd_loja_sazonal(interaction)
+@bot.tree.command(name="party_lider", description="Transfere liderança para outro membro")
+@app_commands.describe(jogador="Novo líder")
+async def party_lider(interaction: discord.Interaction, jogador: discord.Member):
+    await cmd_party_lider(interaction, jogador)
 
-# ─── /loja-sazonal-adicionar ─────────────────────────────────────
+# ─── /party_encerrar ─────────────────────────────────────────────
 
-@bot.tree.command(name="loja-sazonal-adicionar", description="[ADMIN] Adiciona item permanente a loja sazonal")
-@app_commands.describe(item="Digite para buscar o item", preco="Preco em moedas", estoque="Estoque (-1 = ilimitado)")
-@app_commands.autocomplete(item=autocomplete_item_todos)
-@app_commands.checks.has_permissions(administrator=True)
-async def loja_sazonal_adicionar(interaction: discord.Interaction, item: str, preco: int = 500, estoque: int = -1):
-    await interaction.response.defer(ephemeral=True)
-    it = get_item_por_chave(item)
-    if not it:
-        await interaction.followup.send("Item nao encontrado! Selecione da lista de sugestoes.", ephemeral=True); return
-    pool_db = await get_pool()
-    async with pool_db.acquire() as conn:
-        await conn.execute("""
-            INSERT INTO loja_sazonal(item_id,nome,emoji,tipo,raridade,descricao,preco,estoque)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8)
-        """, it["id"], it["nome"], it["emoji"], it["tipo"], it["raridade"],
-            it.get("desc",""), preco, estoque)
-    est_txt = str(estoque) if estoque >= 0 else "Ilimitado"
-    await interaction.followup.send(
-        f"Adicionado a loja sazonal! {it['emoji']} **{it['nome']}** [{it['raridade']}] — {preco} moedas | Estoque: {est_txt}",
-        ephemeral=True)
+@bot.tree.command(name="party_encerrar", description="Encerra sua party permanentemente (apenas líder)")
+async def party_encerrar(interaction: discord.Interaction):
+    await cmd_party_encerrar(interaction)
 
-# ─── /loja-rotativa-adicionar ────────────────────────────────────
+# ─── /party_painel ───────────────────────────────────────────────
 
-@bot.tree.command(name="loja-rotativa-adicionar", description="[ADMIN] Adiciona oferta do dia na loja rotativa")
-@app_commands.describe(item="Digite para buscar o item", preco="Preco em moedas", estoque="Estoque do dia")
-@app_commands.autocomplete(item=autocomplete_item_todos)
-@app_commands.checks.has_permissions(administrator=True)
-async def loja_rotativa_adicionar(interaction: discord.Interaction, item: str, preco: int = 300, estoque: int = 3):
-    await interaction.response.defer(ephemeral=True)
-    it = get_item_por_chave(item)
-    if not it:
-        await interaction.followup.send("Item nao encontrado! Selecione da lista de sugestoes.", ephemeral=True); return
-    pool_db = await get_pool()
-    async with pool_db.acquire() as conn:
-        await conn.execute("""
-            INSERT INTO loja_rotativa(item_id,nome,emoji,tipo,raridade,descricao,preco,estoque)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8)
-        """, it["id"], it["nome"], it["emoji"], it["tipo"], it["raridade"],
-            it.get("desc",""), preco, estoque)
-    await interaction.followup.send(
-        f"Adicionado a oferta do dia! {it['emoji']} **{it['nome']}** [{it['raridade']}] — {preco} moedas | Estoque: {estoque}",
-        ephemeral=True)
+@bot.tree.command(name="party_painel", description="Mostra painel completo da party")
+async def party_painel(interaction: discord.Interaction):
+    await cmd_party_painel(interaction)
 
-# ─── /loja-sazonal-remover ───────────────────────────────────────
+# ─── /party_convites ─────────────────────────────────────────────
 
-@bot.tree.command(name="loja-sazonal-remover", description="[ADMIN] Remove item da loja sazonal pelo ID")
-@app_commands.describe(item_id="ID numerico do item")
-@app_commands.checks.has_permissions(administrator=True)
-async def loja_sazonal_remover(interaction: discord.Interaction, item_id: int):
-    await cmd_loja_sazonal_remover(interaction, item_id)
-
-# ─── /historico ──────────────────────────────────────────────────
-
-@bot.tree.command(name="historico", description="Veja seu historico das ultimas batalhas")
-async def historico(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    p = await get_personagem(interaction.user.id)
-    if not p:
-        await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
-    pool_db = await get_pool()
-    async with pool_db.acquire() as conn:
-        try:
-            logs = await conn.fetch("""
-                SELECT * FROM log_batalhas WHERE user_id=$1
-                ORDER BY criado_em DESC LIMIT 10
-            """, interaction.user.id)
-        except:
-            logs = []
-    if not logs:
-        await interaction.followup.send("Nenhuma batalha registrada ainda!", ephemeral=True); return
-    embed = discord.Embed(title=f"📜 Historico de {p['nome']}", color=0x7F77DD)
-    linhas = []
-    for l in logs:
-        emoji = "✅" if l["resultado"] == "vitoria" else "❌"
-        tempo = l["criado_em"].strftime("%d/%m %H:%M") if l["criado_em"] else "?"
-        linhas.append(f"{emoji} **{l['tipo'].title()}** — {l['oponente']} | +{l['xp_ganho']}XP +{l['moedas_ganhas']}🪙 | Nv{l['nivel_apos']} | {tempo}")
-    embed.description = "\n".join(linhas)
-    await interaction.followup.send(embed=embed, ephemeral=True)
-
-# ─── /guilda-missoes ─────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-missoes", description="Veja as missoes semanais da sua guilda")
-async def guilda_missoes(interaction: discord.Interaction):
-    await cmd_guilda_missoes(interaction)
-
-# ─── /guilda-retirar ─────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-retirar", description="[Mestre] Retira moedas do banco da guilda")
-@app_commands.describe(valor="Quantidade de moedas a retirar")
-async def guilda_retirar(interaction: discord.Interaction, valor: int):
-    await cmd_guilda_retirar(interaction, valor)
-
-# ─── /treinar-dupla ──────────────────────────────────────────────
-
-@bot.tree.command(name="treinar-dupla", description="Batalha em dupla com outro jogador da guilda")
-@app_commands.describe(parceiro="Jogador parceiro", dificuldade="Dificuldade")
-@app_commands.choices(dificuldade=[
-    app_commands.Choice(name="Facil",    value="facil"),
-    app_commands.Choice(name="Medio",    value="medio"),
-    app_commands.Choice(name="Dificil",  value="dificil"),
-    app_commands.Choice(name="Lendario", value="lendario"),
-])
-async def treinar_dupla(interaction: discord.Interaction, parceiro: discord.Member,
-                         dificuldade: str = "facil"):
-    await interaction.response.defer()
-    if parceiro.bot or parceiro.id == interaction.user.id:
-        await interaction.followup.send("Parceiro invalido!", ephemeral=True); return
-    if em_batalha(interaction.user.id) or em_batalha(parceiro.id):
-        await interaction.followup.send("Um dos jogadores ja esta em batalha!", ephemeral=True); return
-    p1 = await get_personagem(interaction.user.id)
-    p2 = await get_personagem(parceiro.id)
-    if not p1 or not p2:
-        await interaction.followup.send("Ambos precisam ter personagem!", ephemeral=True); return
-
-    class AceitarView(discord.ui.View):
-        def __init__(self): super().__init__(timeout=60); self.ok = None
-        @discord.ui.button(label="Aceitar!", style=discord.ButtonStyle.success)
-        async def sim(self, inter, b):
-            if inter.user.id != parceiro.id: return
-            self.ok = True; await inter.response.defer(); self.stop()
-        @discord.ui.button(label="Recusar", style=discord.ButtonStyle.danger)
-        async def nao(self, inter, b):
-            if inter.user.id != parceiro.id: return
-            self.ok = False; await inter.response.defer(); self.stop()
-
-    v = AceitarView()
-    embed_inv = discord.Embed(
-        title="Convite de Batalha em Dupla!",
-        description=f"{interaction.user.mention} te convida para batalhar juntos! Dificuldade: **{dificuldade.title()}**",
-        color=0x7F77DD
-    )
-    await interaction.followup.send(content=parceiro.mention, embed=embed_inv, view=v)
-    await v.wait()
-    if not v.ok:
-        await interaction.followup.send(f"{parceiro.display_name} recusou o convite.", ephemeral=True); return
-
-    monstros_d = [m for m in MONSTROS if m["dificuldade"] == dificuldade]
-    if not monstros_d:
-        await interaction.followup.send("Dificuldade invalida!", ephemeral=True); return
-    monstro = random.choice(monstros_d)
-    arena = random.choice(ARENAS)
-    await rodar_treino_dupla(interaction, p1, p2, monstro, arena,
-                              interaction.user, parceiro)
-
-# ─── /guilda-criar ───────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-criar", description="Funda uma nova guilda (custa 5000 moedas)")
-async def guilda_criar(interaction: discord.Interaction):
-    await cmd_guilda_criar(interaction)
-
-# ─── /guilda-info ────────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-info", description="Informacoes sobre uma guilda")
-@app_commands.describe(nome="Nome da guilda (vazio = sua guilda)")
-async def guilda_info(interaction: discord.Interaction, nome: str = ""):
-    await cmd_guilda_info(interaction, nome)
-
-# ─── /guilda-convidar ────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-convidar", description="Convida um jogador para sua guilda")
-@app_commands.describe(jogador="Jogador a convidar")
-async def guilda_convidar(interaction: discord.Interaction, jogador: discord.Member):
-    await cmd_guilda_convidar(interaction, jogador)
-
-# ─── /guilda-sair ────────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-sair", description="Sai da sua guilda atual")
-async def guilda_sair(interaction: discord.Interaction):
-    await cmd_guilda_sair(interaction)
-
-# ─── /guilda-expulsar ────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-expulsar", description="[Mestre] Expulsa um membro da guilda")
-@app_commands.describe(jogador="Membro a expulsar")
-async def guilda_expulsar(interaction: discord.Interaction, jogador: discord.Member):
-    await cmd_guilda_expulsar(interaction, jogador)
-
-# ─── /guilda-promover ────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-promover", description="[Mestre] Promove um membro ou transfere lideranca")
-@app_commands.describe(jogador="Membro a promover")
-async def guilda_promover(interaction: discord.Interaction, jogador: discord.Member):
-    await cmd_guilda_promover(interaction, jogador)
-
-# ─── /guilda-depositar ───────────────────────────────────────────
-
-@bot.tree.command(name="guilda-depositar", description="Deposita moedas no banco da guilda")
-@app_commands.describe(valor="Quantidade de moedas")
-async def guilda_depositar(interaction: discord.Interaction, valor: int):
-    await cmd_guilda_depositar(interaction, valor)
-
-# ─── /guilda-ranking ─────────────────────────────────────────────
-
-@bot.tree.command(name="guilda-ranking", description="Ranking de todas as guildas do servidor")
-async def guilda_ranking(interaction: discord.Interaction):
-    await cmd_guilda_ranking(interaction)
+@bot.tree.command(name="party_convites", description="Lista convites pendentes da party")
+async def party_convites(interaction: discord.Interaction):
+    await cmd_party_convites(interaction)
 
 # ─── /tutorial ───────────────────────────────────────────────────
 
@@ -1626,13 +1431,10 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Eventos",    value="`/criar-evento` `/eventos` `/evento-info` `/encerrar-evento` `/add-pontos`", inline=False)
     embed.add_field(name="Anuncios",   value="`/anunciar` `/anunciar-evento` `/agendar-anuncio`", inline=False)
     embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-missoes` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-retirar` `/guilda-ranking`", inline=False)
-    embed.add_field(name="Torneio",    value="`/torneio-criar` `/torneio-status` `/torneio-lutar` `/torneio-fechar-inscricoes` `/torneio-cancelar`", inline=False)
-    embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
+    embed.add_field(name="Torneio",    value="`/torneio_criar` `/torneio_inscrever` `/torneio_fechar` `/torneio_lutar` `/torneio_status` `/torneio_cancelar`", inline=False)
     embed.add_field(name="🏰 Party",   value="`/party_criar` `/party_info` `/party_convidar` `/party_sair` `/party_expulsar` `/party_lider` `/party_encerrar` `/party_painel` `/party_convites`", inline=False)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-# ─── REGISTRO DOS COMANDOS DE PARTY ──────────────────────────────
-register_party_commands(bot)
+    embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
