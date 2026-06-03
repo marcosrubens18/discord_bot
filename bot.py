@@ -452,7 +452,7 @@ async def on_ready():
     except Exception as e:
         print(f"ERRO DB: {e}")
 
-    if not _ed:
+   if not _synced:
         try:
             guild_id = int(os.getenv("GUILD_ID","0"))
             if guild_id:
