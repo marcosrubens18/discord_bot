@@ -926,7 +926,7 @@ async def notificar_level_up(guild, user_id, nome, classe_id, nivel_novo, rank_m
         print(f"Erro notif level up: {e}")
 
 
-async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
+async def (interaction: discord.Interaction, p, monstro, arena):
     uid = p["user_id"]
 
     # Verifica cooldown
@@ -1002,6 +1002,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     # ─── LOOP DE BATALHA ─────────────────────────────────────────
 
     while hp_j > 0 and hp_m > 0:
+        mana_antes = mana_j
 
         # 1. Efeitos de status no jogador
         dano_ef, msgs_ef, efeitos_j = processar_efeitos_turno(efeitos_j)
