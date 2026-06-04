@@ -1,4 +1,4 @@
-# eventos.py — Sistema de Eventos completo
+# eventos.py — Sistema de Eventos completo com contabilização automática
 import discord
 import asyncio
 import random
@@ -60,22 +60,63 @@ async def init_db_eventos():
         """)
     print("DB eventos OK!")
 
-async def get_evento_ativo():
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        return await conn.fetchrow("SELECT * FROM eventos WHERE ativo=TRUE AND encerrado=FALSE ORDER BY id DESC LIMIT 1")
+# ==================================================
+# FUNÇÃO PARA REGISTRAR PONTOS AUTOMATICAMENTE (NOVA)
+# ==================================================
 
-async def get_todos_eventos(apenas_ativos=False):
+async def registrar_pontos_evento(user_id: int, tipo: str, valor: int = 1):
+    """Registra pontos para eventos do tipo especificado (batalha, dungeon, nivel)"""
     pool = await get_pool()
     async with pool.acquire() as conn:
-        if apenas_ativos:
-            return await conn.fetch("SELECT * FROM eventos WHERE ativo=TRUE ORDER BY id DESC")
-        return await conn.fetch("SELECT * FROM eventos ORDER BY id DESC LIMIT 10")
+        # Busca evento ativo do tipo
+        evento = await conn.fetchrow("""
+            SELECT id FROM eventos 
+            WHERE tipo = $1 AND ativo = TRUE AND encerrado = FALSE
+            ORDER BY id DESC LIMIT 1
+        """, tipo)
+        
+        if not evento:
+            return False, None
+        
+        # Verifica se jogador está participando
+        participante = await conn.fetchrow("""
+            SELECT id, pontos FROM evento_participantes 
+            WHERE evento_id = $1 AND user_id = $2
+        """, evento["id"], user_id)
+        
+        if not participante:
+            # Inscreve automaticamente
+            p = await conn.fetchrow("SELECT nome FROM personagens WHERE user_id = $1", user_id)
+            if p:
+                await conn.execute("""
+                    INSERT INTO evento_participantes (evento_id, user_id, nome, pontos)
+                    VALUES ($1, $2, $3, $4)
+                """, evento["id"], user_id, p["nome"], valor)
+                return True, evento["id"]
+        
+        # Adiciona pontos
+        await conn.execute("""
+            UPDATE evento_participantes SET pontos = pontos + $1
+            WHERE evento_id = $2 AND user_id = $3
+        """, valor, evento["id"], user_id)
+        
+        return True, evento["id"]
 
-async def get_participantes(evento_id):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        return await conn.fetch("SELECT * FROM evento_participantes WHERE evento_id=$1 ORDER BY pontos DESC", evento_id)
+async def registrar_level_up_evento(user_id: int, niveis_subidos: int):
+    """Registra level up para eventos de corrida de nível"""
+    return await registrar_pontos_evento(user_id, "nivel", niveis_subidos)
+
+async def registrar_batalha_evento(user_id: int):
+    """Registra vitória em batalha para eventos"""
+    return await registrar_pontos_evento(user_id, "batalha", 1)
+
+async def registrar_dungeon_evento(user_id: int):
+    """Registra dungeon completa para eventos"""
+    return await registrar_pontos_evento(user_id, "dungeon", 1)
+
+async def registrar_coleta_evento(user_id: int, quantidade: int = 1):
+    """Registra coleta de material para eventos"""
+    return await registrar_pontos_evento(user_id, "coleta", quantidade)
 
 # ─── CRIAR EVENTO (MODAL) ─────────────────────────────────────────
 
@@ -118,7 +159,6 @@ class CriarEventoModal(discord.ui.Modal, title="Criar Novo Evento"):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        # Garante que as tabelas existem
         await init_db_eventos()
         try:
             horas = max(1, int(self.duracao_horas.value))
@@ -245,7 +285,6 @@ async def _entregar_premio(guild, user_id, tipo, valor):
                 return f"+{qtd} fichas 🎰"
 
             elif tipo == "item":
-                # valor = "id_do_item|nome|tipo|raridade|emoji|desc"
                 partes = valor.split("|")
                 if len(partes) >= 2:
                     item_id, nome = partes[0], partes[1]
@@ -369,3 +408,20 @@ async def cmd_add_pontos(interaction: discord.Interaction, jogador: discord.Memb
             await conn.execute("INSERT INTO evento_participantes(evento_id,user_id,nome,pontos) VALUES($1,$2,$3,$4)",
                 evento_id, jogador.id, nome, pontos)
     await interaction.followup.send(f"✅ +{pontos} pontos para **{jogador.display_name}** no evento #{evento_id}!", ephemeral=True)
+
+async def get_evento_ativo():
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow("SELECT * FROM eventos WHERE ativo=TRUE AND encerrado=FALSE ORDER BY id DESC LIMIT 1")
+
+async def get_todos_eventos(apenas_ativos=False):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        if apenas_ativos:
+            return await conn.fetch("SELECT * FROM eventos WHERE ativo=TRUE ORDER BY id DESC")
+        return await conn.fetch("SELECT * FROM eventos ORDER BY id DESC LIMIT 10")
+
+async def get_participantes(evento_id):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch("SELECT * FROM evento_participantes WHERE evento_id=$1 ORDER BY pontos DESC", evento_id)
