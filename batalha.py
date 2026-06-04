@@ -1365,6 +1365,25 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     except Exception as e:
         print(f"Erro ao integrar party: {e}")
 
+    # ==================================================
+    # REGISTRAR PONTOS NO EVENTO E NO PASSE
+    # ==================================================
+    if vitoria:
+        try:
+            from eventos import registrar_batalha_evento
+            await registrar_batalha_evento(uid)
+        except:
+            pass
+
+        try:
+            from passe_temporada import adicionar_pontos_batalha
+            await adicionar_pontos_batalha(uid, True, "treino")
+        except:
+            pass
+
+    # ==================================================
+    # PROCESSAR RESULTADO DA VITÓRIA/DERROTA
+    # ==================================================
     if vitoria:
         _chance_loot = {"facil": 0.15, "medio": 0.22, "dificil": 0.30, "lendario": 0.40}
         _chance = _chance_loot.get(monstro.get("dificuldade", "facil"), 0.20)
@@ -1469,7 +1488,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         pass
 
     cooldown_manager.set(uid, "treinar", COOLDOWN_BATALHA)
-
 
 # ─── ENGINE PVP COM CALLBACK ─────────────────────────────────────
 
