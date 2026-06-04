@@ -939,7 +939,7 @@ try:
 except:
     pass
 
-        embed_recomp = discord.Embed(
+         embed_recomp = discord.Embed(
             title="🏆 Dungeon Concluída!",
             description=desc_final,
             color=dungeon["cor"]
