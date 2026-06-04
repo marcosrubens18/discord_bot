@@ -2,6 +2,7 @@
 import discord
 import asyncio
 import random
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from db import get_pool
 from imagens import IMG_HOSPITAL, IMG_ROLETA, IMG_BANNER_GERAL
@@ -171,7 +172,6 @@ async def remover_giro(user_id: int, roleta_id: str, raridade: str) -> bool:
 
 async def get_descanso(user_id: int) -> Optional[datetime]:
     """Retorna None se pode descansar, ou datetime do proximo descanso disponivel."""
-    from datetime import datetime
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT proximo_descanso FROM descanso WHERE user_id=$1", user_id)
@@ -183,7 +183,6 @@ async def get_descanso(user_id: int) -> Optional[datetime]:
 
 async def usar_descanso(user_id: int) -> Optional[dict]:
     """Usa o descanso grátis. Retorna o personagem atualizado ou None."""
-    from datetime import datetime, timedelta
     pool = await get_pool()
     async with pool.acquire() as conn:
         proximo = datetime.utcnow() + timedelta(minutes=30)
@@ -425,7 +424,6 @@ async def cmd_hospital(interaction: discord.Interaction):
     pode_descansar = proximo_desc is None
     
     if not pode_descansar and proximo_desc:
-        from datetime import datetime
         secs = max(0, int((proximo_desc - datetime.utcnow()).total_seconds()))
         mins = secs // 60
         segs = secs % 60
