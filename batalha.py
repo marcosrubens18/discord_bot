@@ -329,7 +329,12 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             0 if vitoria else 1,
             user_id
         )
-
+if levelups > 0:
+    try:
+        from eventos import registrar_level_up_evento
+        await registrar_level_up_evento(user_id, levelups)
+    except:
+        pass
         await desbloquear_skills_nivel(conn, user_id, classe_id, nv)
 
         try:
