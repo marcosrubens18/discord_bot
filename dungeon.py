@@ -923,6 +923,22 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
             desc_final += f"\n\n🎉 **LEVEL UP! Nível {nivel_novo_d}!** (+{lvlups} nível){rank_txt}"
             desc_final += f"\n+{lvlups * 5} HP | +{lvlups * 2} ATK | +{lvlups} DEF"
 
+        # Dentro de cmd_dungeon, após a conclusão (antes do embed_recomp)
+
+# Registrar pontos no evento de dungeon
+try:
+    from eventos import registrar_dungeon_evento
+    await registrar_dungeon_evento(user_id)
+except:
+    pass
+
+# Registrar pontos no passe de temporada
+try:
+    from passe_temporada import adicionar_pontos_dungeon
+    await adicionar_pontos_dungeon(user_id, True)
+except:
+    pass
+
         embed_recomp = discord.Embed(
             title="🏆 Dungeon Concluída!",
             description=desc_final,
