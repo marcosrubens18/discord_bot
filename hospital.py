@@ -11,9 +11,9 @@ from catalogo import (
 )
 
 PLANOS = [
-    {"id":"basico",   "nome":"Atendimento Basico",  "emoji":"🩹","preco":10, "hp_pct":0.5,"mana_pct":0.5,"desc":"Restaura 50% do HP e Mana",                        "cor":0x1D9E75},
-    {"id":"completo", "nome":"Tratamento Completo", "emoji":"🏥","preco":30, "hp_pct":1.0,"mana_pct":1.0,"desc":"Restaura 100% do HP e Mana",                       "cor":0x378ADD},
-    {"id":"premium",  "nome":"Suite Premium",       "emoji":"✨","preco":60, "hp_pct":1.0,"mana_pct":1.0,"desc":"HP + Mana full + remove todos os efeitos negativos","cor":0x7F77DD},
+    {"id":"basico",   "nome":"Atendimento Basico",  "emoji":"🩹","preco": 10, "hp_pct":0.5,"mana_pct":0.5,"desc":"Restaura 50% do HP e Mana",                        "cor":0x1D9E75},
+    {"id":"completo", "nome":"Tratamento Completo", "emoji":"🏥","preco": 30, "hp_pct":1.0,"mana_pct":1.0,"desc":"Restaura 100% do HP e Mana",                       "cor":0x378ADD},
+    {"id":"premium",  "nome":"Suite Premium",       "emoji":"✨","preco": 50, "hp_pct":1.0,"mana_pct":1.0,"desc":"HP + Mana full + remove todos os efeitos negativos","cor":0x7F77DD},
 ]
 
 ROLETAS = {
