@@ -38,12 +38,15 @@ from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_fechar, init_db_dungeon_evento)
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
-from passe_temporada import register_passe_commands, init_db_passe
-from arena import register_arena_commands, init_db_arena
 
-# ─── NOVOS SISTEMAS ───────────────────────────────────────────────
+# ─── PARTY ────────────────────────────────────────────────────────
 from party import register_party_commands, init_db_party
-from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO
+
+# ─── PASSE DE TEMPORADA ───────────────────────────────────────────
+from passe_temporada import register_passe_commands, init_db_passe
+
+# ─── ARENA RANQUEADA ──────────────────────────────────────────────
+from arena import register_arena_commands, init_db_arena
 
 # Configuração de imagens (desabilitadas)
 IMG_PERFIL = IMG_SETUP = IMG_INVENTARIO = IMG_SKILLS = IMG_AJUDA = ""
@@ -99,9 +102,6 @@ intents.members = True
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ─── VARIÁVEL GLOBAL ──────────────────────────────────────────────
-_synced = False
-
 # ─── HELPERS ─────────────────────────────────────────────────────
 
 async def get_treino_uso(user_id):
@@ -116,7 +116,7 @@ async def get_treino_uso(user_id):
                 return 0, None
             return row['count'], row['reset_em']
     except Exception as e:
-        print(f'Erro get_treino_uso: {e}')
+        print(f'Ergo get_treino_uso: {e}')
         return 0, None
 
 async def incrementar_treino(user_id):
@@ -288,7 +288,8 @@ async def criar_canal_privado(guild, member, nome, classe):
 
     except Exception as e:
         print(f"Erro ao criar canal privado: {e}")
-        # ─── AUTOCOMPLETE FUNCTIONS ──────────────────────────────────────
+
+# ─── AUTOCOMPLETE FUNCTIONS ──────────────────────────────────────
 
 async def autocomplete_item_categoria(interaction: discord.Interaction, current: str):
     try:
@@ -872,7 +873,8 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
         else: await conn.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
             interaction.user.id, it["id"], it["nome"], categoria.rstrip("s"), it["raridade"], it["emoji"], it.get("desc",""))
     await interaction.followup.send(f"Comprou {it['emoji']} **{it['nome']}** por {preco} moedas!", ephemeral=True)
-    # ─── /ferreiro ───────────────────────────────────────────────────
+
+# ─── /ferreiro ───────────────────────────────────────────────────
 
 @bot.tree.command(name="ferreiro", description="Forje itens com materiais de dungeon")
 async def ferreiro(interaction: discord.Interaction):
@@ -1452,10 +1454,15 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="Guildas",    value="`/guilda-criar` `/guilda-info` `/guilda-missoes` `/guilda-convidar` `/guilda-sair` `/guilda-promover` `/guilda-depositar` `/guilda-retirar` `/guilda-ranking`", inline=False)
     embed.add_field(name="🏆 Torneio", value="`/torneio_criar` `/torneio_inscrever` `/torneio_fechar` `/torneio_lutar` `/torneio_status` `/torneio_cancelar`", inline=False)
     embed.add_field(name="🏰 Party",   value="`/party_criar` `/party_info` `/party_convidar` `/party_sair` `/party_expulsar` `/party_lider` `/party_encerrar` `/party_painel` `/party_convites`", inline=False)
+    embed.add_field(name="🎫 Passe",   value="`/passe_ver` `/passe_resgatar` `/passe_ranking` `/passe_recompensas`", inline=False)
+    embed.add_field(name="🏆 Arena",   value="`/arena_desafiar` `/arena_ranking` `/arena_meuperfil` `/arena_recompensas` `/arena_temporada`", inline=False)
     embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
-    embed.add_field(name="🎫 Passe de Temporada", value="`/passe_ver` `/passe_resgatar` `/passe_ranking` `/passe_recompensas`", inline=False)
-    embed.add_field(name="🏆 Arena Ranqueada", value="`/arena_desafiar` `/arena_ranking` `/arena_meuperfil` `/arena_recompensas` `/arena_temporada`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ─── REGISTRO DOS COMANDOS ────────────────────────────────────────
+register_party_commands(bot)
+register_passe_commands(bot)
+register_arena_commands(bot)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
@@ -1476,6 +1483,8 @@ async def sync_cmd(ctx):
         await ctx.send(f"❌ Erro: {e}")
 
 # ─── EVENTOS ─────────────────────────────────────────────────────
+
+_synced = False
 
 @bot.event
 async def on_ready():
