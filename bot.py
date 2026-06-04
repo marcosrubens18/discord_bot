@@ -1286,69 +1286,69 @@ async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
 
 # ─── /party_criar ────────────────────────────────────────────────
 
-@bot.tree.command(name="party_criar", description="Cria uma nova party")
-async def party_criar(interaction: discord.Interaction):
-    from party import cmd_party_criar
-    await cmd_party_criar(interaction)
+# @bot.tree.command(name="party_criar", description="Cria uma nova party")
+# async def party_criar(interaction: discord.Interaction):
+#     from party import cmd_party_criar
+#     await cmd_party_criar(interaction)
 
-# ─── /party_info ─────────────────────────────────────────────────
+# # ─── /party_info ─────────────────────────────────────────────────
 
-@bot.tree.command(name="party_info", description="Mostra informações da sua party")
-async def party_info(interaction: discord.Interaction):
-    from party import cmd_party_info
-    await cmd_party_info(interaction)
+# @bot.tree.command(name="party_info", description="Mostra informações da sua party")
+# async def party_info(interaction: discord.Interaction):
+#     from party import cmd_party_info
+#     await cmd_party_info(interaction)
 
-# ─── /party_convidar ─────────────────────────────────────────────
+# # ─── /party_convidar ─────────────────────────────────────────────
 
-@bot.tree.command(name="party_convidar", description="Convida um jogador para sua party")
-@app_commands.describe(jogador="Jogador a ser convidado")
-async def party_convidar(interaction: discord.Interaction, jogador: discord.Member):
-    from party import cmd_party_convidar
-    await cmd_party_convidar(interaction, jogador)
+# @bot.tree.command(name="party_convidar", description="Convida um jogador para sua party")
+# @app_commands.describe(jogador="Jogador a ser convidado")
+# async def party_convidar(interaction: discord.Interaction, jogador: discord.Member):
+#     from party import cmd_party_convidar
+#     await cmd_party_convidar(interaction, jogador)
 
-# ─── /party_sair ─────────────────────────────────────────────────
+# # ─── /party_sair ─────────────────────────────────────────────────
 
-@bot.tree.command(name="party_sair", description="Sai da sua party atual")
-async def party_sair(interaction: discord.Interaction):
-    from party import cmd_party_sair
-    await cmd_party_sair(interaction)
+# @bot.tree.command(name="party_sair", description="Sai da sua party atual")
+# async def party_sair(interaction: discord.Interaction):
+#     from party import cmd_party_sair
+#     await cmd_party_sair(interaction)
 
-# ─── /party_expulsar ─────────────────────────────────────────────
+# # ─── /party_expulsar ─────────────────────────────────────────────
 
-@bot.tree.command(name="party_expulsar", description="Expulsa um membro da party (apenas líder)")
-@app_commands.describe(jogador="Membro a ser expulso")
-async def party_expulsar(interaction: discord.Interaction, jogador: discord.Member):
-    from party import cmd_party_expulsar
-    await cmd_party_expulsar(interaction, jogador)
+# @bot.tree.command(name="party_expulsar", description="Expulsa um membro da party (apenas líder)")
+# @app_commands.describe(jogador="Membro a ser expulso")
+# async def party_expulsar(interaction: discord.Interaction, jogador: discord.Member):
+#     from party import cmd_party_expulsar
+#     await cmd_party_expulsar(interaction, jogador)
 
-# ─── /party_lider ────────────────────────────────────────────────
+# # ─── /party_lider ────────────────────────────────────────────────
 
-@bot.tree.command(name="party_lider", description="Transfere liderança para outro membro")
-@app_commands.describe(jogador="Novo líder")
-async def party_lider(interaction: discord.Interaction, jogador: discord.Member):
-    from party import cmd_party_lider
-    await cmd_party_lider(interaction, jogador)
+# @bot.tree.command(name="party_lider", description="Transfere liderança para outro membro")
+# @app_commands.describe(jogador="Novo líder")
+# async def party_lider(interaction: discord.Interaction, jogador: discord.Member):
+#     from party import cmd_party_lider
+#     await cmd_party_lider(interaction, jogador)
 
-# ─── /party_encerrar ─────────────────────────────────────────────
+# # ─── /party_encerrar ─────────────────────────────────────────────
 
-@bot.tree.command(name="party_encerrar", description="Encerra sua party permanentemente (apenas líder)")
-async def party_encerrar(interaction: discord.Interaction):
-    from party import cmd_party_encerrar
-    await cmd_party_encerrar(interaction)
+# @bot.tree.command(name="party_encerrar", description="Encerra sua party permanentemente (apenas líder)")
+# async def party_encerrar(interaction: discord.Interaction):
+#     from party import cmd_party_encerrar
+#     await cmd_party_encerrar(interaction)
 
-# ─── /party_painel ───────────────────────────────────────────────
+# # ─── /party_painel ───────────────────────────────────────────────
 
-@bot.tree.command(name="party_painel", description="Mostra painel completo da party")
-async def party_painel(interaction: discord.Interaction):
-    from party import cmd_party_painel
-    await cmd_party_painel(interaction)
+# @bot.tree.command(name="party_painel", description="Mostra painel completo da party")
+# async def party_painel(interaction: discord.Interaction):
+#     from party import cmd_party_painel
+#     await cmd_party_painel(interaction)
 
-# ─── /party_convites ─────────────────────────────────────────────
+# # ─── /party_convites ─────────────────────────────────────────────
 
-@bot.tree.command(name="party_convites", description="Lista convites pendentes da party")
-async def party_convites(interaction: discord.Interaction):
-    from party import cmd_party_convites
-    await cmd_party_convites(interaction)
+# @bot.tree.command(name="party_convites", description="Lista convites pendentes da party")
+# async def party_convites(interaction: discord.Interaction):
+#     from party import cmd_party_convites
+#     await cmd_party_convites(interaction)
 
 # ─── /tutorial ───────────────────────────────────────────────────
 
