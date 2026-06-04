@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from db import get_pool
 from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO, COR_GOLD
 
+
 # ==================================================
 # CONFIGURAÇÃO DA TEMPORADA ATUAL
 # ==================================================
@@ -549,6 +550,30 @@ async def cmd_passe_admin_configurar(interaction: discord.Interaction):
             await inter.response.send_message("✅ Configuração da temporada atualizada!", ephemeral=True)
     
     await interaction.response.send_modal(ConfigurarPasseModal())
+
+async def adicionar_pontos_dungeon(user_id: int, vitoria: bool):
+    """Adiciona pontos ao passe por completar dungeon"""
+    if not vitoria:
+        return None
+    
+    from passe_temporada import adicionar_pontos_passe
+    return await adicionar_pontos_passe(user_id, 20, "dungeon")
+
+async def adicionar_pontos_torneio(user_id: int, vitoria: bool):
+    """Adiciona pontos ao passe por vencer torneio"""
+    if not vitoria:
+        return None
+    
+    from passe_temporada import adicionar_pontos_passe
+    return await adicionar_pontos_passe(user_id, 25, "torneio")
+
+async def adicionar_pontos_arena(user_id: int, vitoria: bool):
+    """Adiciona pontos ao passe por vencer na arena"""
+    if not vitoria:
+        return None
+    
+    from passe_temporada import adicionar_pontos_passe
+    return await adicionar_pontos_passe(user_id, 15, "arena")
 
 # ==================================================
 # REGISTRO DOS COMANDOS
