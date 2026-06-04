@@ -6,34 +6,13 @@ from db import get_pool
 from catalogo import get_rank, CARGOS_RANK, SKILLS_COMPLETAS
 from imagens import IMG_DUNGEON, IMG_VITORIA, IMG_DERROTA, IMG_DUNGEON_MONSTRO
 from utils import atualizar_todos_cargos
-from batalha import (
-    calc_dano, BATALHAS_ATIVAS, barra_hp, Passiva, PassivaRacial,
-    aplicar_efeito_pocao, remover_pocao, get_pocoes_inv, get_skills_eq,
-    get_arma_equipada, get_armadura_equipada, calcular_bonus_equip, EMOJI_CLASSE
-)
+from batalha import calc_dano, BATALHAS_ATIVAS, barra_hp, Passiva, PassivaRacial, aplicar_efeito_pocao, remover_pocao, get_pocoes_inv, get_skills_eq, get_arma_equipada, get_armadura_equipada, calcular_bonus_equip, EMOJI_CLASSE
 from dungeon_lock import dungeon_lock
 
-# ==================================================
-# CONSTANTES
-# ==================================================
+EMOJI_CLASSE = {"guerreiro":"🗡️","mago":"🔮","arqueiro":"🏹","paladino":"⚡","necromante":"🌑","dracomante":"🐉","arcano":"✨"}
+COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,"Lendario":0xD85A30}
 
-EMOJI_CLASSE = {
-    "guerreiro": "🗡️", "mago": "🔮", "arqueiro": "🏹",
-    "paladino": "⚡", "necromante": "🌑", "dracomante": "🐉", "arcano": "✨"
-}
-COR_RAR = {
-    "Comum": 0x888780, "Incomum": 0x1D9E75, "Raro": 0x378ADD,
-    "Epico": 0x7F77DD, "Lendario": 0xD85A30
-}
-
-POCOES_DEF = {
-    "pocao_hp_p": {"nome": "Pocao de Cura P", "emoji": "🧪", "tipo": "hp", "valor": 30},
-    "pocao_hp_m": {"nome": "Pocao de Cura M", "emoji": "💊", "tipo": "hp", "valor": 60},
-    "pocao_hp_g": {"nome": "Pocao de Cura G", "emoji": "❤️", "tipo": "hp", "valor": 120},
-    "pocao_mana_p": {"nome": "Pocao de Mana P", "emoji": "🔵", "tipo": "mana", "valor": 20},
-    "pocao_mana_m": {"nome": "Pocao de Mana M", "emoji": "💙", "tipo": "mana", "valor": 50},
-    "elixir": {"nome": "Elixir Supremo", "emoji": "✨", "tipo": "full", "valor": 999},
-}
+from catalogo import SKILLS_COMPLETAS
 
 # ==================================================
 # RANKS DE DUNGEON
@@ -41,140 +20,141 @@ POCOES_DEF = {
 
 RANKS = {
     "F": {
-        "nome": "Dungeon Rank F", "rank_min": "F", "emoji": "🟫", "nivel_min": 1, "cor": 0x888780,
-        "desc": "Para iniciantes. Monstros fracos mas boa fonte de XP.",
-        "recompensa_andar": {"xp": 30, "moedas": 15},
-        "recompensa_chefe": {"xp": 150, "moedas": 80},
+        "nome":"Dungeon Rank F","rank_min":"F","emoji":"🟫","nivel_min":1,"cor":0x888780,
+        "desc":"Para iniciantes. Monstros fracos mas boa fonte de XP.",
+        "recompensa_andar":{"xp":30,"moedas":15},
+        "recompensa_chefe":{"xp":150,"moedas":80},
         "andares": [
-            {"andar": 1, "nome": "Caverna Rasa", "emoji": "🕳️", "monstro": {"nome": "Goblin", "emoji": "👺", "hp": 90, "ataque": 19, "defesa": 2, "skills": [{"nome": "Mordida", "emoji": "🦷", "dano": 8}]}},
-            {"andar": 2, "nome": "Floresta Escura", "emoji": "🌲", "monstro": {"nome": "Lobo Selvagem", "emoji": "🐺", "hp": 126, "ataque": 30, "defesa": 4, "skills": [{"nome": "Investida", "emoji": "💨", "dano": 12}]}},
-            {"andar": 3, "nome": "Pântano Podre", "emoji": "🌿", "monstro": {"nome": "Sapo Gigante", "emoji": "🐸", "hp": 153, "ataque": 24, "defesa": 6, "skills": [{"nome": "Veneno", "emoji": "🟢", "dano": 10}]}},
-            {"andar": 4, "nome": "Ruínas Abandonadas", "emoji": "🏚️", "monstro": {"nome": "Esqueleto", "emoji": "💀", "hp": 171, "ataque": 35, "defesa": 5, "skills": [{"nome": "Golpe de Osso", "emoji": "🦴", "dano": 14}]}},
-            {"andar": 5, "nome": "Salão das Sombras", "emoji": "🌑", "monstro": {"nome": "Sombra Menor", "emoji": "👤", "hp": 198, "ataque": 41, "defesa": 7, "skills": [{"nome": "Toque Sombrio", "emoji": "🌑", "dano": 16}]}},
+            {"andar":1,"nome":"Caverna Rasa","emoji":"🕳️","monstro":{"nome":"Goblin","emoji":"👺","hp":90,"ataque":19,"defesa":2,"skills":[{"nome":"Mordida","emoji":"🦷","dano":8}]}},
+            {"andar":2,"nome":"Floresta Escura","emoji":"🌲","monstro":{"nome":"Lobo Selvagem","emoji":"🐺","hp":126,"ataque":30,"defesa":4,"skills":[{"nome":"Investida","emoji":"💨","dano":12}]}},
+            {"andar":3,"nome":"Pântano Podre","emoji":"🌿","monstro":{"nome":"Sapo Gigante","emoji":"🐸","hp":153,"ataque":24,"defesa":6,"skills":[{"nome":"Veneno","emoji":"🟢","dano":10}]}},
+            {"andar":4,"nome":"Ruínas Abandonadas","emoji":"🏚️","monstro":{"nome":"Esqueleto","emoji":"💀","hp":171,"ataque":35,"defesa":5,"skills":[{"nome":"Golpe de Osso","emoji":"🦴","dano":14}]}},
+            {"andar":5,"nome":"Salão das Sombras","emoji":"🌑","monstro":{"nome":"Sombra Menor","emoji":"👤","hp":198,"ataque":41,"defesa":7,"skills":[{"nome":"Toque Sombrio","emoji":"🌑","dano":16}]}},
         ],
-        "chefe": {"nome": "Rei Goblin", "emoji": "👑", "hp": 250, "ataque": 44, "defesa": 10,
-                  "skills": [{"nome": "Grito Real", "emoji": "📣", "dano": 18}, {"nome": "Garras", "emoji": "🦷", "dano": 22}, {"nome": "Invocar Gobelins", "emoji": "👺", "dano": 15}],
-                  "loot_raro": ("anel_goblin", "Anel do Rei Goblin", "especial", "Raro", "💍", "Aumenta chance de loot em 10%"), "loot_epico": None},
+        "chefe":{"nome":"Rei Goblin","emoji":"👑","hp":250,"ataque":44,"defesa":10,
+                 "skills":[{"nome":"Grito Real","emoji":"📣","dano":18},{"nome":"Garras","emoji":"🦷","dano":22},{"nome":"Invocar Gobelins","emoji":"👺","dano":15}],
+                 "loot_raro":("anel_goblin","Anel do Rei Goblin","especial","Raro","💍","Aumenta chance de loot em 10%"),
+                 "loot_epico":None},
     },
     "E": {
-        "nome": "Dungeon Rank E", "rank_min": "E", "emoji": "🟩", "nivel_min": 5, "cor": 0x1D9E75,
-        "desc": "Monstros com habilidades especiais. Requer preparo.",
-        "recompensa_andar": {"xp": 60, "moedas": 30},
-        "recompensa_chefe": {"xp": 300, "moedas": 180},
+        "nome":"Dungeon Rank E","rank_min":"E","emoji":"🟩","nivel_min":5,"cor":0x1D9E75,
+        "desc":"Monstros com habilidades especiais. Requer preparo.",
+        "recompensa_andar":{"xp":60,"moedas":30},
+        "recompensa_chefe":{"xp":300,"moedas":180},
         "andares": [
-            {"andar": 1, "nome": "Mina Abandonada", "emoji": "⛏️", "monstro": {"nome": "Orc Minerador", "emoji": "👹", "hp": 221, "ataque": 48, "defesa": 10, "skills": [{"nome": "Picareta", "emoji": "⛏️", "dano": 20}]}},
-            {"andar": 2, "nome": "Floresta Maldita", "emoji": "🌳", "monstro": {"nome": "Treant", "emoji": "🌳", "hp": 272, "ataque": 39, "defesa": 18, "skills": [{"nome": "Galhos", "emoji": "🌿", "dano": 17}]}},
-            {"andar": 3, "nome": "Lago Envenenado", "emoji": "💧", "monstro": {"nome": "Hidra", "emoji": "🐍", "hp": 306, "ataque": 59, "defesa": 12, "skills": [{"nome": "Mordida Tripla", "emoji": "🐍", "dano": 24}]}},
-            {"andar": 4, "nome": "Fortaleza em Ruinas", "emoji": "🏰", "monstro": {"nome": "Golem de Pedra", "emoji": "🗿", "hp": 374, "ataque": 55, "defesa": 25, "skills": [{"nome": "Soco de Pedra", "emoji": "👊", "dano": 28}]}},
-            {"andar": 5, "nome": "Câmara Proibida", "emoji": "🚪", "monstro": {"nome": "Feiticeiro Renegado", "emoji": "🧙", "hp": 340, "ataque": 77, "defesa": 10, "skills": [{"nome": "Feitico Negro", "emoji": "🔮", "dano": 30}]}},
+            {"andar":1,"nome":"Mina Abandonada","emoji":"⛏️","monstro":{"nome":"Orc Minerador","emoji":"👹","hp":221,"ataque":48,"defesa":10,"skills":[{"nome":"Picareta","emoji":"⛏️","dano":20}]}},
+            {"andar":2,"nome":"Floresta Maldita","emoji":"🌳","monstro":{"nome":"Treant","emoji":"🌳","hp":272,"ataque":39,"defesa":18,"skills":[{"nome":"Galhos","emoji":"🌿","dano":17}]}},
+            {"andar":3,"nome":"Lago Envenenado","emoji":"💧","monstro":{"nome":"Hidra","emoji":"🐍","hp":306,"ataque":59,"defesa":12,"skills":[{"nome":"Mordida Tripla","emoji":"🐍","dano":24}]}},
+            {"andar":4,"nome":"Fortaleza em Ruinas","emoji":"🏰","monstro":{"nome":"Golem de Pedra","emoji":"🗿","hp":374,"ataque":55,"defesa":25,"skills":[{"nome":"Soco de Pedra","emoji":"👊","dano":28}]}},
+            {"andar":5,"nome":"Câmara Proibida","emoji":"🚪","monstro":{"nome":"Feiticeiro Renegado","emoji":"🧙","hp":340,"ataque":77,"defesa":10,"skills":[{"nome":"Feitico Negro","emoji":"🔮","dano":30}]}},
         ],
-        "chefe": {"nome": "Senhor das Trevas", "emoji": "🧛", "hp": 500, "ataque": 77, "defesa": 20,
-                  "skills": [{"nome": "Drenar Alma", "emoji": "🩸", "dano": 32}, {"nome": "Nuvem de Morcegos", "emoji": "🦇", "dano": 25}, {"nome": "Hipnose", "emoji": "👁️", "dano": 20}],
-                  "loot_raro": ("capa_trevas", "Capa das Trevas", "armadura", "Raro", "🧛", "Defesa +12, esquiva +5%"),
-                  "loot_epico": ("espada_maldita", "Espada Maldita", "arma", "Epico", "⚔️", "Ataque +18, drena HP")},
+        "chefe":{"nome":"Senhor das Trevas","emoji":"🧛","hp":500,"ataque":77,"defesa":20,
+                 "skills":[{"nome":"Drenar Alma","emoji":"🩸","dano":32},{"nome":"Nuvem de Morcegos","emoji":"🦇","dano":25},{"nome":"Hipnose","emoji":"👁️","dano":20}],
+                 "loot_raro":("capa_trevas","Capa das Trevas","armadura","Raro","🧛","Defesa +12, esquiva +5%"),
+                 "loot_epico":("espada_maldita","Espada Maldita","arma","Epico","⚔️","Ataque +18, drena HP")},
     },
     "D": {
-        "nome": "Dungeon Rank D", "rank_min": "D", "emoji": "🟦", "nivel_min": 10, "cor": 0x378ADD,
-        "desc": "Perigo real. Venha preparado com pocoes.",
-        "recompensa_andar": {"xp": 100, "moedas": 55},
-        "recompensa_chefe": {"xp": 500, "moedas": 350},
+        "nome":"Dungeon Rank D","rank_min":"D","emoji":"🟦","nivel_min":10,"cor":0x378ADD,
+        "desc":"Perigo real. Venha preparado com pocoes.",
+        "recompensa_andar":{"xp":100,"moedas":55},
+        "recompensa_chefe":{"xp":500,"moedas":350},
         "andares": [
-            {"andar": 1, "nome": "Cripta Antiga", "emoji": "⚰️", "monstro": {"nome": "Lich Menor", "emoji": "💀", "hp": 400, "ataque": 79, "defesa": 15, "skills": [{"nome": "Raio de Morte", "emoji": "💀", "dano": 33}]}},
-            {"andar": 2, "nome": "Vulcão Ativo", "emoji": "🌋", "monstro": {"nome": "Elemental de Fogo", "emoji": "🔥", "hp": 448, "ataque": 92, "defesa": 12, "skills": [{"nome": "Explosao", "emoji": "💥", "dano": 38}]}},
-            {"andar": 3, "nome": "Abismo Gelado", "emoji": "❄️", "monstro": {"nome": "Yeti", "emoji": "🦴", "hp": 512, "ataque": 72, "defesa": 28, "skills": [{"nome": "Rajada de Gelo", "emoji": "❄️", "dano": 30}]}},
-            {"andar": 4, "nome": "Floresta Sangrenta", "emoji": "🌹", "monstro": {"nome": "Vampiro Anciao", "emoji": "🧛", "hp": 560, "ataque": 105, "defesa": 20, "skills": [{"nome": "Drenar Sangue", "emoji": "🩸", "dano": 42}]}},
-            {"andar": 5, "nome": "Torre do Caos", "emoji": "🗼", "monstro": {"nome": "Mago do Caos", "emoji": "🌀", "hp": 608, "ataque": 118, "defesa": 15, "skills": [{"nome": "Explosao Arcana", "emoji": "✨", "dano": 48}]}},
+            {"andar":1,"nome":"Cripta Antiga","emoji":"⚰️","monstro":{"nome":"Lich Menor","emoji":"💀","hp":400,"ataque":79,"defesa":15,"skills":[{"nome":"Raio de Morte","emoji":"💀","dano":33}]}},
+            {"andar":2,"nome":"Vulcão Ativo","emoji":"🌋","monstro":{"nome":"Elemental de Fogo","emoji":"🔥","hp":448,"ataque":92,"defesa":12,"skills":[{"nome":"Explosao","emoji":"💥","dano":38}]}},
+            {"andar":3,"nome":"Abismo Gelado","emoji":"❄️","monstro":{"nome":"Yeti","emoji":"🦴","hp":512,"ataque":72,"defesa":28,"skills":[{"nome":"Rajada de Gelo","emoji":"❄️","dano":30}]}},
+            {"andar":4,"nome":"Floresta Sangrenta","emoji":"🌹","monstro":{"nome":"Vampiro Anciao","emoji":"🧛","hp":560,"ataque":105,"defesa":20,"skills":[{"nome":"Drenar Sangue","emoji":"🩸","dano":42}]}},
+            {"andar":5,"nome":"Torre do Caos","emoji":"🗼","monstro":{"nome":"Mago do Caos","emoji":"🌀","hp":608,"ataque":118,"defesa":15,"skills":[{"nome":"Explosao Arcana","emoji":"✨","dano":48}]}},
         ],
-        "chefe": {"nome": "Hidra das Profundezas", "emoji": "🐲", "hp": 900, "ataque": 121, "defesa": 30,
-                  "skills": [{"nome": "Mordida Venenosa", "emoji": "🐍", "dano": 50}, {"nome": "Cauda", "emoji": "🐲", "dano": 45}, {"nome": "Regenerar", "emoji": "💚", "dano": 0}],
-                  "loot_raro": ("escudo_hidra", "Escudo da Hidra", "armadura", "Raro", "🛡️", "Defesa +20, imune a veneno"),
-                  "loot_epico": ("veneno_hidra", "Veneno da Hidra", "material", "Epico", "🧪", "Material lendario de forja")},
+        "chefe":{"nome":"Hidra das Profundezas","emoji":"🐲","hp":900,"ataque":121,"defesa":30,
+                 "skills":[{"nome":"Mordida Venenosa","emoji":"🐍","dano":50},{"nome":"Cauda","emoji":"🐲","dano":45},{"nome":"Regenerar","emoji":"💚","dano":0}],
+                 "loot_raro":("escudo_hidra","Escudo da Hidra","armadura","Raro","🛡️","Defesa +20, imune a veneno"),
+                 "loot_epico":("veneno_hidra","Veneno da Hidra","material","Epico","🧪","Material lendario de forja")},
     },
     "C": {
-        "nome": "Dungeon Rank C", "rank_min": "C", "emoji": "🟨", "nivel_min": 20, "cor": 0xE4AF3C,
-        "desc": "Apenas guerreiros experientes sobrevivem aqui.",
-        "recompensa_andar": {"xp": 180, "moedas": 100},
-        "recompensa_chefe": {"xp": 900, "moedas": 600},
+        "nome":"Dungeon Rank C","rank_min":"C","emoji":"🟨","nivel_min":20,"cor":0xE4AF3C,
+        "desc":"Apenas guerreiros experientes sobrevivem aqui.",
+        "recompensa_andar":{"xp":180,"moedas":100},
+        "recompensa_chefe":{"xp":900,"moedas":600},
         "andares": [
-            {"andar": 1, "nome": "Cemitério Amaldicoado", "emoji": "🪦", "monstro": {"nome": "Banshee", "emoji": "👻", "hp": 600, "ataque": 132, "defesa": 20, "skills": [{"nome": "Grito Mortal", "emoji": "😱", "dano": 55}]}},
-            {"andar": 2, "nome": "Pântano Demoníaco", "emoji": "😈", "monstro": {"nome": "Demônio Menor", "emoji": "😈", "hp": 675, "ataque": 145, "defesa": 25, "skills": [{"nome": "Garras do Inferno", "emoji": "🔥", "dano": 60}]}},
-            {"andar": 3, "nome": "Caverna de Cristal", "emoji": "💎", "monstro": {"nome": "Golem de Cristal", "emoji": "💎", "hp": 750, "ataque": 125, "defesa": 45, "skills": [{"nome": "Fragmento", "emoji": "💎", "dano": 52}]}},
-            {"andar": 4, "nome": "Templo Profanado", "emoji": "⛩️", "monstro": {"nome": "Sacerdote Corrompido", "emoji": "🙏", "hp": 720, "ataque": 158, "defesa": 28, "skills": [{"nome": "Maldicao Divina", "emoji": "☠️", "dano": 65}]}},
-            {"andar": 5, "nome": "Salão do Rei Morto", "emoji": "👑", "monstro": {"nome": "Cavaleiro Negro", "emoji": "🏇", "hp": 900, "ataque": 171, "defesa": 40, "skills": [{"nome": "Golpe Sombrio", "emoji": "⚔️", "dano": 70}]}},
+            {"andar":1,"nome":"Cemitério Amaldicoado","emoji":"🪦","monstro":{"nome":"Banshee","emoji":"👻","hp":600,"ataque":132,"defesa":20,"skills":[{"nome":"Grito Mortal","emoji":"😱","dano":55}]}},
+            {"andar":2,"nome":"Pântano Demoníaco","emoji":"😈","monstro":{"nome":"Demônio Menor","emoji":"😈","hp":675,"ataque":145,"defesa":25,"skills":[{"nome":"Garras do Inferno","emoji":"🔥","dano":60}]}},
+            {"andar":3,"nome":"Caverna de Cristal","emoji":"💎","monstro":{"nome":"Golem de Cristal","emoji":"💎","hp":750,"ataque":125,"defesa":45,"skills":[{"nome":"Fragmento","emoji":"💎","dano":52}]}},
+            {"andar":4,"nome":"Templo Profanado","emoji":"⛩️","monstro":{"nome":"Sacerdote Corrompido","emoji":"🙏","hp":720,"ataque":158,"defesa":28,"skills":[{"nome":"Maldicao Divina","emoji":"☠️","dano":65}]}},
+            {"andar":5,"nome":"Salão do Rei Morto","emoji":"👑","monstro":{"nome":"Cavaleiro Negro","emoji":"🏇","hp":900,"ataque":171,"defesa":40,"skills":[{"nome":"Golpe Sombrio","emoji":"⚔️","dano":70}]}},
         ],
-        "chefe": {"nome": "Rei Lich", "emoji": "💀", "hp": 1500, "ataque": 176, "defesa": 45,
-                  "skills": [{"nome": "Colapso de Mana", "emoji": "💀", "dano": 75}, {"nome": "Exercito dos Mortos", "emoji": "☠️", "dano": 60}, {"nome": "Ressurreicao", "emoji": "💚", "dano": 0}],
-                  "loot_raro": ("cetro_lich", "Cetro do Lich", "arma", "Epico", "💀", "Ataque +25, +15% dano magico"),
-                  "loot_epico": ("coroa_lich", "Coroa do Rei Lich", "armadura", "Lendario", "👑", "Defesa +30, imune a magia negra")},
+        "chefe":{"nome":"Rei Lich","emoji":"💀","hp":1500,"ataque":176,"defesa":45,
+                 "skills":[{"nome":"Colapso de Mana","emoji":"💀","dano":75},{"nome":"Exercito dos Mortos","emoji":"☠️","dano":60},{"nome":"Ressurreicao","emoji":"💚","dano":0}],
+                 "loot_raro":("cetro_lich","Cetro do Lich","arma","Epico","💀","Ataque +25, +15% dano magico"),
+                 "loot_epico":("coroa_lich","Coroa do Rei Lich","armadura","Lendario","👑","Defesa +30, imune a magia negra")},
     },
     "B": {
-        "nome": "Dungeon Rank B", "rank_min": "B", "emoji": "🟧", "nivel_min": 30, "cor": 0xD85A30,
-        "desc": "Elite dos aventureiros. Recompensas extraordinarias.",
-        "recompensa_andar": {"xp": 300, "moedas": 180},
-        "recompensa_chefe": {"xp": 1500, "moedas": 1000},
+        "nome":"Dungeon Rank B","rank_min":"B","emoji":"🟧","nivel_min":30,"cor":0xD85A30,
+        "desc":"Elite dos aventureiros. Recompensas extraordinarias.",
+        "recompensa_andar":{"xp":300,"moedas":180},
+        "recompensa_chefe":{"xp":1500,"moedas":1000},
         "andares": [
-            {"andar": 1, "nome": "Dimensao Proibida", "emoji": "🌀", "monstro": {"nome": "Criatura Dimensional", "emoji": "👾", "hp": 979, "ataque": 189, "defesa": 40, "skills": [{"nome": "Distorcao", "emoji": "🌀", "dano": 80}]}},
-            {"andar": 2, "nome": "Floresta Eterna", "emoji": "🌿", "monstro": {"nome": "Anciao da Floresta", "emoji": "🌲", "hp": 1120, "ataque": 176, "defesa": 60, "skills": [{"nome": "Raizes", "emoji": "🌿", "dano": 75}]}},
-            {"andar": 3, "nome": "Oceano de Lava", "emoji": "🌋", "monstro": {"nome": "Titan de Fogo", "emoji": "🔥", "hp": 1260, "ataque": 226, "defesa": 50, "skills": [{"nome": "Erupcao", "emoji": "🌋", "dano": 95}]}},
-            {"andar": 4, "nome": "Tempestade Arcana", "emoji": "⚡", "monstro": {"nome": "Elemental Arcano", "emoji": "✨", "hp": 1190, "ataque": 213, "defesa": 45, "skills": [{"nome": "Tempestade", "emoji": "⚡", "dano": 90}]}},
-            {"andar": 5, "nome": "Trono das Sombras", "emoji": "🖤", "monstro": {"nome": "Assassino das Sombras", "emoji": "🗡️", "hp": 1330, "ataque": 250, "defesa": 55, "skills": [{"nome": "Golpe Fatal", "emoji": "🗡️", "dano": 105}]}},
+            {"andar":1,"nome":"Dimensao Proibida","emoji":"🌀","monstro":{"nome":"Criatura Dimensional","emoji":"👾","hp":979,"ataque":189,"defesa":40,"skills":[{"nome":"Distorcao","emoji":"🌀","dano":80}]}},
+            {"andar":2,"nome":"Floresta Eterna","emoji":"🌿","monstro":{"nome":"Anciao da Floresta","emoji":"🌲","hp":1120,"ataque":176,"defesa":60,"skills":[{"nome":"Raizes","emoji":"🌿","dano":75}]}},
+            {"andar":3,"nome":"Oceano de Lava","emoji":"🌋","monstro":{"nome":"Titan de Fogo","emoji":"🔥","hp":1260,"ataque":226,"defesa":50,"skills":[{"nome":"Erupcao","emoji":"🌋","dano":95}]}},
+            {"andar":4,"nome":"Tempestade Arcana","emoji":"⚡","monstro":{"nome":"Elemental Arcano","emoji":"✨","hp":1190,"ataque":213,"defesa":45,"skills":[{"nome":"Tempestade","emoji":"⚡","dano":90}]}},
+            {"andar":5,"nome":"Trono das Sombras","emoji":"🖤","monstro":{"nome":"Assassino das Sombras","emoji":"🗡️","hp":1330,"ataque":250,"defesa":55,"skills":[{"nome":"Golpe Fatal","emoji":"🗡️","dano":105}]}},
         ],
-        "chefe": {"nome": "Titan Primordial", "emoji": "🗿", "hp": 3000, "ataque": 264, "defesa": 70,
-                  "skills": [{"nome": "Terremoto", "emoji": "🌋", "dano": 110}, {"nome": "Rugido Primordial", "emoji": "😤", "dano": 90}, {"nome": "Crush", "emoji": "💥", "dano": 130}],
-                  "loot_raro": ("fragmento_titan", "Fragmento do Titan", "material", "Epico", "🗿", "Material rarissimo"),
-                  "loot_epico": ("armadura_titan", "Armadura do Titan", "armadura", "Lendario", "🗿", "Defesa +45, +20% HP max")},
+        "chefe":{"nome":"Titan Primordial","emoji":"🗿","hp":3000,"ataque":264,"defesa":70,
+                 "skills":[{"nome":"Terremoto","emoji":"🌋","dano":110},{"nome":"Rugido Primordial","emoji":"😤","dano":90},{"nome":"Crush","emoji":"💥","dano":130}],
+                 "loot_raro":("fragmento_titan","Fragmento do Titan","material","Epico","🗿","Material rarissimo"),
+                 "loot_epico":("armadura_titan","Armadura do Titan","armadura","Lendario","🗿","Defesa +45, +20% HP max")},
     },
     "A": {
-        "nome": "Dungeon Rank A", "rank_min": "A", "emoji": "🟥", "nivel_min": 40, "cor": 0xE24B4A,
-        "desc": "Apenas lendas entram aqui. Recompensas unicas.",
-        "recompensa_andar": {"xp": 500, "moedas": 300},
-        "recompensa_chefe": {"xp": 2500, "moedas": 2000},
+        "nome":"Dungeon Rank A","rank_min":"A","emoji":"🟥","nivel_min":40,"cor":0xE24B4A,
+        "desc":"Apenas lendas entram aqui. Recompensas unicas.",
+        "recompensa_andar":{"xp":500,"moedas":300},
+        "recompensa_chefe":{"xp":2500,"moedas":2000},
         "andares": [
-            {"andar": 1, "nome": "Portal do Inferno", "emoji": "🔴", "monstro": {"nome": "Arquidemônio", "emoji": "😈", "hp": 1560, "ataque": 327, "defesa": 70, "skills": [{"nome": "Chamas do Inferno", "emoji": "🔥", "dano": 140}]}},
-            {"andar": 2, "nome": "Reino dos Mortos", "emoji": "💀", "monstro": {"nome": "Senhor dos Mortos", "emoji": "💀", "hp": 1820, "ataque": 303, "defesa": 80, "skills": [{"nome": "Toque da Morte", "emoji": "💀", "dano": 130}]}},
-            {"andar": 3, "nome": "Abismo Eterno", "emoji": "🕳️", "monstro": {"nome": "Leviatã", "emoji": "🐉", "hp": 2080, "ataque": 378, "defesa": 75, "skills": [{"nome": "Devorar", "emoji": "🌊", "dano": 160}]}},
-            {"andar": 4, "nome": "Fortaleza Celeste", "emoji": "☁️", "monstro": {"nome": "Anjo Caido", "emoji": "👼", "hp": 1950, "ataque": 365, "defesa": 90, "skills": [{"nome": "Espadada Divina", "emoji": "⚔️", "dano": 155}]}},
-            {"andar": 5, "nome": "Sala do Julgamento", "emoji": "⚖️", "monstro": {"nome": "Juiz Eterno", "emoji": "⚖️", "hp": 2340, "ataque": 404, "defesa": 85, "skills": [{"nome": "Sentenca", "emoji": "⚖️", "dano": 170}]}},
+            {"andar":1,"nome":"Portal do Inferno","emoji":"🔴","monstro":{"nome":"Arquidemônio","emoji":"😈","hp":1560,"ataque":327,"defesa":70,"skills":[{"nome":"Chamas do Inferno","emoji":"🔥","dano":140}]}},
+            {"andar":2,"nome":"Reino dos Mortos","emoji":"💀","monstro":{"nome":"Senhor dos Mortos","emoji":"💀","hp":1820,"ataque":303,"defesa":80,"skills":[{"nome":"Toque da Morte","emoji":"💀","dano":130}]}},
+            {"andar":3,"nome":"Abismo Eterno","emoji":"🕳️","monstro":{"nome":"Leviatã","emoji":"🐉","hp":2080,"ataque":378,"defesa":75,"skills":[{"nome":"Devorar","emoji":"🌊","dano":160}]}},
+            {"andar":4,"nome":"Fortaleza Celeste","emoji":"☁️","monstro":{"nome":"Anjo Caido","emoji":"👼","hp":1950,"ataque":365,"defesa":90,"skills":[{"nome":"Espadada Divina","emoji":"⚔️","dano":155}]}},
+            {"andar":5,"nome":"Sala do Julgamento","emoji":"⚖️","monstro":{"nome":"Juiz Eterno","emoji":"⚖️","hp":2340,"ataque":404,"defesa":85,"skills":[{"nome":"Sentenca","emoji":"⚖️","dano":170}]}},
         ],
-        "chefe": {"nome": "Deus da Destruicao", "emoji": "💥", "hp": 6000, "ataque": 440, "defesa": 100,
-                  "skills": [{"nome": "Apocalipse", "emoji": "💥", "dano": 190}, {"nome": "Destrocar Realidade", "emoji": "🌀", "dano": 170}, {"nome": "Pulso Divino", "emoji": "✨", "dano": 210}],
-                  "loot_raro": ("olho_deus", "Olho do Deus", "material", "Lendario", "👁️", "Material divino rarissimo"),
-                  "loot_epico": ("skill_apocalipse", "Apocalipse", "skill_especial", "Lendario", "💥", "Skill UNICA: dano massivo em area")},
+        "chefe":{"nome":"Deus da Destruicao","emoji":"💥","hp":6000,"ataque":440,"defesa":100,
+                 "skills":[{"nome":"Apocalipse","emoji":"💥","dano":190},{"nome":"Destrocar Realidade","emoji":"🌀","dano":170},{"nome":"Pulso Divino","emoji":"✨","dano":210}],
+                 "loot_raro":("olho_deus","Olho do Deus","material","Lendario","👁️","Material divino rarissimo"),
+                 "loot_epico":("skill_apocalipse","Apocalipse","skill_especial","Lendario","💥","Skill UNICA: dano massivo em area")},
     },
     "S": {
-        "nome": "Dungeon Rank S", "rank_min": "S", "emoji": "⭐", "nivel_min": 50, "cor": 0x7F77DD,
-        "desc": "A dungeon mais perigosa. Recompensas UNICAS no servidor.",
-        "recompensa_andar": {"xp": 800, "moedas": 500},
-        "recompensa_chefe": {"xp": 5000, "moedas": 5000},
+        "nome":"Dungeon Rank S","rank_min":"S","emoji":"⭐","nivel_min":50,"cor":0x7F77DD,
+        "desc":"A dungeon mais perigosa. Recompensas UNICAS no servidor.",
+        "recompensa_andar":{"xp":800,"moedas":500},
+        "recompensa_chefe":{"xp":5000,"moedas":5000},
         "andares": [
-            {"andar": 1, "nome": "Vazio Absoluto", "emoji": "🌌", "monstro": {"nome": "Entidade do Vazio", "emoji": "🌌", "hp": 2500, "ataque": 484, "defesa": 120, "skills": [{"nome": "Nulificar", "emoji": "🌌", "dano": 210}]}},
-            {"andar": 2, "nome": "Tempo Partido", "emoji": "⏳", "monstro": {"nome": "Guardiao do Tempo", "emoji": "⏳", "hp": 2750, "ataque": 459, "defesa": 140, "skills": [{"nome": "Paradoxo", "emoji": "⏳", "dano": 200}]}},
-            {"andar": 3, "nome": "Realidade Distorcida", "emoji": "🔮", "monstro": {"nome": "Espelho do Caos", "emoji": "🔮", "hp": 3125, "ataque": 532, "defesa": 130, "skills": [{"nome": "Reflexo", "emoji": "🔮", "dano": 230}]}},
-            {"andar": 4, "nome": "Nucleo do Mundo", "emoji": "🌍", "monstro": {"nome": "Guardiao do Nucleo", "emoji": "🌍", "hp": 3500, "ataque": 580, "defesa": 150, "skills": [{"nome": "Terremoto Total", "emoji": "🌍", "dano": 250}]}},
-            {"andar": 5, "nome": "Portal da Eternidade", "emoji": "🌟", "monstro": {"nome": "Ser Eterno", "emoji": "🌟", "hp": 3750, "ataque": 629, "defesa": 160, "skills": [{"nome": "Raio Eterno", "emoji": "🌟", "dano": 270}]}},
+            {"andar":1,"nome":"Vazio Absoluto","emoji":"🌌","monstro":{"nome":"Entidade do Vazio","emoji":"🌌","hp":2500,"ataque":484,"defesa":120,"skills":[{"nome":"Nulificar","emoji":"🌌","dano":210}]}},
+            {"andar":2,"nome":"Tempo Partido","emoji":"⏳","monstro":{"nome":"Guardiao do Tempo","emoji":"⏳","hp":2750,"ataque":459,"defesa":140,"skills":[{"nome":"Paradoxo","emoji":"⏳","dano":200}]}},
+            {"andar":3,"nome":"Realidade Distorcida","emoji":"🔮","monstro":{"nome":"Espelho do Caos","emoji":"🔮","hp":3125,"ataque":532,"defesa":130,"skills":[{"nome":"Reflexo","emoji":"🔮","dano":230}]}},
+            {"andar":4,"nome":"Nucleo do Mundo","emoji":"🌍","monstro":{"nome":"Guardiao do Nucleo","emoji":"🌍","hp":3500,"ataque":580,"defesa":150,"skills":[{"nome":"Terremoto Total","emoji":"🌍","dano":250}]}},
+            {"andar":5,"nome":"Portal da Eternidade","emoji":"🌟","monstro":{"nome":"Ser Eterno","emoji":"🌟","hp":3750,"ataque":629,"defesa":160,"skills":[{"nome":"Raio Eterno","emoji":"🌟","dano":270}]}},
         ],
-        "chefe": {"nome": "O Criador", "emoji": "🌟", "hp": 15000, "ataque": 770, "defesa": 200,
-                  "skills": [{"nome": "Big Bang", "emoji": "💥", "dano": 320}, {"nome": "Singularidade", "emoji": "⭐", "dano": 300}, {"nome": "Recriar", "emoji": "🌟", "dano": 0}],
-                  "loot_raro": ("titulo_conquistador", "Titulo: Conquistador S", "titulo", "Lendario", "🌟", "Titulo exclusivo no servidor"),
-                  "loot_epico": ("classe_deus", "Classe: Deus da Guerra", "classe_especial", "Lendario", "⚔️", "CLASSE UNICA — obtida apenas aqui")},
+        "chefe":{"nome":"O Criador","emoji":"🌟","hp":15000,"ataque":770,"defesa":200,
+                 "skills":[{"nome":"Big Bang","emoji":"💥","dano":320},{"nome":"Singularidade","emoji":"⭐","dano":300},{"nome":"Recriar","emoji":"🌟","dano":0}],
+                 "loot_raro":("titulo_conquistador","Titulo: Conquistador S","titulo","Lendario","🌟","Titulo exclusivo no servidor"),
+                 "loot_epico":("classe_deus","Classe: Deus da Guerra","classe_especial","Lendario","⚔️","CLASSE UNICA — obtida apenas aqui")},
     },
     "SS": {
-        "nome": "Dungeon Rank SS", "rank_min": "SS", "emoji": "💎", "nivel_min": 75, "cor": 0xD85A30,
-        "desc": "O conteudo final. Apenas os Transcendentes ousam entrar. Recompensa unica.",
-        "recompensa_andar": {"xp": 800, "moedas": 500},
-        "recompensa_chefe": {"xp": 5000, "moedas": 5000},
+        "nome":"Dungeon Rank SS","rank_min":"SS","emoji":"💎","nivel_min":75,"cor":0xD85A30,
+        "desc":"O conteudo final. Apenas os Transcendentes ousam entrar. Recompensa unica.",
+        "recompensa_andar":{"xp":800,"moedas":500},
+        "recompensa_chefe":{"xp":5000,"moedas":5000},
         "andares": [
-            {"andar": 1, "nome": "Portal do Vazio", "emoji": "🌀", "monstro": {"nome": "Guardiao do Vazio", "emoji": "🌀", "hp": 720, "ataque": 193, "defesa": 50, "skills": [{"nome": "Colapso", "emoji": "🌀", "dano": 90}, {"nome": "Distorcao", "emoji": "🌀", "dano": 65}]}},
-            {"andar": 2, "nome": "Abismo Eterno", "emoji": "🕳️", "monstro": {"nome": "Devorador de Almas", "emoji": "👁️", "hp": 840, "ataque": 217, "defesa": 55, "skills": [{"nome": "Devorar", "emoji": "💀", "dano": 100}, {"nome": "Maldição Eterna", "emoji": "🩸", "dano": 70}]}},
-            {"andar": 3, "nome": "Salao dos Herois", "emoji": "🏛️", "monstro": {"nome": "Heroi Corrompido", "emoji": "⚔️", "hp": 900, "ataque": 228, "defesa": 60, "skills": [{"nome": "Golpe Lendario", "emoji": "⚔️", "dano": 110}, {"nome": "Berserk", "emoji": "🔥", "dano": 80}]}},
-            {"andar": 4, "nome": "Trono das Sombras", "emoji": "🌑", "monstro": {"nome": "Senhor das Sombras", "emoji": "🌑", "hp": 960, "ataque": 242, "defesa": 65, "skills": [{"nome": "Trevas Absolutas", "emoji": "🌑", "dano": 120}, {"nome": "Medo", "emoji": "😱", "dano": 85}]}},
-            {"andar": 5, "nome": "Camara do Criador", "emoji": "✨", "monstro": {"nome": "Anjo Caido", "emoji": "👼", "hp": 1080, "ataque": 266, "defesa": 70, "skills": [{"nome": "Juizo Divino", "emoji": "☀️", "dano": 130}, {"nome": "Purificar", "emoji": "✨", "dano": 95}]}},
-            {"andar": 6, "nome": "Nucleo do Mundo", "emoji": "🌍", "monstro": {"nome": "CHEFE — O Criador", "emoji": "🌌", "hp": 2400, "ataque": 363, "defesa": 100, "skills": [{"nome": "Aniquilacao", "emoji": "💥", "dano": 200}, {"nome": "Singularidade", "emoji": "🕳️", "dano": 180}, {"nome": "Transcender", "emoji": "✨", "dano": 160}], "chefe": True}},
+            {"andar":1,"nome":"Portal do Vazio","emoji":"🌀","monstro":{"nome":"Guardiao do Vazio","emoji":"🌀","hp":720,"ataque":193,"defesa":50,"skills":[{"nome":"Colapso","emoji":"🌀","dano":90},{"nome":"Distorcao","emoji":"🌀","dano":65}]}},
+            {"andar":2,"nome":"Abismo Eterno","emoji":"🕳️","monstro":{"nome":"Devorador de Almas","emoji":"👁️","hp":840,"ataque":217,"defesa":55,"skills":[{"nome":"Devorar","emoji":"💀","dano":100},{"nome":"Maldição Eterna","emoji":"🩸","dano":70}]}},
+            {"andar":3,"nome":"Salao dos Herois","emoji":"🏛️","monstro":{"nome":"Heroi Corrompido","emoji":"⚔️","hp":900,"ataque":228,"defesa":60,"skills":[{"nome":"Golpe Lendario","emoji":"⚔️","dano":110},{"nome":"Berserk","emoji":"🔥","dano":80}]}},
+            {"andar":4,"nome":"Trono das Sombras","emoji":"🌑","monstro":{"nome":"Senhor das Sombras","emoji":"🌑","hp":960,"ataque":242,"defesa":65,"skills":[{"nome":"Trevas Absolutas","emoji":"🌑","dano":120},{"nome":"Medo","emoji":"😱","dano":85}]}},
+            {"andar":5,"nome":"Camara do Criador","emoji":"✨","monstro":{"nome":"Anjo Caido","emoji":"👼","hp":1080,"ataque":266,"defesa":70,"skills":[{"nome":"Juizo Divino","emoji":"☀️","dano":130},{"nome":"Purificar","emoji":"✨","dano":95}]}},
+            {"andar":6,"nome":"Nucleo do Mundo","emoji":"🌍","monstro":{"nome":"CHEFE — O Criador","emoji":"🌌","hp":2400,"ataque":363,"defesa":100,"skills":[{"nome":"Aniquilacao","emoji":"💥","dano":200},{"nome":"Singularidade","emoji":"🕳️","dano":180},{"nome":"Transcender","emoji":"✨","dano":160}],"chefe":True}},
         ],
         "loot_chefe": [
-            ("coroa_criador", "Coroa do Criador", "armadura", "Lendario", "👑", "A armadura definitiva"),
-            ("essencia_criador", "Essencia do Criador", "material", "Lendario", "🌌", "Material transcendente"),
-            ("titulo_transcendente", "Titulo: Transcendente", "material", "Lendario", "💎", "Titulo exclusivo do Rank SS"),
+            ("coroa_criador","Coroa do Criador","armadura","Lendario","👑","A armadura definitiva"),
+            ("essencia_criador","Essencia do Criador","material","Lendario","🌌","Material transcendente"),
+            ("titulo_transcendente","Titulo: Transcendente","material","Lendario","💎","Titulo exclusivo do Rank SS"),
         ],
     },
 }
@@ -464,22 +444,14 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
         bonus_atk, bonus_dfs = 1.0, 1.0
 
     def _mult_basico(nv):
-        if nv <= 9:
-            return 1.0
-        elif nv <= 19:
-            return 1.1
-        elif nv <= 29:
-            return 1.2
-        elif nv <= 39:
-            return 1.3
-        elif nv <= 49:
-            return 1.4
-        elif nv <= 59:
-            return 1.5
-        elif nv <= 74:
-            return 1.6
-        else:
-            return 1.8
+        if nv <= 9: return 1.0
+        elif nv <= 19: return 1.1
+        elif nv <= 29: return 1.2
+        elif nv <= 39: return 1.3
+        elif nv <= 49: return 1.4
+        elif nv <= 59: return 1.5
+        elif nv <= 74: return 1.6
+        else: return 1.8
 
     def status():
         return (
@@ -653,22 +625,14 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
             linha_m = f"{monstro['emoji']} **{monstro['nome']}** usou **{sk_m['nome']}**: **{dano_m} dano!**"
             cor_m = 0xE24B4A
 
-        if nivel_p <= 9:
-            regen = 3
-        elif nivel_p <= 19:
-            regen = 5
-        elif nivel_p <= 29:
-            regen = 8
-        elif nivel_p <= 39:
-            regen = 12
-        elif nivel_p <= 49:
-            regen = 16
-        elif nivel_p <= 59:
-            regen = 22
-        elif nivel_p <= 74:
-            regen = 30
-        else:
-            regen = 40
+        if nivel_p <= 9: regen = 3
+        elif nivel_p <= 19: regen = 5
+        elif nivel_p <= 29: regen = 8
+        elif nivel_p <= 39: regen = 12
+        elif nivel_p <= 49: regen = 16
+        elif nivel_p <= 59: regen = 22
+        elif nivel_p <= 74: regen = 30
+        else: regen = 40
         mana_j = min(mana_jmx, mana_j + regen)
 
         msg_m = await interaction.followup.send(
@@ -685,6 +649,15 @@ async def batalha_dungeon(interaction, p, monstro, skills, hp_j, mana_j, hp_jmx,
 
     vitoria = hp_m <= 0
     return hp_j, mana_j, vitoria, False
+
+POCOES_DEF = {
+    "pocao_hp_p": {"nome":"Pocao de Cura P","emoji":"🧪","tipo":"hp","valor":30},
+    "pocao_hp_m": {"nome":"Pocao de Cura M","emoji":"💊","tipo":"hp","valor":60},
+    "pocao_hp_g": {"nome":"Pocao de Cura G","emoji":"❤️","tipo":"hp","valor":120},
+    "pocao_mana_p":{"nome":"Pocao de Mana P","emoji":"🔵","tipo":"mana","valor":20},
+    "pocao_mana_m":{"nome":"Pocao de Mana M","emoji":"💙","tipo":"mana","valor":50},
+    "elixir": {"nome":"Elixir Supremo","emoji":"✨","tipo":"full","valor":999},
+}
 
 # ==================================================
 # COMANDO PRINCIPAL
@@ -923,23 +896,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
             desc_final += f"\n\n🎉 **LEVEL UP! Nível {nivel_novo_d}!** (+{lvlups} nível){rank_txt}"
             desc_final += f"\n+{lvlups * 5} HP | +{lvlups * 2} ATK | +{lvlups} DEF"
 
-        # Dentro de cmd_dungeon, após a conclusão (antes do embed_recomp)
-
-# Registrar pontos no evento de dungeon
-try:
-    from eventos import registrar_dungeon_evento
-    await registrar_dungeon_evento(user_id)
-except:
-    pass
-
-# Registrar pontos no passe de temporada
-try:
-    from passe_temporada import adicionar_pontos_dungeon
-    await adicionar_pontos_dungeon(user_id, True)
-except:
-    pass
-
-         embed_recomp = discord.Embed(
+        embed_recomp = discord.Embed(
             title="🏆 Dungeon Concluída!",
             description=desc_final,
             color=dungeon["cor"]
