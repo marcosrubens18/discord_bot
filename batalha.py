@@ -43,12 +43,12 @@ ARENAS = [
 ]
 
 POCOES = {
-    "pocao_hp_p": {"nome": "Pocao de Cura P", "emoji": "🧪", "tipo": "hp", "valor": 30, "preco": 50},
-    "pocao_hp_m": {"nome": "Pocao de Cura M", "emoji": "💊", "tipo": "hp", "valor": 60, "preco": 100},
-    "pocao_hp_g": {"nome": "Pocao de Cura G", "emoji": "❤️", "tipo": "hp", "valor": 120, "preco": 200},
-    "pocao_mana_p": {"nome": "Pocao de Mana P", "emoji": "🔵", "tipo": "mana", "valor": 20, "preco": 60},
-    "pocao_mana_m": {"nome": "Pocao de Mana M", "emoji": "💙", "tipo": "mana", "valor": 50, "preco": 120},
-    "elixir": {"nome": "Elixir Supremo", "emoji": "✨", "tipo": "full", "valor": 999, "preco": 500},
+    "pocao_hp_p": {"nome": "Pocao de Cura P", "emoji": "🧪", "tipo": "hp", "valor": 30, "preco": 10},
+    "pocao_hp_m": {"nome": "Pocao de Cura M", "emoji": "💊", "tipo": "hp", "valor": 60, "preco": 30},
+    "pocao_hp_g": {"nome": "Pocao de Cura G", "emoji": "❤️", "tipo": "hp", "valor": 120, "preco": 50},
+    "pocao_mana_p": {"nome": "Pocao de Mana P", "emoji": "🔵", "tipo": "mana", "valor": 20, "preco": 10},
+    "pocao_mana_m": {"nome": "Pocao de Mana M", "emoji": "💙", "tipo": "mana", "valor": 50, "preco": 30},
+    "elixir": {"nome": "Elixir Supremo", "emoji": "✨", "tipo": "full", "valor": 999, "preco": 200},
 }
 
 LOJA_ITENS = {
