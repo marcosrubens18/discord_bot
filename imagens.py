@@ -64,11 +64,11 @@ IMG_DUNGEON_MONSTRO = {
 
 # ─── ARENAS ──────────────────────────────────────────────────────
 IMG_ARENA = {
-    "floresta": "https://media.discordapp.net/attachments/1508851130992427139/1511937095130677268/floresta.jpg?ex=6a2244a5&is=6a20f325&hm=228ae164c897b0282de13d7a8c08ec9377592f00faa46184e5547ef4ade339a4&=&format=webp&width=1404&height=800",
-    "vulcao":   "https://media.discordapp.net/attachments/1508851130992427139/1511937094614908958/vulcao.jpg?ex=6a2244a5&is=6a20f325&hm=6d6d83bbf625897595060710fb749e59b319fab99b50fb0237e06f6017f24ec1&=&format=webp&width=1404&height=800",
-    "gelo":     "https://media.discordapp.net/attachments/1508851130992427139/1511937094103335034/gelo.jpg?ex=6a2244a5&is=6a20f325&hm=0961e1348fe48d54d70aba615e3e6006d0a9b935fe463099bddcd331651a3b91&=&format=webp&width=1404&height=800",
-    "ruinas":   "https://media.discordapp.net/attachments/1508851130992427139/1511937093620728019/ruinas.jpg?ex=6a2244a5&is=6a20f325&hm=52f377748de4db4352fc6e87e2492b20ca62318a1cdd8a7a6ebdaff1381cdf37&=&format=webp&width=1404&height=800",
-    "coloseu":  "https://media.discordapp.net/attachments/1508851130992427139/1511937093151096944/coliseu.jpg?ex=6a2244a5&is=6a20f325&hm=e376a14d0284ee55443e203ef143ea0f94d66d727d0199f9f6c7c91ffa04fa06&=&format=webp&width=1404&height=800",
+    "floresta": "https://i.imgur.com/NptFGtk.png",
+    "vulcao":   "https://i.imgur.com/XO8L8R1.png",
+    "gelo":     "https://i.imgur.com/fWdV7mI.png",
+    "ruinas":   "https://i.imgur.com/HYnPxMN.png",
+    "coloseu":  "https://i.imgur.com/vcVWqyk.png",
 }
 
 # ─── HOSPITAL ────────────────────────────────────────────────────
