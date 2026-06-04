@@ -1,4 +1,4 @@
-# arena.py — Sistema de Arenas Ranqueadas PvP (1v1, 2v2, 3v3, 4v4, 5v5)
+# arena.py — Sistema de Arenas Ranqueadas PvP (1v1 apenas - depois expandimos)
 import discord
 from discord import app_commands
 import asyncio
@@ -6,7 +6,7 @@ import json
 import random
 from datetime import datetime, timedelta
 from db import get_pool
-from batalha import rodar_pvp, rodar_treino_dupla, ARENAS, BATALHAS_ATIVAS
+from batalha import rodar_pvp, ARENAS, BATALHAS_ATIVAS
 from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO, COR_GOLD
 
 # ==================================================
@@ -25,14 +25,6 @@ ELOS = {
 
 DESAFIOS_POR_DIA = 10
 
-MODOS = {
-    "1v1": {"nome": "1v1 Individual", "emoji": "⚔️", "min_jogadores": 1, "max_jogadores": 1, "mult_rating": 1.0},
-    "2v2": {"nome": "2v2 Dupla", "emoji": "👥", "min_jogadores": 2, "max_jogadores": 2, "mult_rating": 0.8},
-    "3v3": {"nome": "3v3 Party", "emoji": "👥", "min_jogadores": 3, "max_jogadores": 3, "mult_rating": 0.7},
-    "4v4": {"nome": "4v4 Party", "emoji": "👥", "min_jogadores": 4, "max_jogadores": 4, "mult_rating": 0.6},
-    "5v5": {"nome": "5v5 Party", "emoji": "👥", "min_jogadores": 5, "max_jogadores": 5, "mult_rating": 0.5},
-}
-
 # ==================================================
 # FUNÇÕES AUXILIARES
 # ==================================================
@@ -47,16 +39,10 @@ def get_proxima_temporada():
         return f"{agora.year + 1}_1"
     return f"{agora.year}_{agora.month + 1}"
 
-async def get_party_do_jogador(user_id: int):
+async def get_personagem(user_id):
     pool = await get_pool()
     async with pool.acquire() as conn:
-        membro = await conn.fetchrow("""
-            SELECT pm.*, p.* 
-            FROM party_membros pm
-            JOIN parties p ON pm.party_id = p.id
-            WHERE pm.user_id = $1 AND p.status = 'ativa'
-        """, user_id)
-        return dict(membro) if membro else None
+        return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
 async def get_jogador_arena(user_id: int, temporada: str = None):
     if temporada is None:
@@ -81,29 +67,6 @@ async def get_jogador_arena(user_id: int, temporada: str = None):
         
         return dict(jogador)
 
-async def get_party_arena(party_id: int, temporada: str = None):
-    if temporada is None:
-        temporada = get_temporada_atual()
-    
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        party = await conn.fetchrow("""
-            SELECT * FROM arena_rankings_party 
-            WHERE party_id = $1 AND temporada = $2
-        """, party_id, temporada)
-        
-        if not party:
-            membros = await conn.fetch("SELECT user_id, nome FROM party_membros WHERE party_id = $1", party_id)
-            membros_lista = [{"user_id": m["user_id"], "nome": m["nome"]} for m in membros]
-            
-            party = await conn.fetchrow("""
-                INSERT INTO arena_rankings_party (party_id, party_nome, rating, elo, membros, temporada)
-                VALUES ($1, $2, 1000, 'Ferro', $3, $4)
-                RETURNING *
-            """, party_id, f"Party #{party_id}", json.dumps(membros_lista), temporada)
-        
-        return dict(party)
-
 async def get_elo_por_rating(rating: int):
     for elo_nome, elo_info in sorted(ELOS.items(), key=lambda x: x[1]["rating_min"], reverse=True):
         if rating >= elo_info["rating_min"]:
@@ -123,22 +86,6 @@ async def atualizar_elo_jogador(user_id: int, rating: int, temporada: str = None
             SET rating = $1, elo = $2, ultima_batalha = NOW()
             WHERE user_id = $3 AND temporada = $4
         """, rating, novo_elo, user_id, temporada)
-    
-    return novo_elo, elo_info
-
-async def atualizar_elo_party(party_id: int, rating: int, temporada: str = None):
-    if temporada is None:
-        temporada = get_temporada_atual()
-    
-    novo_elo, elo_info = await get_elo_por_rating(rating)
-    
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute("""
-            UPDATE arena_rankings_party 
-            SET rating = $1, elo = $2, ultima_batalha = NOW()
-            WHERE party_id = $3 AND temporada = $4
-        """, rating, novo_elo, party_id, temporada)
     
     return novo_elo, elo_info
 
@@ -168,13 +115,13 @@ async def registrar_desafio(user_id: int):
             """, user_id, hoje)
             return True, 1
 
-async def registrar_batalha_arena(user_id: int, oponente_id: int, oponente_nome: str, modo: str, vitoria: bool, rating_antes: int, rating_depois: int):
+async def registrar_batalha_arena(user_id: int, oponente_id: int, oponente_nome: str, vitoria: bool, rating_antes: int, rating_depois: int):
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO arena_historico (user_id, oponente_id, oponente_nome, modo, resultado, rating_antes, rating_depois)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-        """, user_id, oponente_id, oponente_nome, modo, "vitoria" if vitoria else "derrota", rating_antes, rating_depois)
+            INSERT INTO arena_historico (user_id, oponente_id, oponente_nome, resultado, rating_antes, rating_depois)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        """, user_id, oponente_id, oponente_nome, "vitoria" if vitoria else "derrota", rating_antes, rating_depois)
         
         if vitoria:
             await conn.execute("""
@@ -187,50 +134,91 @@ async def registrar_batalha_arena(user_id: int, oponente_id: int, oponente_nome:
                 WHERE user_id = $1 AND temporada = $2
             """, user_id, get_temporada_atual())
 
-async def get_ranking_arena(limite: int = 10, elo_filtro: str = None, modo: str = "1v1"):
+async def get_ranking_arena(limite: int = 10, elo_filtro: str = None):
     pool = await get_pool()
     async with pool.acquire() as conn:
         temporada = get_temporada_atual()
         
-        if modo == "party":
-            if elo_filtro:
-                ranking = await conn.fetch("""
-                    SELECT party_id, party_nome as nome, rating, elo, vitorias, derrotas
-                    FROM arena_rankings_party
-                    WHERE temporada = $1 AND elo = $2
-                    ORDER BY rating DESC
-                    LIMIT $3
-                """, temporada, elo_filtro, limite)
-            else:
-                ranking = await conn.fetch("""
-                    SELECT party_id, party_nome as nome, rating, elo, vitorias, derrotas
-                    FROM arena_rankings_party
-                    WHERE temporada = $1
-                    ORDER BY rating DESC
-                    LIMIT $2
-                """, temporada, limite)
+        if elo_filtro:
+            ranking = await conn.fetch("""
+                SELECT user_id, nome, rating, elo, vitorias, derrotas
+                FROM arena_rankings
+                WHERE temporada = $1 AND elo = $2
+                ORDER BY rating DESC
+                LIMIT $3
+            """, temporada, elo_filtro, limite)
         else:
-            if elo_filtro:
-                ranking = await conn.fetch("""
-                    SELECT user_id, nome, rating, elo, vitorias, derrotas
-                    FROM arena_rankings
-                    WHERE temporada = $1 AND elo = $2
-                    ORDER BY rating DESC
-                    LIMIT $3
-                """, temporada, elo_filtro, limite)
-            else:
-                ranking = await conn.fetch("""
-                    SELECT user_id, nome, rating, elo, vitorias, derrotas
-                    FROM arena_rankings
-                    WHERE temporada = $1
-                    ORDER BY rating DESC
-                    LIMIT $2
-                """, temporada, limite)
+            ranking = await conn.fetch("""
+                SELECT user_id, nome, rating, elo, vitorias, derrotas
+                FROM arena_rankings
+                WHERE temporada = $1
+                ORDER BY rating DESC
+                LIMIT $2
+            """, temporada, limite)
         
         return ranking
 
 # ==================================================
-# COMANDO: DESAFIAR 1v1
+# BANCO DE DADOS
+# ==================================================
+
+async def init_db_arena():
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS arena_rankings (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT UNIQUE,
+                nome TEXT NOT NULL,
+                rating INTEGER DEFAULT 1000,
+                elo TEXT DEFAULT 'Ferro',
+                vitorias INTEGER DEFAULT 0,
+                derrotas INTEGER DEFAULT 0,
+                temporada TEXT DEFAULT '',
+                ultima_batalha TIMESTAMP DEFAULT NOW(),
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS arena_historico (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT,
+                oponente_id BIGINT,
+                oponente_nome TEXT,
+                resultado TEXT,
+                rating_antes INTEGER,
+                rating_depois INTEGER,
+                data TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS arena_desafios (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT,
+                data DATE DEFAULT CURRENT_DATE,
+                desafios_feitos INTEGER DEFAULT 0,
+                UNIQUE(user_id, data)
+            )
+        """)
+        
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS arena_recompensas (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT,
+                temporada TEXT,
+                elo_final TEXT,
+                rating_final INTEGER,
+                recebida BOOLEAN DEFAULT FALSE,
+                UNIQUE(user_id, temporada)
+            )
+        """)
+    
+    print("DB Arena OK!")
+
+# ==================================================
+# COMANDOS
 # ==================================================
 
 async def cmd_arena_desafiar(interaction: discord.Interaction, jogador: discord.Member):
@@ -284,7 +272,7 @@ async def cmd_arena_desafiar(interaction: discord.Interaction, jogador: discord.
             self.stop()
     
     embed_convite = discord.Embed(
-        title="⚔️ DESAFIO DE ARENA 1v1!",
+        title="⚔️ DESAFIO DE ARENA!",
         description=f"**{interaction.user.display_name}** ({j1['elo']} - {j1['rating']} pts) desafiou **{jogador.display_name}** ({j2['elo']} - {j2['rating']} pts)!\n\n"
                    f"🎯 Chance de vitória: {expected*100:.1f}%\n"
                    f"⭐ Rating em jogo: ~{abs(j1['rating'] - j2['rating']) // 10 + 15} pontos\n\n"
@@ -303,7 +291,7 @@ async def cmd_arena_desafiar(interaction: discord.Interaction, jogador: discord.
     arena = random.choice(ARENAS)
     
     embed_luta = discord.Embed(
-        title=f"⚔️ BATALHA RANQUEADA 1v1! ⚔️",
+        title=f"⚔️ BATALHA RANQUEADA! ⚔️",
         description=f"**{interaction.user.display_name}** vs **{jogador.display_name}**\n"
                    f"🏟️ Arena: {arena['emoji']} {arena['nome']}\n\n"
                    f"⭐ Rating em jogo!",
@@ -323,8 +311,8 @@ async def cmd_arena_desafiar(interaction: discord.Interaction, jogador: discord.
             await atualizar_elo_jogador(interaction.user.id, rating_novo1)
             await atualizar_elo_jogador(jogador.id, rating_novo2)
             
-            await registrar_batalha_arena(interaction.user.id, jogador.id, j2["nome"], "1v1", True, rating_antes1, rating_novo1)
-            await registrar_batalha_arena(jogador.id, interaction.user.id, j1["nome"], "1v1", False, rating_antes2, rating_novo2)
+            await registrar_batalha_arena(interaction.user.id, jogador.id, j2["nome"], True, rating_antes1, rating_novo1)
+            await registrar_batalha_arena(jogador.id, interaction.user.id, j1["nome"], False, rating_antes2, rating_novo2)
             
             novo_elo1, _ = await get_elo_por_rating(rating_novo1)
             novo_elo2, _ = await get_elo_por_rating(rating_novo2)
@@ -346,8 +334,8 @@ async def cmd_arena_desafiar(interaction: discord.Interaction, jogador: discord.
             await atualizar_elo_jogador(interaction.user.id, rating_novo1)
             await atualizar_elo_jogador(jogador.id, rating_novo2)
             
-            await registrar_batalha_arena(interaction.user.id, jogador.id, j2["nome"], "1v1", False, rating_antes1, rating_novo1)
-            await registrar_batalha_arena(jogador.id, interaction.user.id, j1["nome"], "1v1", True, rating_antes2, rating_novo2)
+            await registrar_batalha_arena(interaction.user.id, jogador.id, j2["nome"], False, rating_antes1, rating_novo1)
+            await registrar_batalha_arena(jogador.id, interaction.user.id, j1["nome"], True, rating_antes2, rating_novo2)
             
             novo_elo1, _ = await get_elo_por_rating(rating_novo1)
             novo_elo2, _ = await get_elo_por_rating(rating_novo2)
@@ -364,24 +352,17 @@ async def cmd_arena_desafiar(interaction: discord.Interaction, jogador: discord.
     
     await rodar_pvp(interaction.channel, p1, p2, interaction.user, jogador, arena, callback=callback_resultado)
 
-# ==================================================
-# COMANDO: RANKING
-# ==================================================
-
-async def cmd_arena_ranking(interaction: discord.Interaction, modo: str = "1v1", elo: str = None):
+async def cmd_arena_ranking(interaction: discord.Interaction, elo: str = None):
     await interaction.response.defer()
     
-    ranking = await get_ranking_arena(15, elo, modo)
+    ranking = await get_ranking_arena(15, elo)
     
     if not ranking:
         await interaction.followup.send("❌ Nenhum jogador encontrado no ranking!", ephemeral=True)
         return
     
-    modo_info = MODOS.get(modo, MODOS["1v1"])
-    titulo = f"RANKING - {modo_info['nome']}"
-    
     embed = discord.Embed(
-        title=f"🏆 {titulo}",
+        title="🏆 RANKING DA ARENA",
         description=f"Temporada: **{get_temporada_atual()}**\n" + ("Filtro: **" + elo + "**" if elo else "Geral"),
         color=COR_GOLD
     )
@@ -396,10 +377,6 @@ async def cmd_arena_ranking(interaction: discord.Interaction, modo: str = "1v1",
     
     embed.set_footer(text=f"Use /arena_meuperfil para ver seus dados | {DESAFIOS_POR_DIA} desafios/dia")
     await interaction.followup.send(embed=embed)
-
-# ==================================================
-# COMANDO: MEU PERFIL
-# ==================================================
 
 async def cmd_arena_meuperfil(interaction: discord.Interaction):
     await interaction.response.defer()
@@ -445,8 +422,7 @@ async def cmd_arena_meuperfil(interaction: discord.Interaction):
     hist_txt = ""
     for h in historico[:5]:
         emoji = "✅" if h["resultado"] == "vitoria" else "❌"
-        modo_emoji = "⚔️" if h["modo"] == "1v1" else "👥"
-        hist_txt += f"{emoji} {modo_emoji} vs {h['oponente_nome']} — {h['rating_antes']} → {h['rating_depois']}\n"
+        hist_txt += f"{emoji} vs {h['oponente_nome']} — {h['rating_antes']} → {h['rating_depois']}\n"
     
     if not hist_txt:
         hist_txt = "Nenhuma batalha registrada nesta temporada"
@@ -465,10 +441,6 @@ async def cmd_arena_meuperfil(interaction: discord.Interaction):
     embed.set_footer(text=f"Temporada: {get_temporada_atual()}")
     
     await interaction.followup.send(embed=embed)
-
-# ==================================================
-# COMANDO: RECOMPENSAS
-# ==================================================
 
 async def cmd_arena_recompensas(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
@@ -524,10 +496,6 @@ async def cmd_arena_recompensas(interaction: discord.Interaction):
     )
     await interaction.followup.send(embed=embed, ephemeral=True)
 
-# ==================================================
-# COMANDO: TEMPORADA
-# ==================================================
-
 async def cmd_arena_temporada(interaction: discord.Interaction):
     await interaction.response.defer()
     
@@ -563,17 +531,13 @@ async def cmd_arena_temporada(interaction: discord.Interaction):
 # ==================================================
 
 def register_arena_commands(bot):
-    @bot.tree.command(name="arena_desafiar", description="Desafia um jogador para batalha ranqueada 1v1")
+    @bot.tree.command(name="arena_desafiar", description="Desafia um jogador para batalha ranqueada")
     @app_commands.describe(jogador="Jogador a ser desafiado")
     async def arena_desafiar(interaction: discord.Interaction, jogador: discord.Member):
         await cmd_arena_desafiar(interaction, jogador)
     
     @bot.tree.command(name="arena_ranking", description="Mostra o ranking da arena")
-    @app_commands.describe(modo="Modo de jogo", elo="Filtrar por elo")
-    @app_commands.choices(modo=[
-        app_commands.Choice(name="1v1 Individual", value="1v1"),
-        app_commands.Choice(name="Party/Ranking de Party", value="party"),
-    ])
+    @app_commands.describe(elo="Filtrar por elo")
     @app_commands.choices(elo=[
         app_commands.Choice(name="Ferro", value="Ferro"),
         app_commands.Choice(name="Bronze", value="Bronze"),
@@ -583,8 +547,8 @@ def register_arena_commands(bot):
         app_commands.Choice(name="Diamante", value="Diamante"),
         app_commands.Choice(name="Mestre", value="Mestre"),
     ])
-    async def arena_ranking(interaction: discord.Interaction, modo: str = "1v1", elo: str = None):
-        await cmd_arena_ranking(interaction, modo, elo)
+    async def arena_ranking(interaction: discord.Interaction, elo: str = None):
+        await cmd_arena_ranking(interaction, elo)
     
     @bot.tree.command(name="arena_meuperfil", description="Mostra seu perfil na arena")
     async def arena_meuperfil(interaction: discord.Interaction):
