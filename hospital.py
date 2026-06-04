@@ -154,6 +154,10 @@ async def remover_giro(user_id, roleta_id, raridade):
 
 def sortear_ficha(pool_items, raridade_minima):
     """Sorteia um item da pool baseado na raridade mínima"""
+    if not pool_items:
+        print(f"[ERRO] sortear_ficha: pool_items vazia! raridade_minima={raridade_minima}")
+        return None
+    
     # Normaliza raridade (remove acentos)
     raridade_minima = raridade_minima.replace("É", "E").replace("é", "e")
     
@@ -173,8 +177,29 @@ def sortear_ficha(pool_items, raridade_minima):
         except ValueError:
             disponiveis.append(item)
     
+    # 🔥 CORREÇÃO: Se não houver itens disponíveis, retorna o primeiro da pool original
     if not disponiveis:
-        disponiveis = pool_items
+        print(f"[AVISO] Nenhum item disponível com raridade >= {raridade_minima}. Usando fallback.")
+        if pool_items:
+            return pool_items[0]
+        return None
+    
+    # Pesos por raridade
+    pesos_base = {"Comum": 40, "Incomum": 25, "Raro": 15, "Epico": 8, "Lendario": 3}
+    pesos = []
+    for item in disponiveis:
+        item_rar = item.get("raridade", "Comum").replace("É", "E").replace("é", "e")
+        peso = pesos_base.get(item_rar, 10)
+        pesos.append(peso)
+    
+    total = sum(pesos)
+    r = random.random() * total
+    for i, item in enumerate(disponiveis):
+        r -= pesos[i]
+        if r <= 0:
+            return item
+    
+    return disponiveis[0]  # fallback seguro
     
     # Pesos por raridade
     pesos_base = {"Comum": 40, "Incomum": 25, "Raro": 15, "Epico": 8, "Lendario": 3}
