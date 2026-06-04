@@ -329,14 +329,22 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             0 if vitoria else 1,
             user_id
         )
-if levelups > 0:
-    try:
-        from eventos import registrar_level_up_evento
-        await registrar_level_up_evento(user_id, levelups)
-    except:
-        pass
+
+        # Desbloqueia skills pelo novo nivel
         await desbloquear_skills_nivel(conn, user_id, classe_id, nv)
 
+        # ==================================================
+        # REGISTRAR LEVEL UP NO EVENTO (CORRIGIDO)
+        # ==================================================
+        if levelups > 0:
+            try:
+                from eventos import registrar_level_up_evento
+                await registrar_level_up_evento(user_id, levelups)
+                print(f"[EVENTO] Level up registrado: +{levelups} nível(is) para {user_id}")
+            except Exception as e:
+                print(f"Erro ao registrar level up: {e}")
+
+        # Log de batalha
         try:
             await conn.execute("""
                 INSERT INTO log_batalhas(user_id,tipo,resultado,oponente,xp_ganho,moedas_ganhas,nivel_apos)
