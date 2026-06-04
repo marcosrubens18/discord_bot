@@ -16,7 +16,7 @@ from constants import COOLDOWN_BATALHA, COR_SUCCESS, COR_DANGER, COR_WARNING, CO
 from cooldown import cooldown_manager
 
 # ─── CONTROLE DE BATALHAS ATIVAS ────────────────────────────────
-BATALHAS_ATIVAS: set = set()  # user_ids com batalha em andamento
+BATALHAS_ATIVAS: set = set()
 
 # ─── CONSTANTES ──────────────────────────────────────────────────
 
@@ -60,7 +60,6 @@ LOJA_ITENS = {
 }
 
 RECEITAS = [
-    # ── Rank Raro ─────────────────────────────────────────────────
     {"id": "espada_orc", "nome": "Espada Orc", "emoji": "🗡️", "tipo": "arma", "raridade": "Raro",
      "desc": "Forjada com metal orc. ATK +20",
      "materiais": {"dente_orc": 2, "minerio_ferro": 3}, "preco_forja": 100},
@@ -79,8 +78,6 @@ RECEITAS = [
     {"id": "lanca_orc", "nome": "Lanca Orc", "emoji": "🔱", "tipo": "arma", "raridade": "Raro",
      "desc": "Forjada com ossos de orc. ATK +18",
      "materiais": {"dente_orc": 3, "osso_oco": 2}, "preco_forja": 160},
-
-    # ── Rank Epico ────────────────────────────────────────────────
     {"id": "armadura_escama", "nome": "Armadura de Escama", "emoji": "🐉", "tipo": "armadura", "raridade": "Epico",
      "desc": "Escamas de dragao. DEF +25",
      "materiais": {"escama_dragao": 1, "fragmento_golem": 2}, "preco_forja": 300},
@@ -93,8 +90,6 @@ RECEITAS = [
     {"id": "capa_grifo", "nome": "Capa do Grifo", "emoji": "🦅", "tipo": "armadura", "raridade": "Epico",
      "desc": "DEF +30 e +20% velocidade",
      "materiais": {"pena_grifo": 3, "pele_lobo": 4}, "preco_forja": 380},
-
-    # ── Rank Lendario ─────────────────────────────────────────────
     {"id": "elmo_dragao", "nome": "Elmo do Dragao", "emoji": "🪖", "tipo": "armadura", "raridade": "Lendario",
      "desc": "Protecao maxima. DEF +32",
      "materiais": {"escama_dragao": 2, "olho_dragao": 1}, "preco_forja": 500},
@@ -110,7 +105,6 @@ RECEITAS = [
 ]
 
 MONSTROS = [
-    # ── FACIL ─────────────────────────────────────────────────────
     {"id": "goblin", "img": "https://i.imgur.com/3NpKzQm.png", "nome": "Goblin", "emoji": "👺", "nivel": 1, "hp": 50,
      "ataque": 22, "defesa": 2, "xp": 6, "moedas": 5, "dificuldade": "facil",
      "skills": [{"nome": "Mordida", "emoji": "🦷", "dano": 8}, {"nome": "Arranhao", "emoji": "💢", "dano": 5}],
@@ -127,8 +121,6 @@ MONSTROS = [
      "hp": 60, "ataque": 9, "defesa": 3, "xp": 7, "moedas": 5, "dificuldade": "facil",
      "skills": [{"nome": "Flechada", "emoji": "🏹", "dano": 12}, {"nome": "Tiro Rapido", "emoji": "🏹", "dano": 8}],
      "loot": [("flecha_goblin", "Flecha de Goblin", "material", "Comum", "🏹", "Material de projétil")]},
-
-    # ── MEDIO ─────────────────────────────────────────────────────
     {"id": "orc", "img": "https://i.imgur.com/2LmNxKp.png", "nome": "Orc Guerreiro", "emoji": "👹", "nivel": 7,
      "hp": 280, "ataque": 40, "defesa": 8, "xp": 18, "moedas": 10, "dificuldade": "medio",
      "skills": [{"nome": "Machado", "emoji": "🪓", "dano": 22}, {"nome": "Grito de Guerra", "emoji": "😤", "dano": 12}],
@@ -146,8 +138,6 @@ MONSTROS = [
      "hp": 350, "ataque": 24, "defesa": 8, "xp": 20, "moedas": 10, "dificuldade": "medio",
      "skills": [{"nome": "Porrada", "emoji": "👊", "dano": 32}, {"nome": "Lama Toxica", "emoji": "🟢", "dano": 15}],
      "loot": [("muco_troll", "Muco de Troll", "material", "Incomum", "🟢", "Ingrediente alquimico")]},
-
-    # ── DIFICIL ───────────────────────────────────────────────────
     {"id": "vampiro", "img": "https://i.imgur.com/5QrLpKz.png", "nome": "Vampiro Anciao", "emoji": "🧛", "nivel": 20,
      "hp": 550, "ataque": 75, "defesa": 14, "xp": 40, "moedas": 20, "dificuldade": "dificil",
      "skills": [{"nome": "Drenar Sangue", "emoji": "🩸", "dano": 40}, {"nome": "Hipnose", "emoji": "👁️", "dano": 15}],
@@ -165,13 +155,10 @@ MONSTROS = [
      "hp": 580, "ataque": 40, "defesa": 20, "xp": 46, "moedas": 20, "dificuldade": "dificil",
      "skills": [{"nome": "Bico de Aco", "emoji": "⚔️", "dano": 42}, {"nome": "Garra Dupla", "emoji": "🐾", "dano": 35}],
      "loot": [("pena_grifo", "Pena de Grifo", "material", "Raro", "🦅", "Material de voo")]},
-
-    # ── LENDARIO ──────────────────────────────────────────────────
     {"id": "dragao", "img": "https://i.imgur.com/9WqLpNm.png", "nome": "Dragao Jovem", "emoji": "🐉", "nivel": 35,
      "hp": 1200, "ataque": 120, "defesa": 20, "xp": 80, "moedas": 50, "dificuldade": "lendario",
      "skills": [{"nome": "Baforada de Fogo", "emoji": "🔥", "dano": 70}, {"nome": "Garra Draconica", "emoji": "🐾", "dano": 55}],
-     "loot": [("escama_dragao_p", "Escama de Dragao Pequena", "material", "Raro", "🐉", "Fragmento de escama"),
-              ("escama_dragao_p", "Escama Pequena", "material", "Raro", "🐉", "Escama de dragao jovem")]},
+     "loot": [("escama_dragao_p", "Escama de Dragao Pequena", "material", "Raro", "🐉", "Fragmento de escama")]},
     {"id": "quimera", "img": "https://i.imgur.com/3NpKzQm.png", "nome": "Quimera Anciao", "emoji": "🦁", "nivel": 40,
      "hp": 1400, "ataque": 70, "defesa": 40, "xp": 90, "moedas": 50, "dificuldade": "lendario",
      "skills": [{"nome": "Rugido do Caos", "emoji": "😤", "dano": 75}, {"nome": "Chamas e Gelo", "emoji": "❄️", "dano": 60}],
@@ -264,7 +251,6 @@ async def remover_pocao(user_id, item_id):
                 await conn.execute("DELETE FROM inventario WHERE id=$1", row["id"])
 
 async def desbloquear_skills_nivel(conn, user_id, classe_id, nivel):
-    """Desbloqueia skills da classe pelo nivel atual."""
     skills = SKILLS_COMPLETAS.get(classe_id, [])
     for s in skills:
         if s["nivel"] <= nivel:
@@ -274,7 +260,6 @@ async def desbloquear_skills_nivel(conn, user_id, classe_id, nivel):
             )
 
 async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe_id, nivel_atual, mana_atual_batalha=None):
-    """Salva resultado e retorna (levelups, nivel_novo, rank_mudou, rank_novo)."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         p = await conn.fetchrow(
@@ -284,7 +269,6 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
         if not p:
             return 0, nivel_atual, False, None
 
-        # Bonus de XP racial (Humano +15%)
         from racas import get_raca as _get_raca
         _raca = _get_raca(p.get("raca_id", "humano")) if "raca_id" in p.keys() else {"bonus_xp": 0.0}
         _bonus_xp = _raca.get("bonus_xp", 0.0) if isinstance(_raca, dict) else 0.0
@@ -294,7 +278,6 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
         levelups = 0
         rank_antes = get_rank(nv)["rank"]
 
-        # Calcula level ups
         needed = 100 + (nv - 1) * 50
         while novo_xp >= needed:
             novo_xp -= needed
@@ -302,12 +285,10 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             needed = 100 + (nv - 1) * 50
             levelups += 1
 
-        # Atualiza stats por nivel
         hp_max_novo = p["hp_max"] + levelups * 12
         atk_novo = p["ataque"] + levelups * 2
         dfs_novo = p["defesa"] + levelups * 1
 
-        # Bonus de rank up (so se mudou de rank)
         rank_bonus_hp = rank_bonus_mana = rank_bonus_atk = rank_bonus_dfs = 0
         if rank_antes != get_rank(nv)["rank"]:
             novo_rank = get_rank(nv)["rank"]
@@ -340,10 +321,8 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             user_id
         )
 
-        # Desbloqueia skills pelo novo nivel
         await desbloquear_skills_nivel(conn, user_id, classe_id, nv)
 
-        # Log de batalha
         try:
             await conn.execute("""
                 INSERT INTO log_batalhas(user_id,tipo,resultado,oponente,xp_ganho,moedas_ganhas,nivel_apos)
@@ -361,13 +340,12 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
 
 
 async def init_db_batalha():
-    pass  # tabelas criadas no db.py
+    pass
 
 
 # ─── CALCULOS ────────────────────────────────────────────────────
 
 def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=False, nivel=1, hp_max_monstro=None, passiva_mult=1.0):
-    """Dano escalado pelo nivel de forma linear e controlada."""
     if nivel <= 9:
         div_forca = 1.1
         mult_cap = 1.15
@@ -429,7 +407,6 @@ def barra_hp(cur, mx):
 
 
 def get_skill_resolv(classe_id, skill_id):
-    """Resolve skill pelo catalogo novo, fallback para antigo."""
     sk = get_skill_by_id(skill_id)
     if sk:
         return sk
@@ -440,7 +417,6 @@ def get_skill_resolv(classe_id, skill_id):
 
 
 def calcular_bonus_equip(classe_id, arma, armadura):
-    """Retorna (bonus_atk_mult, bonus_dfs_mult) com base na afinidade."""
     bonus_atk = 1.0
     bonus_dfs = 1.0
     if arma:
@@ -461,7 +437,6 @@ def calcular_bonus_equip(classe_id, arma, armadura):
 
 
 def aplicar_efeito_pocao(item_id, hp, hp_max, mana, mana_max):
-    """Aplica pocao e retorna (hp_novo, mana_nova, descricao)."""
     poc = POCOES.get(item_id)
     if not poc:
         return hp, mana, "Pocao desconhecida."
@@ -554,10 +529,6 @@ class Passiva:
 # ─── PROCESSAMENTO DE EFEITOS ─────────────────────────────────────
 
 def processar_efeitos_turno(efeitos):
-    """
-    Processa efeitos no inicio do turno.
-    Retorna (dano_de_efeito, msg_efeito, efeitos_atualizados).
-    """
     dano_total = 0
     msgs = []
     novos_efeitos = {}
@@ -894,7 +865,6 @@ RANK_BONUS = {
 
 async def notificar_level_up(guild, user_id, nome, classe_id, nivel_novo, rank_mudou, rank_obj,
                               hp_bonus, mana_bonus, atk_bonus, def_bonus):
-    """Manda embed de level up no canal privado do jogador."""
     if not guild:
         return
     try:
@@ -929,7 +899,6 @@ async def notificar_level_up(guild, user_id, nome, classe_id, nivel_novo, rank_m
 async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     uid = p["user_id"]
 
-    # Verifica cooldown
     pode, tempo = cooldown_manager.check(uid, "treinar", COOLDOWN_BATALHA)
     if not pode:
         await interaction.followup.send(f"⏰ Aguarde **{tempo} segundos** antes de treinar novamente!", ephemeral=True)
@@ -937,7 +906,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
 
     BATALHAS_ATIVAS.add(uid)
 
-    # Skills
     ids_eq = await get_skills_eq(uid)
     if not ids_eq:
         ids_eq = []
@@ -946,7 +914,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         default = SKILLS_COMPLETAS.get(p["classe_id"], [])
         skills = default[:4]
 
-    # Equipamento
     arma = await get_arma_equipada(uid)
     armadura = await get_armadura_equipada(uid)
     bonus_atk, bonus_dfs = calcular_bonus_equip(p["classe_id"], arma, armadura)
@@ -956,7 +923,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     compat_arma = "✅ +15%" if bonus_atk > 1 else ("❌ -15%" if bonus_atk < 1 else "—")
     compat_arm = "✅ +10%" if bonus_dfs > 1 else ("❌ -10%" if bonus_dfs < 1 else "—")
 
-    # Stats iniciais
     hp_j = p["hp_atual"]
     hp_jmx = p["hp_max"]
     mana_j = p["mana_atual"] if p["mana_atual"] else 100
@@ -1002,18 +968,15 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     # ─── LOOP DE BATALHA ─────────────────────────────────────────
 
     while hp_j > 0 and hp_m > 0:
-        mana_antes = mana_j
+        mana_antes = mana_j  # ← CORREÇÃO: variável adicionada
 
-        # 1. Efeitos de status no jogador
         dano_ef, msgs_ef, efeitos_j = processar_efeitos_turno(efeitos_j)
         if dano_ef > 0:
             hp_j = max(0, hp_j - dano_ef)
-        # Efeitos no monstro
         dano_ef_m, msgs_ef_m, efeitos_m = processar_efeitos_turno(efeitos_m)
         if dano_ef_m > 0:
             hp_m = max(0, hp_m - dano_ef_m)
 
-        # 2. Passiva inicio de turno
         tomou_dano = False
         cura_passiva = passiva.inicio_turno(hp_j, hp_jmx)
         if cura_passiva > 0:
@@ -1022,7 +985,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         if hp_m <= 0:
             break
 
-        # 3. Pocoes disponíveis
         pocoes = await get_pocoes_inv(uid)
         view = BatalhaView(uid, skills, pocoes, nivel=p["nivel"])
 
@@ -1048,7 +1010,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         except:
             pass
 
-        # 4. Inatividade
         if acao == "timeout":
             timeout_count += 1
             if timeout_count >= 3:
@@ -1072,7 +1033,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         else:
             timeout_count = 0
 
-        # 5. Processa acao
         linha_jogador = ""
         cor_acao = arena["cor"]
 
@@ -1351,7 +1311,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         if not tomou_dano:
             passiva.fim_turno_sem_dano()
 
-        # Regen de mana por turno
         nivel_p = p["nivel"]
         if nivel_p <= 9:
             regen_mana = 3
@@ -1387,7 +1346,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     BATALHAS_ATIVAS.discard(uid)
     vitoria = hp_m <= 0
 
-    # NOVO: Calcular bônus de party
     bonus_party = 0
     try:
         from party import get_bonus_party, registrar_batalha_party
@@ -1403,7 +1361,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         _chance = _chance_loot.get(monstro.get("dificuldade", "facil"), 0.20)
         loot = [random.choice(monstro["loot"])] if random.random() < _chance else []
 
-        # Aplica bônus de party no XP
         xp_base = monstro["xp"]
         xp_com_bonus = xp_base + int(xp_base * bonus_party / 100)
 
@@ -1430,7 +1387,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                 rank_txt = ""
             desc += f"\n\n⬆️ **LEVEL UP x{lvlups}! → Nível {nivel_novo}**{rank_txt}\n+{12 * lvlups} HP máx | +{10 * lvlups} Mana | +{2 * lvlups} ATK | +{lvlups} DEF 🎊"
 
-        # Missoes
         try:
             from missoes import atualizar_progresso
             recomps = await atualizar_progresso(uid, "vitorias_treino")
@@ -1444,7 +1400,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         except Exception:
             pass
 
-        # Conquistas
         try:
             from conquistas import verificar_conquistas
             from db import get_pool as _gp
@@ -1459,7 +1414,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         except Exception:
             pass
 
-        # Atualiza cargos em todo level up
         if lvlups:
             try:
                 from utils import atualizar_todos_cargos
@@ -1505,7 +1459,6 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     except:
         pass
 
-    # NOVO: Aplicar cooldown
     cooldown_manager.set(uid, "treinar", COOLDOWN_BATALHA)
 
 
@@ -1776,7 +1729,6 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback=None):
         except:
             pass
 
-    # NOVO: Chamar callback se existir
     if callback:
         await callback(vencedor["user_id"], perdedor["user_id"])
 
