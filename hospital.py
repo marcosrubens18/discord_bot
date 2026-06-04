@@ -212,32 +212,51 @@ async def get_personagem_hospital(user_id):
         return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
 def build_pool_filtrado(roleta_id, classe_id, ids_ja_tem):
-    """Retorna pool filtrado: so itens da classe e que nao tem ainda."""
+    """Retorna pool filtrado: itens da classe que o jogador ainda não tem"""
+    
     if roleta_id == "skill":
         skills = get_skills_classe(classe_id)
+        if not skills:
+            # Caso não tenha skills cadastradas para a classe
+            print(f"[AVISO] Nenhuma skill encontrada para classe: {classe_id}")
+            return []  # Retorna lista vazia em vez de crashar
+        
         pool_filtrado = [
             {"id": s["id"], "nome": s["nome"], "emoji": s["emoji"],
              "raridade": "Comum" if s["nivel"] <= 5 else ("Incomum" if s["nivel"] <= 15 else ("Raro" if s["nivel"] <= 30 else ("Epico" if s["nivel"] <= 50 else "Lendario"))),
              "desc": s["desc"]}
             for s in skills if s["id"] not in ids_ja_tem
         ]
-        return pool_filtrado if pool_filtrado else [{"id": skills[0]["id"], "nome": skills[0]["nome"], "emoji": skills[0]["emoji"], "raridade": "Comum", "desc": skills[0]["desc"]}]
+        
+        # Se não tem mais skills novas, retorna vazio
+        if not pool_filtrado:
+            return []
+        
+        return pool_filtrado
 
     elif roleta_id == "arma":
         armas = get_armas_classe(classe_id)
-        return [
+        if not armas:
+            return []
+        
+        pool_filtrado = [
             {"id": a["id"], "nome": a["nome"], "emoji": a["emoji"],
              "raridade": a["raridade"], "tipo": "arma", "desc": a["desc"]}
             for a in armas if a["id"] not in ids_ja_tem
-        ] or [{"id": armas[0]["id"], "nome": armas[0]["nome"], "emoji": armas[0]["emoji"], "raridade": "Comum", "tipo": "arma", "desc": armas[0]["desc"]}]
+        ]
+        return pool_filtrado if pool_filtrado else []
 
     elif roleta_id == "armadura":
         armaduras = get_armaduras_classe(classe_id)
-        return [
+        if not armaduras:
+            return []
+        
+        pool_filtrado = [
             {"id": a["id"], "nome": a["nome"], "emoji": a["emoji"],
              "raridade": a["raridade"], "tipo": "armadura", "desc": a["desc"]}
             for a in armaduras if a["id"] not in ids_ja_tem
-        ] or [{"id": armaduras[0]["id"], "nome": armaduras[0]["nome"], "emoji": armaduras[0]["emoji"], "raridade": "Comum", "tipo": "armadura", "desc": armaduras[0]["desc"]}]
+        ]
+        return pool_filtrado if pool_filtrado else []
 
     return []
 
