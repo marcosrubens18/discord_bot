@@ -38,6 +38,8 @@ from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_fechar, init_db_dungeon_evento)
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
+from passe_temporada import register_passe_commands, init_db_passe
+from arena import register_arena_commands, init_db_arena
 
 # ─── NOVOS SISTEMAS ───────────────────────────────────────────────
 from party import register_party_commands, init_db_party
@@ -1451,6 +1453,8 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="🏆 Torneio", value="`/torneio_criar` `/torneio_inscrever` `/torneio_fechar` `/torneio_lutar` `/torneio_status` `/torneio_cancelar`", inline=False)
     embed.add_field(name="🏰 Party",   value="`/party_criar` `/party_info` `/party_convidar` `/party_sair` `/party_expulsar` `/party_lider` `/party_encerrar` `/party_painel` `/party_convites`", inline=False)
     embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
+    embed.add_field(name="🎫 Passe de Temporada", value="`/passe_ver` `/passe_resgatar` `/passe_ranking` `/passe_recompensas`", inline=False)
+    embed.add_field(name="🏆 Arena Ranqueada", value="`/arena_desafiar` `/arena_ranking` `/arena_meuperfil` `/arena_recompensas` `/arena_temporada`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
@@ -1493,6 +1497,8 @@ async def on_ready():
         await init_db_torneio()
         await init_db_dungeon_evento()
         await init_db_party()
+        await init_db_passe()
+        await init_db_arena()
         print("DB OK!")
     except Exception as e:
         print(f"ERRO DB: {e}")
