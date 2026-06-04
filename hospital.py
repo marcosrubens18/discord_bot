@@ -114,20 +114,28 @@ RARIDADES = ["Comum", "Incomum", "Raro", "Epico", "Lendario"]
 COR_RAR = {"Comum": 0x888780, "Incomum": 0x1D9E75, "Raro": 0x378ADD, "Epico": 0x7F77DD, "Lendario": 0xD85A30}
 EMOJI_FICHA = {"Comum": "🟫", "Incomum": "🟩", "Raro": "🟦", "Epico": "🟪", "Lendario": "🟧"}
 
+# ─── LOCKS PARA RACE CONDITIONS ───────────────────────────────────
+
+from asyncio import Lock
+_user_locks = {}
+
+def get_user_lock(user_id: int) -> Lock:
+    if user_id not in _user_locks:
+        _user_locks[user_id] = Lock()
+    return _user_locks[user_id]
+
 # ─── FUNÇÕES AUXILIARES SEGURAS ───────────────────────────────────
 
 async def init_db_hospital():
     """Inicializa tabelas do hospital (compatibilidade)"""
-    pass  # tabelas criadas no db.py
+    pass
 
 async def get_personagem(user_id: int) -> Optional[dict]:
-    """Retorna o personagem do usuário ou None"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
 async def get_giros(user_id: int) -> dict:
-    """Retorna os giros disponíveis do usuário"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
@@ -141,7 +149,6 @@ async def get_giros(user_id: int) -> dict:
     return result
 
 async def adicionar_giro(user_id: int, roleta_id: str, raridade: str, quantidade: int = 1) -> bool:
-    """Adiciona giros para o usuário. Retorna True se sucesso."""
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -157,7 +164,6 @@ async def adicionar_giro(user_id: int, roleta_id: str, raridade: str, quantidade
         return False
 
 async def remover_giro(user_id: int, roleta_id: str, raridade: str) -> bool:
-    """Remove UM giro do usuário. Retorna True se sucesso."""
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -171,7 +177,6 @@ async def remover_giro(user_id: int, roleta_id: str, raridade: str) -> bool:
         return False
 
 async def get_descanso(user_id: int) -> Optional[datetime]:
-    """Retorna None se pode descansar, ou datetime do proximo descanso disponivel."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT proximo_descanso FROM descanso WHERE user_id=$1", user_id)
@@ -182,7 +187,6 @@ async def get_descanso(user_id: int) -> Optional[datetime]:
         return row["proximo_descanso"]
 
 async def usar_descanso(user_id: int) -> Optional[dict]:
-    """Usa o descanso grátis. Retorna o personagem atualizado ou None."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         proximo = datetime.utcnow() + timedelta(minutes=30)
@@ -200,10 +204,6 @@ async def usar_descanso(user_id: int) -> Optional[dict]:
     return None
 
 def build_pool_filtrado(roleta_id: str, classe_id: str, ids_ja_tem: set) -> list:
-    """
-    Retorna pool filtrado: apenas itens da classe que o jogador ainda não tem.
-    Nunca retorna None - sempre retorna uma lista (pode ser vazia).
-    """
     if not roleta_id or not classe_id:
         return []
     
@@ -268,15 +268,10 @@ def build_pool_filtrado(roleta_id: str, classe_id: str, ids_ja_tem: set) -> list
     return []
 
 def sortear_ficha(pool_items: list, raridade_minima: str) -> Optional[dict]:
-    """
-    Sorteia um item da pool baseado na raridade mínima.
-    Retorna um item ou None se não for possível sortear.
-    """
     if not pool_items:
         print(f"[AVISO] sortear_ficha: pool_items vazia! raridade_minima={raridade_minima}")
         return None
     
-    # Normaliza raridade
     raridade_minima = raridade_minima.replace("É", "E").replace("é", "e") if raridade_minima else "Comum"
     
     try:
@@ -284,7 +279,6 @@ def sortear_ficha(pool_items: list, raridade_minima: str) -> Optional[dict]:
     except ValueError:
         idx_min = 0
     
-    # Filtra itens com raridade >= raridade mínima
     disponiveis = []
     for item in pool_items:
         item_rar = item.get("raridade", "Comum").replace("É", "E").replace("é", "e")
@@ -295,14 +289,12 @@ def sortear_ficha(pool_items: list, raridade_minima: str) -> Optional[dict]:
         except ValueError:
             disponiveis.append(item)
     
-    # Se não há itens disponíveis, tenta pegar qualquer item da pool
     if not disponiveis:
         print(f"[AVISO] Nenhum item com raridade >= {raridade_minima}. Usando fallback.")
         if pool_items:
             return pool_items[0] if isinstance(pool_items[0], dict) else None
         return None
     
-    # Pesos por raridade
     pesos_base = {"Comum": 40, "Incomum": 25, "Raro": 15, "Epico": 8, "Lendario": 3}
     pesos = []
     for item in disponiveis:
@@ -323,7 +315,6 @@ def sortear_ficha(pool_items: list, raridade_minima: str) -> Optional[dict]:
     return disponiveis[0] if disponiveis else None
 
 async def animar_roleta(msg: discord.Message, opcoes: list, resultado: dict, cor: int):
-    """Anima a roleta antes de mostrar o resultado"""
     if not opcoes or not resultado:
         return
     
@@ -347,7 +338,6 @@ async def animar_roleta(msg: discord.Message, opcoes: list, resultado: dict, cor
 # ─── COMANDO HOSPITAL ────────────────────────────────────────────
 
 async def cmd_hospital(interaction: discord.Interaction):
-    """Comando /hospital - Restaura HP e Mana"""
     await interaction.response.defer()
     
     p = await get_personagem(interaction.user.id)
@@ -419,7 +409,6 @@ async def cmd_hospital(interaction: discord.Interaction):
     v = discord.ui.View(timeout=60)
     v.add_item(sel)
     
-    # Botão de descanso grátis
     proximo_desc = await get_descanso(interaction.user.id)
     pode_descansar = proximo_desc is None
     
@@ -461,7 +450,6 @@ async def cmd_hospital(interaction: discord.Interaction):
 # ─── COMANDO GIRAR ───────────────────────────────────────────────
 
 async def cmd_girar(interaction: discord.Interaction):
-    """Comando /girar - Usa fichas de roleta"""
     await interaction.response.defer()
     
     p = await get_personagem(interaction.user.id)
@@ -515,172 +503,159 @@ async def cmd_girar(interaction: discord.Interaction):
             await inter.response.send_message("Nao e voce!", ephemeral=True)
             return
         
-        await inter.response.defer()
-        
-        key = sel.values[0]
-        info = giros.get(key)
-        if not info:
-            await inter.followup.send("Erro: Ficha não encontrada!", ephemeral=True)
-            return
-        
-        roleta = ROLETAS.get(info["roleta_id"])
-        raridade = info["raridade"]
-        
-        if not roleta:
-            await inter.followup.send("Erro: Roleta não encontrada!", ephemeral=True)
-            return
-        
-        # Remove o giro
-        await remover_giro(inter.user.id, info["roleta_id"], raridade)
-
-        # Busca personagem atualizado
-        p_girar = await get_personagem(inter.user.id)
-        if not p_girar:
-            await adicionar_giro(inter.user.id, info["roleta_id"], raridade, 1)
-            await inter.followup.send("Erro: Personagem não encontrado! Giro devolvido.", ephemeral=True)
-            return
-        
-        classe_id_g = p_girar.get("classe_id", "guerreiro")
-
-        # Busca itens já possuídos
-        pool_db2 = await get_pool()
-        async with pool_db2.acquire() as conn2:
-            if info["roleta_id"] == "skill":
-                rows_tem = await conn2.fetch("SELECT skill_id FROM skills_desbloqueadas WHERE user_id=$1", inter.user.id)
-                ids_ja_tem = {r["skill_id"] for r in rows_tem}
-            else:
-                rows_tem = await conn2.fetch(
-                    "SELECT item_id FROM inventario WHERE user_id=$1 AND tipo=$2",
-                    inter.user.id, info["roleta_id"]
-                )
-                ids_ja_tem = {r["item_id"] for r in rows_tem}
-
-        # Filtra a pool
-        if info["roleta_id"] in ("skill", "arma", "armadura"):
-            pool_filtrado = build_pool_filtrado(info["roleta_id"], classe_id_g, ids_ja_tem)
-        else:
-            pool_filtrado = roleta["pool"]
-
-        # Verifica se há itens disponíveis
-        if not pool_filtrado:
-            await adicionar_giro(inter.user.id, info["roleta_id"], raridade, 1)
-            await inter.followup.send(
-                f"⚠️ Você não pode usar esta ficha porque já possui todos os itens disponíveis!\n"
-                f"**{roleta['nome']} {raridade}** foi devolvida.\n\n"
-                f"Motivo: Você já possui todos os itens disponíveis desta categoria.",
-                ephemeral=True
-            )
-            return
-
-        # Sorteia o item
-        resultado = sortear_ficha(pool_filtrado, raridade)
-
-        # Verifica se o sorteio foi bem-sucedido
-        if resultado is None:
-            await adicionar_giro(inter.user.id, info["roleta_id"], raridade, 1)
-            await inter.followup.send(
-                f"❌ Erro ao sortear! Nenhum item disponível para esta roleta.\n"
-                f"**{roleta['nome']} {raridade}** foi devolvida.\n\n"
-                f"Por favor, reporte este erro a um administrador.",
-                ephemeral=True
-            )
-            return
-
-        # Anima a roleta
-        cor = COR_RAR.get(resultado.get("raridade", "Comum"), 0x888780)
-        msg_anim = await inter.followup.send(embed=discord.Embed(description="Girando...", color=0x888780), wait=True)
-        await animar_roleta(msg_anim, pool_filtrado, resultado, cor)
-        await asyncio.sleep(0.5)
-
-        # Aplica o resultado
-        aplicado = ""
-        pool_db = await get_pool()
-        
-        async with pool_db.acquire() as conn:
-            rid = info["roleta_id"]
+        async with get_user_lock(inter.user.id):
+            await inter.response.defer()
             
-            if rid == "skill":
-                await conn.execute(
-                    "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
-                    inter.user.id, resultado["id"]
-                )
-                aplicado = f"Skill **{resultado['nome']}** adicionada ao seu arsenal!"
-                
-            elif rid in ("arma", "armadura"):
-                tipo = resultado.get("tipo", rid)
-                ex = await conn.fetchrow(
-                    "SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2",
-                    inter.user.id, resultado["id"]
-                )
-                if ex:
-                    await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
+            key = sel.values[0]
+            info = giros.get(key)
+            if not info:
+                await inter.followup.send("Erro: Ficha não encontrada!", ephemeral=True)
+                return
+            
+            roleta = ROLETAS.get(info["roleta_id"])
+            raridade = info["raridade"]
+            
+            if not roleta:
+                await inter.followup.send("Erro: Roleta não encontrada!", ephemeral=True)
+                return
+
+            p_girar = await get_personagem(inter.user.id)
+            if not p_girar:
+                await inter.followup.send("Erro: Personagem não encontrado!", ephemeral=True)
+                return
+            
+            classe_id_g = p_girar.get("classe_id", "guerreiro")
+
+            pool_db2 = await get_pool()
+            async with pool_db2.acquire() as conn2:
+                if info["roleta_id"] == "skill":
+                    rows_tem = await conn2.fetch("SELECT skill_id FROM skills_desbloqueadas WHERE user_id=$1", inter.user.id)
+                    ids_ja_tem = {r["skill_id"] for r in rows_tem}
                 else:
-                    await conn.execute(
-                        "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
-                        inter.user.id, resultado["id"], resultado["nome"], tipo,
-                        resultado.get("raridade", "Comum"), resultado.get("emoji", "📦"), resultado.get("desc", "")
+                    rows_tem = await conn2.fetch(
+                        "SELECT item_id FROM inventario WHERE user_id=$1 AND tipo=$2",
+                        inter.user.id, info["roleta_id"]
                     )
-                aplicado = f"**{resultado['nome']}** adicionada ao inventario!"
-                
-            elif rid == "poder":
-                await conn.execute(
-                    "UPDATE personagens SET poder_id=$1, poder_valor=$2 WHERE user_id=$3",
-                    resultado["id"], resultado.get("valor", 10), inter.user.id
+                    ids_ja_tem = {r["item_id"] for r in rows_tem}
+
+            if info["roleta_id"] in ("skill", "arma", "armadura"):
+                pool_filtrado = build_pool_filtrado(info["roleta_id"], classe_id_g, ids_ja_tem)
+            else:
+                pool_filtrado = roleta["pool"]
+
+            if not pool_filtrado:
+                await inter.followup.send(
+                    f"⚠️ Você não pode usar esta ficha porque já possui todos os itens disponíveis!\n"
+                    f"**{roleta['nome']} {raridade}** não foi consumida.\n\n"
+                    f"Motivo: Você já possui todos os itens disponíveis desta categoria.",
+                    ephemeral=True
                 )
-                aplicado = f"Poder base alterado para **{resultado['nome']}** ({resultado.get('valor', '?')})!"
-                
-            elif rid == "raca":
-                await conn.execute(
-                    "UPDATE personagens SET raca_id=$1 WHERE user_id=$2",
-                    resultado["id"], inter.user.id
+                return
+
+            resultado = sortear_ficha(pool_filtrado, raridade)
+
+            if resultado is None:
+                await inter.followup.send(
+                    f"❌ Erro ao sortear! Nenhum item disponível para esta roleta.\n"
+                    f"**{roleta['nome']} {raridade}** não foi consumida.\n\n"
+                    f"Por favor, reporte este erro a um administrador.",
+                    ephemeral=True
                 )
+                return
+
+            await remover_giro(inter.user.id, info["roleta_id"], raridade)
+
+            cor = COR_RAR.get(resultado.get("raridade", "Comum"), 0x888780)
+            msg_anim = await inter.followup.send(embed=discord.Embed(description="Girando...", color=0x888780), wait=True)
+            await animar_roleta(msg_anim, pool_filtrado, resultado, cor)
+            await asyncio.sleep(0.5)
+
+            aplicado = ""
+            pool_db = await get_pool()
+            
+            async with pool_db.acquire() as conn:
+                rid = info["roleta_id"]
                 
-                # Atualiza cargo de raça
-                guild = inter.guild
-                if guild:
-                    member = guild.get_member(inter.user.id)
-                    if member:
-                        from racas import RACAS
-                        raca_obj = RACAS.get(resultado["id"])
-                        if raca_obj:
-                            for r in RACAS.values():
-                                cargo_old = discord.utils.get(guild.roles, name=r.get("cargos", ""))
-                                if cargo_old and cargo_old in member.roles:
+                if rid == "skill":
+                    await conn.execute(
+                        "INSERT INTO skills_desbloqueadas(user_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
+                        inter.user.id, resultado["id"]
+                    )
+                    aplicado = f"Skill **{resultado['nome']}** adicionada ao seu arsenal!"
+                    
+                elif rid in ("arma", "armadura"):
+                    tipo = resultado.get("tipo", rid)
+                    ex = await conn.fetchrow(
+                        "SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2",
+                        inter.user.id, resultado["id"]
+                    )
+                    if ex:
+                        await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
+                    else:
+                        await conn.execute(
+                            "INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                            inter.user.id, resultado["id"], resultado["nome"], tipo,
+                            resultado.get("raridade", "Comum"), resultado.get("emoji", "📦"), resultado.get("desc", "")
+                        )
+                    aplicado = f"**{resultado['nome']}** adicionada ao inventario!"
+                    
+                elif rid == "poder":
+                    await conn.execute(
+                        "UPDATE personagens SET poder_id=$1, poder_valor=$2 WHERE user_id=$3",
+                        resultado["id"], resultado.get("valor", 10), inter.user.id
+                    )
+                    aplicado = f"Poder base alterado para **{resultado['nome']}** ({resultado.get('valor', '?')})!"
+                    
+                elif rid == "raca":
+                    await conn.execute(
+                        "UPDATE personagens SET raca_id=$1 WHERE user_id=$2",
+                        resultado["id"], inter.user.id
+                    )
+                    
+                    guild = inter.guild
+                    if guild:
+                        member = guild.get_member(inter.user.id)
+                        if member:
+                            from racas import RACAS
+                            raca_obj = RACAS.get(resultado["id"])
+                            if raca_obj:
+                                for r in RACAS.values():
+                                    cargo_old = discord.utils.get(guild.roles, name=r.get("cargos", ""))
+                                    if cargo_old and cargo_old in member.roles:
+                                        try:
+                                            await member.remove_roles(cargo_old)
+                                        except:
+                                            pass
+                                cargo_new = discord.utils.get(guild.roles, name=raca_obj.get("cargos", ""))
+                                if cargo_new:
                                     try:
-                                        await member.remove_roles(cargo_old)
+                                        await member.add_roles(cargo_new)
                                     except:
                                         pass
-                            cargo_new = discord.utils.get(guild.roles, name=raca_obj.get("cargos", ""))
-                            if cargo_new:
-                                try:
-                                    await member.add_roles(cargo_new)
-                                except:
-                                    pass
-                
-                aplicado = f"Raça alterada para **{resultado['nome']}** ({resultado.get('raridade', '?')})! Passiva racial atualizada."
-                
-            elif rid == "classe":
-                await conn.execute(
-                    "UPDATE personagens SET classe_id=$1, raridade=$2 WHERE user_id=$3",
-                    resultado["id"], resultado.get("raridade", "Comum"), inter.user.id
-                )
-                aplicado = f"Classe alterada para **{resultado['nome']}** ({resultado.get('raridade', '?')})!"
+                    
+                    aplicado = f"Raça alterada para **{resultado['nome']}** ({resultado.get('raridade', '?')})! Passiva racial atualizada."
+                    
+                elif rid == "classe":
+                    await conn.execute(
+                        "UPDATE personagens SET classe_id=$1, raridade=$2 WHERE user_id=$3",
+                        resultado["id"], resultado.get("raridade", "Comum"), inter.user.id
+                    )
+                    aplicado = f"Classe alterada para **{resultado['nome']}** ({resultado.get('raridade', '?')})!"
 
-        # Mostra resultado final
-        giros_rest = await get_giros(inter.user.id)
-        total_rest = sum(v["quantidade"] for v in giros_rest.values())
-        fe = EMOJI_FICHA.get(raridade, "⬜")
-        desc_item = resultado.get("desc", "")
-        valor_txt = f" (Poder {resultado['valor']})" if "valor" in resultado else ""
-        desc_txt = f"\n*{desc_item}*" if desc_item else ""
-        
-        await msg_anim.edit(
-            embed=discord.Embed(
-                title=f"Resultado — Ficha {fe} {raridade}",
-                description=f"{resultado.get('emoji', '🎰')} **{resultado.get('nome', '???')}**{valor_txt}\nRaridade: **{resultado.get('raridade', '?')}**{desc_txt}\n\n{aplicado}\n\nGiros restantes: **{total_rest}**",
-                color=cor
+            giros_rest = await get_giros(inter.user.id)
+            total_rest = sum(v["quantidade"] for v in giros_rest.values())
+            fe = EMOJI_FICHA.get(raridade, "⬜")
+            desc_item = resultado.get("desc", "")
+            valor_txt = f" (Poder {resultado['valor']})" if "valor" in resultado else ""
+            desc_txt = f"\n*{desc_item}*" if desc_item else ""
+            
+            await msg_anim.edit(
+                embed=discord.Embed(
+                    title=f"Resultado — Ficha {fe} {raridade}",
+                    description=f"{resultado.get('emoji', '🎰')} **{resultado.get('nome', '???')}**{valor_txt}\nRaridade: **{resultado.get('raridade', '?')}**{desc_txt}\n\n{aplicado}\n\nGiros restantes: **{total_rest}**",
+                    color=cor
+                )
             )
-        )
 
     sel.callback = girar
     
@@ -694,7 +669,6 @@ async def cmd_girar(interaction: discord.Interaction):
 # ─── COMANDO ADMIN SET GIROS ─────────────────────────────────────
 
 async def cmd_set_giros(interaction: discord.Interaction, jogador: discord.Member):
-    """Comando /set-giros - Admin: Adiciona giros a um jogador"""
     await interaction.response.defer(ephemeral=True)
     
     pool_db = await get_pool()
