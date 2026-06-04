@@ -30,9 +30,16 @@ PCT_VENDA = {
 }
 
 def calcular_preco_venda(raridade):
-    base = PRECO_BASE.get(raridade, 80)
-    pct  = PCT_VENDA.get(raridade, 0.50)
-    return int(base * pct)
+    """Calcula preço de venda baseado na raridade (metade do valor de compra)"""
+    PRECO_BASE = {
+        "Comum": 50,
+        "Incomum": 150,
+        "Raro": 400,
+        "Epico": 1000,
+        "Lendario": 2500,
+    }
+    base = PRECO_BASE.get(raridade, 50)
+    return base // 2  # Vende por metade do preço de compra
 
 # ─── ITENS EXCLUSIVOS DO MERCADOR ────────────────────────────────
 # (id, nome, emoji, desc, efeito, valor_efeito, rank_min, custo_itens)
