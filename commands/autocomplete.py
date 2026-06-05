@@ -1,7 +1,85 @@
 # commands/autocomplete.py — Funções de autocomplete para comandos
 
+import discord
 from discord import app_commands
-from catalogo import get_catalogo_completo, get_itens_por_categoria
+
+from data.armas import ARMAS_POR_CLASSE
+from data.armaduras import ARMADURAS_POR_CLASSE
+from data.itens import POCOES_CAT, MATERIAIS_CAT
+from data.constantes import RARIDADES
+
+
+def get_catalogo_completo():
+    """Retorna todos os itens do catálogo (armas, armaduras, poções, materiais)"""
+    todos = []
+    
+    # Armas
+    for cls, armas in ARMAS_POR_CLASSE.items():
+        for a in armas:
+            todos.append({
+                "chave": f"arma:{cls}:{a['id']}",
+                "id": a["id"], "nome": a["nome"],
+                "emoji": a.get("emoji", "⚔️"), "tipo": "arma",
+                "raridade": a["raridade"], "classe": cls,
+                "desc": a.get("desc", ""), "preco": a.get("preco", 0), "venda": a.get("venda", 0)
+            })
+    
+    # Armaduras
+    for cls, arms in ARMADURAS_POR_CLASSE.items():
+        for a in arms:
+            todos.append({
+                "chave": f"armadura:{cls}:{a['id']}",
+                "id": a["id"], "nome": a["nome"],
+                "emoji": a.get("emoji", "🛡️"), "tipo": "armadura",
+                "raridade": a["raridade"], "classe": cls,
+                "desc": a.get("desc", ""), "preco": a.get("preco", 0), "venda": a.get("venda", 0)
+            })
+    
+    # Poções
+    for p in POCOES_CAT:
+        todos.append({
+            **p, "chave": f"pocao::{p['id']}", "classe": "", 
+            "preco": p.get("preco", 0), "venda": p.get("venda", 0)
+        })
+    
+    # Materiais
+    for m in MATERIAIS_CAT:
+        todos.append({
+            **m, "chave": f"material::{m['id']}", "classe": "", 
+            "preco": m.get("preco", 0), "venda": m.get("venda", 0)
+        })
+    
+    return todos
+
+
+def get_item_por_chave(chave: str):
+    for it in get_catalogo_completo():
+        if it["chave"] == chave:
+            return it
+    return None
+
+
+def get_itens_por_categoria(categoria: str):
+    todos = get_catalogo_completo()
+    cat_map = {
+        "pocoes": [i for i in todos if i["tipo"] == "pocao"],
+        "arma_guerreiro": [i for i in todos if i["tipo"] == "arma" and i["classe"] == "guerreiro"],
+        "arma_arqueiro": [i for i in todos if i["tipo"] == "arma" and i["classe"] == "arqueiro"],
+        "arma_mago": [i for i in todos if i["tipo"] == "arma" and i["classe"] == "mago"],
+        "arma_paladino": [i for i in todos if i["tipo"] == "arma" and i["classe"] == "paladino"],
+        "arma_necromante": [i for i in todos if i["tipo"] == "arma" and i["classe"] == "necromante"],
+        "arma_dracomante": [i for i in todos if i["tipo"] == "arma" and i["classe"] == "dracomante"],
+        "arma_arcano": [i for i in todos if i["tipo"] == "arma" and i["classe"] == "arcano"],
+        "arm_guerreiro": [i for i in todos if i["tipo"] == "armadura" and i["classe"] == "guerreiro"],
+        "arm_arqueiro": [i for i in todos if i["tipo"] == "armadura" and i["classe"] == "arqueiro"],
+        "arm_mago": [i for i in todos if i["tipo"] == "armadura" and i["classe"] == "mago"],
+        "arm_paladino": [i for i in todos if i["tipo"] == "armadura" and i["classe"] == "paladino"],
+        "arm_necromante": [i for i in todos if i["tipo"] == "armadura" and i["classe"] == "necromante"],
+        "arm_dracomante": [i for i in todos if i["tipo"] == "armadura" and i["classe"] == "dracomante"],
+        "arm_arcano": [i for i in todos if i["tipo"] == "armadura" and i["classe"] == "arcano"],
+        "materiais": [i for i in todos if i["tipo"] == "material"],
+    }
+    return cat_map.get(categoria, todos)
 
 
 async def autocomplete_item_categoria(interaction: discord.Interaction, current: str):
@@ -77,3 +155,18 @@ async def autocomplete_item_premio(interaction: discord.Interaction, current: st
         return [app_commands.Choice(name=f"{EMOJI_CLS[cl]} {cl.title()}", value=cl) for cl in classes if current.lower() in cl]
     
     return [app_commands.Choice(name=current or "Digite o valor do prêmio", value=current or "")]
+
+
+async def autocomplete_canal(interaction: discord.Interaction, current: str):
+    if not interaction.guild:
+        return []
+    canais = [
+        ch for ch in interaction.guild.channels
+        if isinstance(ch, (discord.TextChannel, discord.ForumChannel))
+        and (not current or current.lower() in ch.name.lower())
+    ]
+    canais.sort(key=lambda ch: ch.name)
+    return [
+        app_commands.Choice(name=f"#{ch.name}", value=str(ch.id))
+        for ch in canais[:25]
+    ]
