@@ -19,7 +19,7 @@ async def init_db_sorteios():
                 id SERIAL PRIMARY KEY,
                 guild_id BIGINT NOT NULL,
                 canal_id BIGINT NOT NULL,
-                mensagem_id BIGINT NOT NULL,
+                mensagem_id BIGINT DEFAULT 0,
                 criador_id BIGINT NOT NULL,
                 titulo TEXT NOT NULL,
                 descricao TEXT DEFAULT '',
@@ -404,7 +404,6 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
         except:
             horas = 24
         
-        # CORREÇÃO: data sem timezone para compatibilidade com PostgreSQL
         data_encerramento = datetime.now() + timedelta(hours=horas)
         
         pool = await get_pool()
@@ -458,13 +457,14 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
         
         embed.set_footer(text=f"Sorteio #{sorteio['id']} • Boa sorte!")
         
+        # CORREÇÃO: Usar self.sorteio_id dentro da classe
         class SorteioView(discord.ui.View):
-            def __init__(self, sorteio_id: int, canal_id: int):
+            def __init__(self, s_id: int, c_id: int):
                 super().__init__(timeout=None)
-                self.sorteio_id = sorteio_id
-                self.canal_id = canal_id
+                self.sorteio_id = s_id
+                self.canal_id = c_id
             
-            @discord.ui.button(label="🎟 Participar", style=discord.ButtonStyle.success, custom_id=f"sorteio_participar_{sorteio_id}")
+            @discord.ui.button(label="🎟 Participar", style=discord.ButtonStyle.success, custom_id=f"sorteio_participar_{self.sorteio_id}")
             async def participar(self, inter: discord.Interaction, button):
                 await cmd_sorteio_participar(inter, self.sorteio_id, self.canal_id)
         
@@ -473,7 +473,8 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
             await interaction.followup.send("❌ Canal não encontrado!", ephemeral=True)
             return
         
-        msg = await canal.send(embed=embed, view=SorteioView(sorteio["id"], self.canal_id))
+        view = SorteioView(sorteio["id"], self.canal_id)
+        msg = await canal.send(embed=embed, view=view)
         
         async with pool.acquire() as conn:
             await conn.execute("UPDATE sorteios SET mensagem_id = $1 WHERE id = $2", msg.id, sorteio["id"])
@@ -503,7 +504,6 @@ async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
     
     # Verifica se já passou da data de encerramento
     if sorteio["data_encerramento"] and datetime.now() < sorteio["data_encerramento"]:
-        # Ainda não encerrou, não fazer nada
         return
     
     vencedores, participantes = await finalizar_sorteio(sorteio_id, guild, sorteio["canal_id"], sorteio["mensagem_id"], False)
@@ -622,13 +622,11 @@ async def autocomplete_item_sorteio(interaction: discord.Interaction, current: s
     
     todos_itens = get_todos_itens_para_sorteio()
     
-    # Filtra pela busca
     if current:
         filtrado = [i for i in todos_itens if current.lower() in i["nome"].lower()]
     else:
         filtrado = todos_itens[:25]
     
-    # Ordena por categoria
     filtrado.sort(key=lambda x: (x.get("categoria", "Outros"), x["nome"]))
     
     return [
@@ -652,7 +650,7 @@ async def autocomplete_sorteio_ativo(interaction: discord.Interaction, current: 
     ][:25]
 
 # ==================================================
-# COMANDOS
+# COMANDOS PRINCIPAIS
 # ==================================================
 
 async def cmd_sorteio_criar(interaction: discord.Interaction, canal: str, item: str, quantidade: int):
@@ -753,7 +751,6 @@ async def cmd_sorteio_info(interaction: discord.Interaction, sorteio_id: int):
         "cancelado": "❌ CANCELADO"
     }.get(sorteio["status"], "❓ DESCONHECIDO")
     
-    # Define texto da recompensa
     if sorteio["item_id"].startswith("moedas_"):
         qtd = sorteio["item_id"].split("_")[1]
         texto_recompensa = f"🪙 {qtd} Moedas"
@@ -843,6 +840,10 @@ async def reagendar_sorteios_pendentes():
             WHERE status = 'ativo' AND data_encerramento <= NOW()
         """)
         return [exp["id"] for exp in expirados]
+
+# ==================================================
+# REGISTRO DOS COMANDOS
+# ==================================================
 
 def register_sorteio_commands(bot):
     @bot.tree.command(name="sorteio_criar", description="[ADMIN] Cria um novo sorteio")
