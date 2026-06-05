@@ -86,7 +86,7 @@ PARTY_NIVEIS = {
     1: {"xp_needed": 0, "bonus_xp": 0, "bonus_moedas": 0, "max_membros": 5, "titulo": "Recruta", "cor": COR_DARK},
     2: {"xp_needed": 500, "bonus_xp": 2, "bonus_moedas": 0, "max_membros": 5, "titulo": "Grupo", "cor": COR_INFO},
     3: {"xp_needed": 1500, "bonus_xp": 4, "bonus_moedas": 2, "max_membros": 6, "titulo": "Esquadrão", "cor": COR_INFO},
-    4: {"xp_needed": 3500, "bonus_xp": 6, "bonus_moedas": 4, "max_membros": 6, "titulo": "Companhia", "cor": COR_WARNING},
+    4: {"xp_needed": 3500, "bonus_xp": 6, "bonus_moedas": 4, "max_membros": 6, "titulo": "Companhia", "cor": COR_WARNING},            
     5: {"xp_needed": 7000, "bonus_xp": 8, "bonus_moedas": 6, "max_membros": 7, "titulo": "Batalhão", "cor": COR_WARNING},
     6: {"xp_needed": 12000, "bonus_xp": 10, "bonus_moedas": 8, "max_membros": 7, "titulo": "Regimento", "cor": COR_GOLD},
     7: {"xp_needed": 18000, "bonus_xp": 12, "bonus_moedas": 10, "max_membros": 8, "titulo": "Legião", "cor": COR_GOLD},
