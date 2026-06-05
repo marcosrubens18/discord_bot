@@ -38,6 +38,7 @@ from dungeon_evento import (DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_fechar, init_db_dungeon_evento)
 from mercado import cmd_mercador, cmd_mercado_vender
 from racas import RACAS, RACAS_BASICAS, get_raca, PassivaRacial, COR_RAR_RACA
+from sorteios import register_sorteio_commands, init_db_sorteios
 
 # ─── PARTY ────────────────────────────────────────────────────────
 from party import register_party_commands, init_db_party
@@ -1580,6 +1581,7 @@ async def ajuda(interaction: discord.Interaction):
 # ─── REGISTRO DOS COMANDOS ────────────────────────────────────────
 register_passe_commands(bot)
 register_arena_commands(bot)
+register_sorteio_commands(bot)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
@@ -1624,6 +1626,7 @@ async def on_ready():
         await init_db_party()
         await init_db_passe()
         await init_db_arena()
+        await init_db_sorteios()
         print("DB OK!")
     except Exception as e:
         print(f"ERRO DB: {e}")
