@@ -121,6 +121,16 @@ ARMAS_POR_CLASSE = {
         {"id":"cetro_lich",      "nome":"Cetro do Lich",    "emoji":"💀","raridade":"Epico","atk_bonus":32, "preco":1600,"venda":800, "desc":"+30% dano necrotico."},
         {"id":"cajado_sombra_l", "nome":"Cajado das Trevas","emoji":"💀","raridade":"Lendario","atk_bonus":47, "preco":10000,"venda":5000,"desc":"Artefato das trevas."},
     ],
+    "dracomante": [
+        {"id":"garra_dragao",    "nome":"Garra de Dragao",   "emoji":"🐉","raridade":"Lendario","atk_bonus":35, "preco":8000, "venda":4000, "desc":"Arma lendaria de dragao."},
+        {"id":"espada_dragao",   "nome":"Espada do Dragao",  "emoji":"⚔️","raridade":"Lendario","atk_bonus":38, "preco":9000, "venda":4500, "desc":"Flamejante eternamente."},
+        {"id":"cajado_dragao",   "nome":"Cajado do Dragao",  "emoji":"🪄","raridade":"Lendario","atk_bonus":42, "preco":9500, "venda":4750, "desc":"Poder draconico."},
+    ],
+    "arcano": [
+        {"id":"orbe_arcano",     "nome":"Orbe Arcano",       "emoji":"🔮","raridade":"Epico","atk_bonus":30, "preco":1700, "venda":850, "desc":"Magia +25."},
+        {"id":"cajado_vazio",    "nome":"Cajado do Vazio",   "emoji":"🪄","raridade":"Epico","atk_bonus":26, "preco":1400, "venda":700, "desc":"Ignora resistencias."},
+        {"id":"cajado_lendario", "nome":"Cajado do Arquimago","emoji":"🪄","raridade":"Lendario","atk_bonus":48, "preco":10000,"venda":5000,"desc":"Cajado lendario."},
+    ],
 }
 
 # ─── ARMADURAS POR CLASSE ─────────────────────────────────────────
@@ -137,6 +147,36 @@ ARMADURAS_POR_CLASSE = {
         {"id":"armadura_cavaleiro","nome":"Armadura do Cavaleiro","emoji":"⚙️","raridade":"Epico","def_bonus":32,"preco":1500,"venda":750,"desc":"Armadura lendaria."},
         {"id":"armadura_titan",  "nome":"Armadura do Titan","emoji":"🗿","raridade":"Epico","def_bonus":38, "preco":2500,"venda":1250,"desc":"+20% HP max."},
         {"id":"armadura_heroi",  "nome":"Armadura do Heroi","emoji":"⚙️","raridade":"Lendario","def_bonus":55, "preco":10000,"venda":5000,"desc":"Armadura definitiva."},
+    ],
+    "arqueiro": [
+        {"id":"armadura_couro",  "nome":"Armadura de Couro","emoji":"🥋","raridade":"Comum","def_bonus":5,  "preco":50,  "venda":25,  "desc":"Armadura inicial."},
+        {"id":"cota_malha_g",    "nome":"Cota de Malha",    "emoji":"🛡️","raridade":"Comum","def_bonus":8,  "preco":150, "venda":75,  "desc":"Malha de ferro."},
+        {"id":"armadura_escamas","nome":"Armadura de Escamas","emoji":"🐉","raridade":"Raro","def_bonus":18, "preco":800, "venda":400, "desc":"Escamas leves."},
+    ],
+    "mago": [
+        {"id":"armadura_couro",  "nome":"Armadura de Couro","emoji":"🥋","raridade":"Comum","def_bonus":5,  "preco":50,  "venda":25,  "desc":"Armadura inicial."},
+        {"id":"manto_mago",      "nome":"Manto do Mago",    "emoji":"🧥","raridade":"Incomum","def_bonus":6,  "preco":200, "venda":100, "desc":"+10 mana."},
+        {"id":"tunica_arcana",   "nome":"Tunica Arcana",    "emoji":"👘","raridade":"Raro","def_bonus":10, "preco":600, "venda":300, "desc":"+20 mana."},
+    ],
+    "paladino": [
+        {"id":"armadura_plena",  "nome":"Armadura Plena",   "emoji":"⚙️","raridade":"Raro","def_bonus":20, "preco":900, "venda":450, "desc":"Cobertura total."},
+        {"id":"armadura_escama", "nome":"Armadura de Escama","emoji":"🐉","raridade":"Epico","def_bonus":28, "preco":1800,"venda":900, "desc":"Escamas de dragao."},
+        {"id":"armadura_titan",  "nome":"Armadura do Titan","emoji":"🗿","raridade":"Lendario","def_bonus":45, "preco":10000,"venda":5000,"desc":"Protecao maxima."},
+    ],
+    "necromante": [
+        {"id":"armadura_couro",  "nome":"Armadura de Couro","emoji":"🥋","raridade":"Comum","def_bonus":5,  "preco":50,  "venda":25,  "desc":"Armadura inicial."},
+        {"id":"capa_vampiro",    "nome":"Capa do Vampiro",  "emoji":"🧛","raridade":"Raro","def_bonus":12, "preco":700, "venda":350, "desc":"Drena 5% HP ao atacar."},
+        {"id":"armadura_ossos",  "nome":"Armadura de Ossos","emoji":"💀","raridade":"Epico","def_bonus":20, "preco":1500,"venda":750, "desc":"Defesa osssea."},
+    ],
+    "dracomante": [
+        {"id":"armadura_escama", "nome":"Armadura de Escama","emoji":"🐉","raridade":"Epico","def_bonus":28, "preco":1800,"venda":900, "desc":"Escamas de dragao."},
+        {"id":"elmo_dragao",     "nome":"Elmo do Dragao",   "emoji":"🪖","raridade":"Lendario","def_bonus":35, "preco":5000,"venda":2500, "desc":"Protecao draconica."},
+        {"id":"armadura_dragao", "nome":"Armadura do Dragao","emoji":"🐉","raridade":"Lendario","def_bonus":50, "preco":12000,"venda":6000, "desc":"Armadura definitiva."},
+    ],
+    "arcano": [
+        {"id":"armadura_couro",  "nome":"Armadura de Couro","emoji":"🥋","raridade":"Comum","def_bonus":5,  "preco":50,  "venda":25,  "desc":"Armadura inicial."},
+        {"id":"cota_malha_g",    "nome":"Cota de Malha",    "emoji":"🛡️","raridade":"Comum","def_bonus":8,  "preco":150, "venda":75,  "desc":"Malha de ferro."},
+        {"id":"tunica_arcana",   "nome":"Tunica Arcana",    "emoji":"👘","raridade":"Raro","def_bonus":10, "preco":600, "venda":300, "desc":"+20 mana."},
     ],
 }
 
@@ -180,14 +220,41 @@ def get_ids_armaduras_classe(classe_id):
     return {a["id"] for a in ARMADURAS_POR_CLASSE.get(classe_id, [])}
 
 def get_skills_classe(classe_id):
-    from catalogo import SKILLS_COMPLETAS
-    return SKILLS_COMPLETAS.get(classe_id, [])
+    """Retorna skills da classe - importação segura sem circular"""
+    from skills_sistema import SKILLS
+    skills_da_classe = []
+    for sid, skill in SKILLS.items():
+        if skill.get("classe") == classe_id:
+            skills_da_classe.append({
+                "id": sid,
+                "nome": skill["nome"],
+                "nivel": skill["nivel"],
+                "emoji": skill["emoji"],
+                "mana": skill.get("mana", 0),
+                "dano": skill.get("dano_mult", 1.0),
+                "desc": skill.get("desc", ""),
+                "efeito": skill.get("efeito"),
+            })
+    return sorted(skills_da_classe, key=lambda x: x["nivel"])
 
 def get_skill_by_id(skill_id):
-    for classe, skills in SKILLS_COMPLETAS.items():
-        for sk in skills:
-            if sk["id"] == skill_id:
-                return dict(sk, classe_origem=classe)
+    """Retorna uma skill pelo ID - importação segura sem circular"""
+    from skills_sistema import SKILLS
+    skill = SKILLS.get(skill_id)
+    if skill:
+        return {
+            "id": skill_id,
+            "nome": skill["nome"],
+            "classe": skill.get("classe", "suporte"),
+            "nivel": skill["nivel"],
+            "raridade": skill.get("raridade", "Comum"),
+            "emoji": skill["emoji"],
+            "mana": skill.get("mana", 0),
+            "dano": skill.get("dano_mult", 1.0),
+            "desc": skill.get("desc", ""),
+            "efeito": skill.get("efeito"),
+            "hits": skill.get("hits", 1),
+        }
     return None
 
 def get_bonus_arma(item_id, classe_id):
@@ -269,33 +336,40 @@ def get_itens_por_categoria(categoria: str):
     }
     return cat_map.get(categoria, todos)
 
-# ─── SKILLS COMPLETAS ────────────────────────────────────────────
+# ─── SKILLS_COMPLETAS (para compatibilidade com batalha.py) ───────
+# Nota: O sistema real de skills está em skills_sistema.py
+# Esta é uma versão simplificada para compatibilidade
 
 SKILLS_COMPLETAS = {
-    "guerreiro": [
-        {"id":"golpe_basico",  "nome":"Golpe Basico",  "nivel":1,  "emoji":"⚔️","dano":1.2,"mana":0, "desc":"Ataque fisico direto.", "efeito":None},
-        {"id":"escudo",        "nome":"Postura de Escudo","nivel":3,"emoji":"🛡️","dano":0,  "mana":8, "desc":"Reduz 50% do dano recebido.", "efeito":"defesa"},
-        {"id":"golpe_brutal",  "nome":"Golpe Brutal",   "nivel":8, "emoji":"💥","dano":2.2,"mana":18,"desc":"Golpe devastador.", "efeito":None},
-        {"id":"investida",     "nome":"Investida",       "nivel":12,"emoji":"🏃","dano":1.4,"mana":15,"desc":"30% chance atordoar.", "efeito":"atordoar"},
-        {"id":"grito_guerra",  "nome":"Grito de Guerra", "nivel":16,"emoji":"😤","dano":0,  "mana":22,"desc":"+35% de ataque por 3 turnos.", "efeito":"buff_ataque"},
-        {"id":"lamina_girat",  "nome":"Lamina Giratoria","nivel":20,"emoji":"🌀","dano":1.8,"mana":28,"desc":"2 golpes consecutivos.", "efeito":"hits2"},
-        {"id":"escudo_aco",    "nome":"Escudo de Aco",   "nivel":28,"emoji":"🪨","dano":0,  "mana":35,"desc":"Escudo impenetravel por 2 turnos.", "efeito":"escudo_total"},
-        {"id":"furia",         "nome":"Furia Berserker", "nivel":35,"emoji":"🔥","dano":1.5,"mana":40,"desc":"+60% ATK, regenera vida.", "efeito":"berserker"},
-        {"id":"golpe_final",   "nome":"Golpe Final",     "nivel":45,"emoji":"💢","dano":3.5,"mana":50,"desc":"Ignora 50% defesa.", "efeito":None},
-        {"id":"lendario_atk",  "nome":"Golpe Lendario",  "nivel":70,"emoji":"⚡","dano":5.0,"mana":80,"desc":"Golpe lendario.", "efeito":None},
-    ],
-    "mago": [
-        {"id":"bola_fogo",     "nome":"Bola de Fogo",   "nivel":1, "emoji":"🔥","dano":1.3,"mana":12,"desc":"25% chance queimadura.", "efeito":"queimadura"},
-        {"id":"missil_arcano", "nome":"Missil Arcano",  "nivel":3, "emoji":"✨","dano":1.1,"mana":8, "desc":"3 misseis.", "efeito":"hits3"},
-        {"id":"escudo_arcano", "nome":"Escudo Arcano",  "nivel":6, "emoji":"💜","dano":0,  "mana":20,"desc":"Absorve proximo ataque.", "efeito":"escudo"},
-        {"id":"raio_congelante","nome":"Raio Congelante","nivel":10,"emoji":"❄️","dano":1.5,"mana":22,"desc":"40% chance congelar.", "efeito":"congelar"},
-        {"id":"tempestade",    "nome":"Tempestade",     "nivel":16,"emoji":"⚡","dano":1.7,"mana":35,"desc":"35% chance paralisar.", "efeito":"paralisia"},
-        {"id":"meteor",        "nome":"Meteoro",         "nivel":24,"emoji":"☄️","dano":2.8,"mana":45,"desc":"Dano massivo.", "efeito":None},
-        {"id":"campo_forca",   "nome":"Campo de Forca", "nivel":28,"emoji":"🔮","dano":0,  "mana":30,"desc":"Reflete 40% do dano.", "efeito":"reflexo"},
-        {"id":"sobrecarga",    "nome":"Sobrecarga",      "nivel":35,"emoji":"🌟","dano":3.5,"mana":60,"desc":"Dano devastador.", "efeito":"sobrecarga"},
-        {"id":"chuva_meteoros","nome":"Chuva de Meteoros","nivel":50,"emoji":"💥","dano":4.0,"mana":70,"desc":"Multiplos meteoros.", "efeito":"hits3"},
-        {"id":"singularidade_m","nome":"Singularidade",  "nivel":70,"emoji":"🌌","dano":7.0,"mana":100,"desc":"Dano absoluto.", "efeito":None},
-    ],
+    "guerreiro": [],
+    "mago": [],
+    "arqueiro": [],
+    "paladino": [],
+    "necromante": [],
+    "dracomante": [],
+    "arcano": [],
 }
 
-# ─── CONTINUAÇÃO PARA OUTRAS CLASSES (adicione conforme necessário) ───
+# Preenche SKILLS_COMPLETAS a partir do skills_sistema.py
+def _carregar_skills_completas():
+    from skills_sistema import SKILLS
+    for sid, skill in SKILLS.items():
+        classe = skill.get("classe")
+        if classe and classe != "suporte":
+            if classe not in SKILLS_COMPLETAS:
+                SKILLS_COMPLETAS[classe] = []
+            SKILLS_COMPLETAS[classe].append({
+                "id": sid,
+                "nome": skill["nome"],
+                "nivel": skill["nivel"],
+                "emoji": skill["emoji"],
+                "mana": skill.get("mana", 0),
+                "dano": skill.get("dano_mult", 1.0),
+                "desc": skill.get("desc", ""),
+                "efeito": skill.get("efeito"),
+            })
+    # Ordena por nível
+    for classe in SKILLS_COMPLETAS:
+        SKILLS_COMPLETAS[classe] = sorted(SKILLS_COMPLETAS[classe], key=lambda x: x["nivel"])
+
+_carregar_skills_completas()
