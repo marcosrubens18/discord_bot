@@ -1,4 +1,4 @@
-discord.py
-asyncpg
-aiohttp
-google-genai
+discord.py>=2.3.0
+aiohttp>=3.9.0
+asyncg>=1.0.0
+google-genai>=0.3.0
