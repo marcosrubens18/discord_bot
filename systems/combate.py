@@ -1,4 +1,4 @@
-# systems/combate.py — Sistema de combate completo (PVE + PVP)
+# systems/combate.py — Sistema de combate completo (PVE + PVP + Passivas Raciais)
 
 import discord
 import asyncio
@@ -17,6 +17,7 @@ from data.armas import get_bonus_arma
 from data.armaduras import get_bonus_armadura
 from data.monstros import MONSTROS
 from data.ranks import get_rank, RANK_BONUS
+from data.racas import get_raca, RACAS
 from utils.calculos import calc_dano, barra_hp, calcular_mana_max
 from utils.helpers import atualizar_todos_cargos
 from utils.cooldown import cooldown_manager
@@ -189,6 +190,164 @@ class Passiva:
 
 
 # ==================================================
+# PASSIVA RACIAL (importada do racas.py)
+# ==================================================
+
+class PassivaRacial:
+    def __init__(self, raca_id: str):
+        self.raca_id = raca_id
+        self.turno = 0
+        self.ressuscitou = False  # anjo
+        self.escudo_anjo = 0      # anjo
+        self.bonus_demonio = 0.0  # demonio
+        self.transformado = False  # licantropo
+
+    def inicio_turno(self, hp_j: int, hp_jmx: int) -> Tuple[int, bool]:
+        """Retorna (cura_passiva, escudo_ativo)"""
+        self.turno += 1
+        cura = 0
+        escudo = False
+
+        # Elfo da Floresta — regenera 4% HP/turno
+        if self.raca_id == "elfo_floresta":
+            cura = max(1, int(hp_jmx * 0.04))
+
+        # Demônio — acumula +5% dano por turno (cap 50%)
+        if self.raca_id == "demonio":
+            if self.turno <= 10:
+                self.bonus_demonio = min(0.50, self.bonus_demonio + 0.05)
+
+        # Anjo — escudo a cada 5 turnos
+        if self.raca_id == "anjo":
+            if self.turno % 5 == 0:
+                escudo = True
+
+        # Licantropo — transforma se HP < 60%
+        if self.raca_id == "licantropo":
+            self.transformado = (hp_j / max(1, hp_jmx)) < 0.60
+
+        return cura, escudo
+
+    def multiplicador_dano(self) -> float:
+        """Multiplicador adicional de dano racial"""
+        if self.raca_id == "demonio":
+            return 1.0 + self.bonus_demonio
+        if self.raca_id == "licantropo" and self.transformado:
+            return 1.30
+        if self.raca_id == "draconiano":
+            return 1.10
+        return 1.0
+
+    def reducao_dano(self) -> float:
+        """Redução de dano recebido"""
+        if self.raca_id == "draconiano":
+            return 0.12
+        if self.raca_id == "anao":
+            return 0.05
+        return 0.0
+
+    def bonus_defesa_fixa(self) -> int:
+        """Bônus fixo de DEF"""
+        if self.raca_id == "anao":
+            return 5
+        return 0
+
+    def bonus_critico(self) -> float:
+        """Chance extra de crítico"""
+        if self.raca_id == "elfo":
+            return 0.15
+        return 0.0
+
+    def bonus_mana_max(self) -> int:
+        """Bônus de mana máxima"""
+        if self.raca_id == "elfo":
+            return 20
+        return 0
+
+    def bonus_xp(self) -> float:
+        """Multiplicador de XP ganho"""
+        if self.raca_id == "humano":
+            return 0.10
+        return 0.0
+
+    def bonus_moedas(self) -> float:
+        """Multiplicador de moedas ganhas"""
+        if self.raca_id == "humano":
+            return 0.05
+        return 0.0
+
+    def imune_status(self, status: str) -> bool:
+        """Verifica se é imune a um status"""
+        imunidades = {
+            "demonio":    ["veneno", "queimadura", "congelar"],
+            "draconiano": ["queimadura"],
+            "morto_vivo": ["veneno", "congelar", "queimadura", "atordoar"],
+            "licantropo": ["veneno"] if self.transformado else [],
+        }
+        return status in imunidades.get(self.raca_id, [])
+
+    def resist_atordoar(self) -> float:
+        """Chance de resistir a atordoamento (Anão)"""
+        if self.raca_id == "anao":
+            return 0.50
+        return 0.0
+
+    def apos_tomar_dano(self, dano: int, hp_j: int, hp_jmx: int, atk_inimigo: int) -> Tuple[int, int]:
+        """Retorna (contra_ataque_dano, dreno_hp)"""
+        contra = 0
+        dreno = 0
+
+        # Elfo Sombrio — 30% contra-ataque
+        if self.raca_id == "elfo_sombrio" and random.random() < 0.30:
+            contra = max(5, int(atk_inimigo * 0.40))
+
+        # Morto-Vivo — drena 6% do HP ao atacar
+        if self.raca_id == "morto_vivo":
+            dreno = max(1, int(hp_jmx * 0.06))
+
+        return contra, dreno
+
+    def congelar_ao_atacar(self) -> bool:
+        """Gigante do Gelo — 35% chance de congelar"""
+        if self.raca_id == "gigante_gelo":
+            return random.random() < 0.35
+        return False
+
+    def ignorar_defesa(self) -> float:
+        """Djinn — ignora 20% da defesa"""
+        if self.raca_id == "djinn":
+            return 0.20
+        return 0.0
+
+    def tentar_ressuscitar(self, hp_j: int) -> bool:
+        """Anjo — ressurreição única"""
+        if self.raca_id == "anjo" and hp_j <= 0 and not self.ressuscitou:
+            self.ressuscitou = True
+            return True
+        return False
+
+    def modificar_dano_recebido(self, dano: int) -> Tuple[int, str]:
+        """Aplica redução de dano e retorna (dano_final, mensagem)"""
+        reducao = self.reducao_dano()
+        if reducao > 0:
+            dano_final = max(1, int(dano * (1 - reducao)))
+            return dano_final, f"🛡️ Redução de dano: -{int(reducao*100)}%"
+        return dano, ""
+
+    def desc_passiva(self) -> str:
+        raca = get_raca(self.raca_id)
+        desc = raca.get("passiva_desc", "")
+        extras = []
+        if self.raca_id == "demonio" and self.bonus_demonio > 0:
+            extras.append(f"+{int(self.bonus_demonio*100)}% dano acumulado")
+        if self.raca_id == "licantropo" and self.transformado:
+            extras.append("🐺 TRANSFORMADO")
+        if extras:
+            desc += f" | {' | '.join(extras)}"
+        return f"{raca['emoji']} Passiva racial: {desc}"
+
+
+# ==================================================
 # FUNÇÕES AUXILIARES DE COMBATE
 # ==================================================
 
@@ -273,6 +432,7 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
     efeitos_j = {}
     efeitos_m = {}
     passiva = Passiva(p["classe_id"])
+    passiva_racial = PassivaRacial(p.get("raca_id", "humano"))
     emoji_j = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
     msgs_batalha = []
     timeout_count = 0
@@ -411,9 +571,9 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
                     linha_jogador = f"{sk['emoji']} **{sk['nome']}**: Buff ativo por 3 turnos!"
                 elif efeito in ("queimadura", "veneno"):
                     dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk)
-                    dano = int(dano * passiva.multiplicador_dano())
+                    dano = int(dano * passiva.multiplicador_dano() * passiva_racial.multiplicador_dano())
                     hp_m = max(0, hp_m - dano)
-                    if not passiva.imune_status(efeito):
+                    if not passiva.imune_status(efeito) and not passiva_racial.imune_status(efeito):
                         add_efeito(efeitos_m, efeito, 3, valor=max(5, dano // 4))
                     linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano**! Inimigo com {efeito}!"
                 elif efeito in ("atordoar", "paralisia", "congelar"):
@@ -471,9 +631,9 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
 
         # Turno do monstro
         sk_m = random.choice(monstro["skills"])
-        def_total = int(p["defesa"] * bonus_dfs) + passiva.bonus_defesa_fixa()
+        def_total = int(p["defesa"] * bonus_dfs) + passiva.bonus_defesa_fixa() + passiva_racial.bonus_defesa_fixa()
         dano_m_base = calc_dano(monstro["ataque"], def_total)
-        reducao = passiva.reducao_dano()
+        reducao = passiva.reducao_dano() + passiva_racial.reducao_dano()
         dano_m = max(1, int(dano_m_base * (1.0 - reducao)))
 
         if efeito_ativo(efeitos_j, "defesa_basica"):
@@ -582,6 +742,8 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback: Callable = None):
     efeitos2 = {}
     passiva1 = Passiva(p1["classe_id"])
     passiva2 = Passiva(p2["classe_id"])
+    passiva_racial1 = PassivaRacial(p1.get("raca_id", "humano"))
+    passiva_racial2 = PassivaRacial(p2.get("raca_id", "humano"))
     msgs = []
     e1 = EMOJI_CLASSE.get(p1["classe_id"], "⚔️")
     e2 = EMOJI_CLASSE.get(p2["classe_id"], "⚔️")
@@ -639,7 +801,7 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback: Callable = None):
                 if mana1 >= sk.get("mana", 0):
                     mana1 -= sk.get("mana", 0)
                     dano = calc_dano(p1["ataque"], p2["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk1)
-                    dano = int(dano * passiva1.multiplicador_dano())
+                    dano = int(dano * passiva1.multiplicador_dano() * passiva_racial1.multiplicador_dano())
                     hp2 = max(0, hp2 - dano)
                     linha = f"{e1} {sk['emoji']} **{sk['nome']}**: **{dano} de dano**!"
                 else:
@@ -724,7 +886,7 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback: Callable = None):
                 if mana2 >= sk.get("mana", 0):
                     mana2 -= sk.get("mana", 0)
                     dano = calc_dano(p2["ataque"], p1["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk2)
-                    dano = int(dano * passiva2.multiplicador_dano())
+                    dano = int(dano * passiva2.multiplicador_dano() * passiva_racial2.multiplicador_dano())
                     hp1 = max(0, hp1 - dano)
                     linha = f"{e2} {sk['emoji']} **{sk['nome']}**: **{dano} de dano**!"
                 else:
