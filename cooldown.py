@@ -2,7 +2,9 @@
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from asyncio import Lock
+from typing import Callable, Any, Awaitable
 import discord
+from discord import app_commands
 
 class CooldownManager:
     """Gerencia cooldowns de comandos por usuário com locks para evitar race conditions"""
@@ -68,7 +70,7 @@ cooldown_manager = CooldownManager()
 
 
 # ==================================================
-# DECORATOR PARA COOLDOWN EM COMANDOS
+# DECORATOR PARA COOLDOWN EM COMANDOS (CORRIGIDO)
 # ==================================================
 
 def cooldown(segundos: int = 5):
@@ -79,11 +81,11 @@ def cooldown(segundos: int = 5):
     Exemplo:
         @bot.tree.command(name="treinar")
         @cooldown(5)
-        async def treinar(interaction: discord.Interaction):
+        async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
             ...
     """
-    def decorator(func):
-        async def wrapper(interaction: discord.Interaction, *args, **kwargs):
+    def decorator(func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
+        async def wrapper(interaction: discord.Interaction, *args: Any, **kwargs: Any) -> Any:
             pode, tempo = await cooldown_manager.acquire(interaction.user.id, func.__name__, segundos)
             if not pode:
                 try:
@@ -92,13 +94,21 @@ def cooldown(segundos: int = 5):
                         ephemeral=True
                     )
                 except:
-                    # Se já respondeu, usa followup
-                    await interaction.followup.send(
-                        f"⏰ Aguarde **{tempo} segundos** antes de usar este comando novamente!",
-                        ephemeral=True
-                    )
+                    try:
+                        await interaction.followup.send(
+                            f"⏰ Aguarde **{tempo} segundos** antes de usar este comando novamente!",
+                            ephemeral=True
+                        )
+                    except:
+                        pass
                 return
             return await func(interaction, *args, **kwargs)
+        
+        # Preserva os metadados da função original para o discord.py
+        wrapper.__name__ = func.__name__
+        wrapper.__annotations__ = func.__annotations__
+        wrapper.__signature__ = getattr(func, '__signature__', None)
+        
         return wrapper
     return decorator
 
@@ -112,8 +122,8 @@ def player_cooldown(segundos: int = 5):
     Decorator para cooldown que considera o jogador alvo também.
     Usado para comandos como /desafiar, para não floodar o mesmo jogador.
     """
-    def decorator(func):
-        async def wrapper(interaction: discord.Interaction, *args, **kwargs):
+    def decorator(func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
+        async def wrapper(interaction: discord.Interaction, *args: Any, **kwargs: Any) -> Any:
             user_id = interaction.user.id
             
             # Tenta extrair o jogador alvo dos argumentos
@@ -142,14 +152,22 @@ def player_cooldown(segundos: int = 5):
                                 ephemeral=True
                             )
                         except:
-                            await interaction.followup.send(
-                                f"⏰ Aguarde **{restante} segundos** antes de desafiar este jogador novamente!",
-                                ephemeral=True
-                            )
+                            try:
+                                await interaction.followup.send(
+                                    f"⏰ Aguarde **{restante} segundos** antes de desafiar este jogador novamente!",
+                                    ephemeral=True
+                                )
+                            except:
+                                pass
                         return
                 
                 cooldown_manager.cooldowns[key] = now + timedelta(seconds=segundos)
                 return await func(interaction, *args, **kwargs)
+        
+        # Preserva os metadados
+        wrapper.__name__ = func.__name__
+        wrapper.__annotations__ = func.__annotations__
+        
         return wrapper
     return decorator
 
@@ -158,6 +176,6 @@ def player_cooldown(segundos: int = 5):
 # FUNÇÃO PARA LIMPAR COOLDOWN DE UM USUÁRIO (ADMIN)
 # ==================================================
 
-async def clear_user_cooldown(user_id: int, comando: str = None):
+async def clear_user_cooldown(user_id: int, comando: str = None) -> None:
     """Limpa todos os cooldowns de um usuário (uso administrativo)"""
     cooldown_manager.clear(user_id, comando)
