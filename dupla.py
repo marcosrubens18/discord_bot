@@ -18,49 +18,108 @@ async def get_personagem(user_id):
     async with pool.acquire() as conn:
         return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
+async def _processar_acao(acao, val, p, monstro, hp_m, hp_mmx, mana, mana_mx, hp_j, hp_jmx, ef_j, ef_m, skills, batk, passiva, uid):
+    """Processa acao do jogador e retorna linha descritiva."""
+    if acao == "atk_basico":
+        mult = 1.0 + (p["nivel"]//10)*0.1
+        dano = calc_dano(p["ataque"], monstro["defesa"], mult, bonus_atk=batk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
+        hp_m = max(0, hp_m - dano)
+        return (hp_m, mana, hp_j, f"⚔️ Ataque Basico: **{dano} de dano**!")
+    elif acao == "defesa_basica":
+        add_efeito(ef_j, "defesa_basica", 1)
+        return (hp_m, mana, hp_j, "🛡️ Postura defensiva!")
+    elif acao == "skill" and val is not None:
+        sk = skills[val] if val < len(skills) else skills[0]
+        if mana >= sk.get("mana", 0):
+            mana -= sk.get("mana", 0)
+            dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=batk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
+            dano = int(dano * passiva.multiplicador_dano())
+            hp_m = max(0, hp_m - dano)
+            return (hp_m, mana, hp_j, f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano**!")
+        else:
+            dano = calc_dano(p["ataque"], monstro["defesa"], 1.0, bonus_atk=batk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
+            hp_m = max(0, hp_m - dano)
+            return (hp_m, mana, hp_j, f"⚠️ Sem mana! Ataque basico: **{dano} de dano**.")
+    elif acao == "pocao" and val:
+        hp_j, mana, linha = aplicar_efeito_pocao(val, hp_j, hp_jmx, mana, mana_mx)
+        await remover_pocao(uid, val)
+        return (hp_m, mana, hp_j, linha)
+    else:
+        dano = calc_dano(p["ataque"], monstro["defesa"], 1.0, bonus_atk=batk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
+        hp_m = max(0, hp_m - dano)
+        return (hp_m, mana, hp_j, f"⚔️ Ataque: **{dano} de dano**!")
+
 async def rodar_treino_dupla(interaction: discord.Interaction, p1, p2, monstro, arena,
                               membro1: discord.Member, membro2: discord.Member):
     """Batalha em dupla contra monstro com HP dobrado."""
-    uid1 = p1["user_id"]; uid2 = p2["user_id"]
-    BATALHAS_ATIVAS.add(uid1); BATALHAS_ATIVAS.add(uid2)
+    uid1 = p1["user_id"]
+    uid2 = p2["user_id"]
+    
+    BATALHAS_ATIVAS.add(uid1)
+    BATALHAS_ATIVAS.add(uid2)
 
     # Setup P1
-    ids1    = await get_skills_eq(uid1)
-    skills1 = [s for sid in ids1 for s in SKILLS_COMPLETAS.get(p1["classe_id"],[]) if s["id"]==sid] or SKILLS_COMPLETAS.get(p1["classe_id"],[])[:4]
-    arma1, arm1 = await get_arma_equipada(uid1), await get_armadura_equipada(uid1)
+    ids1 = await get_skills_eq(uid1)
+    skills1 = []
+    for sid in ids1:
+        for s in SKILLS_COMPLETAS.get(p1["classe_id"], []):
+            if s["id"] == sid:
+                skills1.append(s)
+                break
+    if not skills1:
+        skills1 = SKILLS_COMPLETAS.get(p1["classe_id"], [])[:4]
+    
+    arma1 = await get_arma_equipada(uid1)
+    arm1 = await get_armadura_equipada(uid1)
     batk1, bdfs1 = calcular_bonus_equip(p1["classe_id"], arma1, arm1)
-    passiva1     = Passiva(p1["classe_id"])
-    racial1      = PassivaRacial(p1.get("raca_id","humano"))
-    hp1 = p1["hp_atual"]; hp1mx = p1["hp_max"]
-    mana1 = p1["mana_atual"] or 100; mana1mx = p1["mana_max"] or 100
-    ef1   = {}; e1 = EMOJI_CLASSE.get(p1["classe_id"],"⚔️")
+    passiva1 = Passiva(p1["classe_id"])
+    racial1 = PassivaRacial(p1.get("raca_id", "humano"))
+    hp1 = p1["hp_atual"]
+    hp1mx = p1["hp_max"]
+    mana1 = p1.get("mana_atual", 100)
+    mana1mx = p1.get("mana_max", 100)
+    ef1 = {}
+    e1 = EMOJI_CLASSE.get(p1["classe_id"], "⚔️")
     vivo1 = True
 
     # Setup P2
-    ids2    = await get_skills_eq(uid2)
-    skills2 = [s for sid in ids2 for s in SKILLS_COMPLETAS.get(p2["classe_id"],[]) if s["id"]==sid] or SKILLS_COMPLETAS.get(p2["classe_id"],[])[:4]
-    arma2, arm2 = await get_arma_equipada(uid2), await get_armadura_equipada(uid2)
+    ids2 = await get_skills_eq(uid2)
+    skills2 = []
+    for sid in ids2:
+        for s in SKILLS_COMPLETAS.get(p2["classe_id"], []):
+            if s["id"] == sid:
+                skills2.append(s)
+                break
+    if not skills2:
+        skills2 = SKILLS_COMPLETAS.get(p2["classe_id"], [])[:4]
+    
+    arma2 = await get_arma_equipada(uid2)
+    arm2 = await get_armadura_equipada(uid2)
     batk2, bdfs2 = calcular_bonus_equip(p2["classe_id"], arma2, arm2)
-    passiva2     = Passiva(p2["classe_id"])
-    racial2      = PassivaRacial(p2.get("raca_id","humano"))
-    hp2 = p2["hp_atual"]; hp2mx = p2["hp_max"]
-    mana2 = p2["mana_atual"] or 100; mana2mx = p2["mana_max"] or 100
-    ef2   = {}; e2 = EMOJI_CLASSE.get(p2["classe_id"],"⚔️")
+    passiva2 = Passiva(p2["classe_id"])
+    racial2 = PassivaRacial(p2.get("raca_id", "humano"))
+    hp2 = p2["hp_atual"]
+    hp2mx = p2["hp_max"]
+    mana2 = p2.get("mana_atual", 100)
+    mana2mx = p2.get("mana_max", 100)
+    ef2 = {}
+    e2 = EMOJI_CLASSE.get(p2["classe_id"], "⚔️")
     vivo2 = True
 
     # Monstro com HP dobrado para dupla
-    hp_m  = monstro["hp"] * 2
+    hp_m = monstro["hp"] * 2
     hp_mmx = hp_m
-    ef_m  = {}
+    ef_m = {}
 
     turno = 1
-    msgs  = []
-    timeout1 = timeout2 = 0
+    msgs = []
+    timeout1 = 0
+    timeout2 = 0
 
     def barra():
-        v1 = f"{e1} **{p1['nome']}** ❤️`{barra_hp(hp1,hp1mx)}`**{hp1}/{hp1mx}**" if vivo1 else f"{e1} ~~{p1['nome']}~~ 💀"
-        v2 = f"{e2} **{p2['nome']}** ❤️`{barra_hp(hp2,hp2mx)}`**{hp2}/{hp2mx}**" if vivo2 else f"{e2} ~~{p2['nome']}~~ 💀"
-        vm = f"{monstro['emoji']} **{monstro['nome']}** ❤️`{barra_hp(hp_m,hp_mmx)}`**{hp_m}/{hp_mmx}**"
+        v1 = f"{e1} **{p1['nome']}** ❤️`{barra_hp(hp1, hp1mx)}`**{hp1}/{hp1mx}** 💙{mana1}/{mana1mx}" if vivo1 else f"{e1} ~~{p1['nome']}~~ 💀"
+        v2 = f"{e2} **{p2['nome']}** ❤️`{barra_hp(hp2, hp2mx)}`**{hp2}/{hp2mx}** 💙{mana2}/{mana2mx}" if vivo2 else f"{e2} ~~{p2['nome']}~~ 💀"
+        vm = f"{monstro['emoji']} **{monstro['nome']}** ❤️`{barra_hp(hp_m, hp_mmx)}`**{hp_m}/{hp_mmx}**"
         return f"{v1}\n{v2}\n{vm}"
 
     # Embed inicial
@@ -69,34 +128,53 @@ async def rodar_treino_dupla(interaction: discord.Interaction, p1, p2, monstro, 
         description=f"{membro1.mention} + {membro2.mention} vs {monstro['emoji']} **{monstro['nome']}** (HP x2!)\n\n{barra()}",
         color=0x7F77DD
     )
-    if arena.get("img"): embed_ini.set_image(url=arena["img"])
+    if arena.get("img"):
+        embed_ini.set_image(url=arena["img"])
     msgs.append(await interaction.followup.send(embed=embed_ini, wait=True))
     await asyncio.sleep(1)
 
     while hp_m > 0 and (vivo1 or vivo2):
 
         # Efeitos status
-        de1,me1,ef1 = processar_efeitos_turno(ef1)
-        if de1 > 0 and vivo1: hp1 = max(0, hp1-de1)
-        de2,me2,ef2 = processar_efeitos_turno(ef2)
-        if de2 > 0 and vivo2: hp2 = max(0, hp2-de2)
-        de_m,me_m,ef_m = processar_efeitos_turno(ef_m)
-        if de_m > 0: hp_m = max(0, hp_m-de_m)
-        if hp_m <= 0: break
+        de1, me1, ef1 = processar_efeitos_turno(ef1)
+        if de1 > 0 and vivo1:
+            hp1 = max(0, hp1 - de1)
+        de2, me2, ef2 = processar_efeitos_turno(ef2)
+        if de2 > 0 and vivo2:
+            hp2 = max(0, hp2 - de2)
+        de_m, me_m, ef_m = processar_efeitos_turno(ef_m)
+        if de_m > 0:
+            hp_m = max(0, hp_m - de_m)
+        if hp_m <= 0:
+            break
+
+        # Cura passiva
+        if vivo1:
+            cura1 = passiva1.inicio_turno(hp1, hp1mx)
+            if cura1 > 0:
+                hp1 = min(hp1mx, hp1 + cura1)
+        if vivo2:
+            cura2 = passiva2.inicio_turno(hp2, hp2mx)
+            if cura2 > 0:
+                hp2 = min(hp2mx, hp2 + cura2)
 
         # ── TURNO P1 ──────────────────────────────────────────
         if vivo1:
             pocoes1 = await get_pocoes_inv(uid1)
             v1 = BatalhaView(uid1, skills1, pocoes1, nivel=p1["nivel"])
             em_v1 = discord.Embed(
-                title=f"Turno {turno} — {e1} {p1['nome']}, sua vez!",
-                description=barra(), color=0x378ADD
+                title=f"🎮 Turno {turno} — {e1} {p1['nome']}, sua vez!",
+                description=barra(),
+                color=0x378ADD
             )
             msg_v1 = await interaction.followup.send(content=membro1.mention, embed=em_v1, view=v1, wait=True)
             msgs.append(msg_v1)
             await v1.wait()
-            try: await msg_v1.edit(view=None)
-            except: pass
+            try:
+                await msg_v1.edit(view=None)
+            except:
+                pass
+            
             acao1, val1 = v1.acao or ("timeout", None)
 
             if acao1 == "timeout":
@@ -112,29 +190,34 @@ async def rodar_treino_dupla(interaction: discord.Interaction, p1, p2, monstro, 
                 vivo1 = False
             else:
                 timeout1 = 0
-                linha1 = await _processar_acao(acao1, val1, p1, monstro, hp_m, hp_mmx, mana1, mana1mx, hp1, hp1mx, ef1, ef_m, skills1, batk1, passiva1, uid1)
-                if isinstance(linha1, tuple):
-                    hp_m, mana1, hp1, linha1_txt = linha1
+                resultado = await _processar_acao(acao1, val1, p1, monstro, hp_m, hp_mmx, mana1, mana1mx, hp1, hp1mx, ef1, ef_m, skills1, batk1, passiva1, uid1)
+                if isinstance(resultado, tuple):
+                    hp_m, mana1, hp1, linha1_txt = resultado
                 else:
-                    linha1_txt = linha1
+                    linha1_txt = resultado
                 await interaction.followup.send(embed=discord.Embed(
                     description=f"{e1} {linha1_txt}\n\n{barra()}", color=0x7F77DD))
 
-            if hp_m <= 0: break
+            if hp_m <= 0:
+                break
 
         # ── TURNO P2 ──────────────────────────────────────────
         if vivo2:
             pocoes2 = await get_pocoes_inv(uid2)
             v2 = BatalhaView(uid2, skills2, pocoes2, nivel=p2["nivel"])
             em_v2 = discord.Embed(
-                title=f"Turno {turno} — {e2} {p2['nome']}, sua vez!",
-                description=barra(), color=0x9B59B6
+                title=f"🎮 Turno {turno} — {e2} {p2['nome']}, sua vez!",
+                description=barra(),
+                color=0x9B59B6
             )
             msg_v2 = await interaction.followup.send(content=membro2.mention, embed=em_v2, view=v2, wait=True)
             msgs.append(msg_v2)
             await v2.wait()
-            try: await msg_v2.edit(view=None)
-            except: pass
+            try:
+                await msg_v2.edit(view=None)
+            except:
+                pass
+            
             acao2, val2 = v2.acao or ("timeout", None)
 
             if acao2 == "timeout":
@@ -150,38 +233,53 @@ async def rodar_treino_dupla(interaction: discord.Interaction, p1, p2, monstro, 
                 vivo2 = False
             else:
                 timeout2 = 0
-                linha2 = await _processar_acao(acao2, val2, p2, monstro, hp_m, hp_mmx, mana2, mana2mx, hp2, hp2mx, ef2, ef_m, skills2, batk2, passiva2, uid2)
-                if isinstance(linha2, tuple):
-                    hp_m, mana2, hp2, linha2_txt = linha2
+                resultado = await _processar_acao(acao2, val2, p2, monstro, hp_m, hp_mmx, mana2, mana2mx, hp2, hp2mx, ef2, ef_m, skills2, batk2, passiva2, uid2)
+                if isinstance(resultado, tuple):
+                    hp_m, mana2, hp2, linha2_txt = resultado
                 else:
-                    linha2_txt = linha2
+                    linha2_txt = resultado
                 await interaction.followup.send(embed=discord.Embed(
                     description=f"{e2} {linha2_txt}\n\n{barra()}", color=0x9B59B6))
 
-            if hp_m <= 0: break
+            if hp_m <= 0:
+                break
 
-        if not vivo1 and not vivo2: break
+        if not vivo1 and not vivo2:
+            break
 
         # ── ATAQUE DO MONSTRO ──────────────────────────────────
-        alvos = [(uid1,p1,hp1,hp1mx,ef1,bdfs1,racial1,membro1,e1,vivo1),
-                 (uid2,p2,hp2,hp2mx,ef2,bdfs2,racial2,membro2,e2,vivo2)]
+        alvos = [(uid1, p1, hp1, hp1mx, ef1, bdfs1, racial1, membro1, e1, vivo1),
+                 (uid2, p2, hp2, hp2mx, ef2, bdfs2, racial2, membro2, e2, vivo2)]
+        
         for uid_a, p_a, hp_a, hp_amx, ef_a, bdfs_a, racial_a, mem_a, e_a, vivo_a in alvos:
-            if not vivo_a: continue
-            dano_m = calc_dano(monstro["ataque"], p_a["defesa"], bonus_atk=bdfs_a)
+            if not vivo_a:
+                continue
+            
+            # Calcula dano do monstro
+            dano_m = calc_dano(monstro["ataque"], p_a["defesa"], bonus_atk=bdfs_a, nivel=p_a["nivel"])
+            
             # Aplica reducao racial de dano
             reducao = racial_a.reducao_dano()
-            if reducao > 0: dano_m = max(1, int(dano_m * (1 - reducao)))
+            if reducao > 0:
+                dano_m = max(1, int(dano_m * (1 - reducao)))
+            
+            # Verifica efeitos defensivos
             if efeito_ativo(ef_a, "defesa_basica") or efeito_ativo(ef_a, "defesa"):
                 dano_m = max(1, dano_m // 5)
-            if uid_a == uid1: hp1 = max(0, hp1 - dano_m)
-            else:             hp2 = max(0, hp2 - dano_m)
+                ef_a["defesa_basica"]["duracao"] = 0 if efeito_ativo(ef_a, "defesa_basica") else ef_a.get("defesa_basica", {}).get("duracao", 0)
+            
+            if uid_a == uid1:
+                hp1 = max(0, hp1 - dano_m)
+            else:
+                hp2 = max(0, hp2 - dano_m)
 
         # Regenera mana
-        mana1 = min(mana1mx, mana1 + 8)
-        mana2 = min(mana2mx, mana2 + 8)
+        regen = 8
+        mana1 = min(mana1mx, mana1 + regen)
+        mana2 = min(mana2mx, mana2 + regen)
 
         await interaction.followup.send(embed=discord.Embed(
-            description=f"{monstro['emoji']} **{monstro['nome']}** ataca!\n\n{barra()}",
+            description=f"{monstro['emoji']} **{monstro['nome']}** ataca!\n\n{barra()}\n💙 +{regen} mana para ambos",
             color=0xE24B4A))
 
         # Verifica mortes
@@ -193,25 +291,42 @@ async def rodar_treino_dupla(interaction: discord.Interaction, p1, p2, monstro, 
             await interaction.followup.send(f"💀 {e2} **{p2['nome']}** foi derrotado! {e1} {p1['nome']} continua lutando...")
 
         turno += 1
+        await asyncio.sleep(0.8)
 
     # ── RESULTADO ─────────────────────────────────────────────
-    BATALHAS_ATIVAS.discard(uid1); BATALHAS_ATIVAS.discard(uid2)
+    BATALHAS_ATIVAS.discard(uid1)
+    BATALHAS_ATIVAS.discard(uid2)
     vitoria = hp_m <= 0
 
     if vitoria:
         # Bonus de 20% por batalha em dupla
-        xp_base    = monstro.get("xp", 15)
+        xp_base = monstro.get("xp", 15)
         moedas_base = monstro.get("moedas", 10)
-        xp_bonus    = int(xp_base * 1.2)
-        moedas_bonus= int(moedas_base * 1.2)
+        xp_bonus = int(xp_base * 1.2)
+        moedas_bonus = int(moedas_base * 1.2)
 
-        for uid_v, p_v, vivo_v in [(uid1,p1,vivo1),(uid2,p2,vivo2)]:
-            if vivo_v or True:  # todos que participaram recebem
-                await salvar_resultado(uid_v, p_v["hp_atual"], xp_bonus, moedas_bonus, True, p_v["classe_id"], p_v["nivel"])
+        for uid_v, p_v, vivo_v in [(uid1, p1, vivo1), (uid2, p2, vivo2)]:
+            if vivo_v:
+                hp_final = hp1 if uid_v == uid1 else hp2
+                await salvar_resultado(uid_v, hp_final, xp_bonus, moedas_bonus, True, p_v["classe_id"], p_v["nivel"])
+                
                 # XP para guilda
                 g_v, _ = await get_guilda_do_jogador(uid_v)
-                if g_v: await dar_xp_guilda(g_v["id"], 10, interaction.guild)
+                if g_v:
+                    await dar_xp_guilda(g_v["id"], 10, interaction.guild)
                 await atualizar_missao_guilda(uid_v, "vitorias_treino")
+                
+                # Eventos e Passe
+                try:
+                    from eventos import registrar_batalha_evento
+                    await registrar_batalha_evento(uid_v)
+                except:
+                    pass
+                try:
+                    from passe_temporada import adicionar_pontos_batalha
+                    await adicionar_pontos_batalha(uid_v, True, "treino")
+                except:
+                    pass
 
         embed_fim = discord.Embed(
             title="🏆 Vitória em Dupla!",
@@ -222,44 +337,21 @@ async def rodar_treino_dupla(interaction: discord.Interaction, p1, p2, monstro, 
             color=0x1D9E75
         )
     else:
+        # Derrota - ambos perdem
+        for uid_p, p_p in [(uid1, p1), (uid2, p2)]:
+            await salvar_resultado(uid_p, 10, 0, 0, False, p_p["classe_id"], p_p["nivel"])
+        
         embed_fim = discord.Embed(
             title="💀 Derrota...",
-            description=f"**{monstro['emoji']} {monstro['nome']}** foi forte demais para a dupla!",
+            description=f"**{monstro['emoji']} {monstro['nome']}** foi forte demais para a dupla!\n\nAmbos foram derrotados e acordaram na cidade com 10 HP.",
             color=0xE24B4A
         )
 
     await interaction.followup.send(embed=embed_fim)
+    await asyncio.sleep(1.5)
+    
     for m in msgs:
-        try: await m.delete()
-        except: pass
-
-async def _processar_acao(acao, val, p, monstro, hp_m, hp_mmx, mana, mana_mx, hp_j, hp_jmx, ef_j, ef_m, skills, batk, passiva, uid):
-    """Processa acao do jogador e retorna linha descritiva."""
-    if acao == "atk_basico":
-        mult = 1.0 + (p["nivel"]//10)*0.1
-        dano = calc_dano(p["ataque"], monstro["defesa"], mult, bonus_atk=batk)
-        hp_m = max(0, hp_m - dano)
-        return (hp_m, mana, hp_j, f"Ataque Basico: **{dano} de dano**!")
-    elif acao == "defesa_basica":
-        add_efeito(ef_j, "defesa_basica", 1)
-        return (hp_m, mana, hp_j, "Postura defensiva!")
-    elif acao == "skill" and val is not None:
-        sk = skills[val] if val < len(skills) else skills[0]
-        if mana >= sk.get("mana",0):
-            mana -= sk.get("mana",0)
-            dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano",1.0), bonus_atk=batk)
-            dano = int(dano * passiva.multiplicador_dano())
-            hp_m = max(0, hp_m - dano)
-            return (hp_m, mana, hp_j, f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano**!")
-        else:
-            dano = calc_dano(p["ataque"], monstro["defesa"], bonus_atk=batk)
-            hp_m = max(0, hp_m - dano)
-            return (hp_m, mana, hp_j, f"Sem mana! Ataque basico: **{dano} de dano**.")
-    elif acao == "pocao" and val:
-        hp_j, mana, linha = aplicar_efeito_pocao(val, hp_j, hp_jmx, mana, mana_mx)
-        await remover_pocao(uid, val)
-        return (hp_m, mana, hp_j, linha)
-    else:
-        dano = calc_dano(p["ataque"], monstro["defesa"], bonus_atk=batk)
-        hp_m = max(0, hp_m - dano)
-        return (hp_m, mana, hp_j, f"Ataque: **{dano} de dano**!")
+        try:
+            await m.delete()
+        except:
+            pass
