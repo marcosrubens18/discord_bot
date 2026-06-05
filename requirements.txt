@@ -1,4 +1,0 @@
-discord.py
-asyncpg
-aiohttp
-google-genai
