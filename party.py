@@ -3,7 +3,7 @@ import discord
 from discord import app_commands
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db import get_pool
 from constants import (
     COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO,
