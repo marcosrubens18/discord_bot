@@ -12,7 +12,10 @@ from database.queries import get_personagem
 
 # Importar inicializadores de sistemas
 from systems.arena import init_db_arena
-from systems.social.party import init_db_party
+try:
+    from systems.social.party import init_db_party
+except ImportError:
+    from social.party import init_db_party
 from systems.social.guildas import init_db_guildas
 from systems.sorteio import init_db_sorteios, reagendar_sorteios_pendentes, finalizar_e_anunciar_sorteio
 from dungeon_evento import init_db_dungeon_evento
