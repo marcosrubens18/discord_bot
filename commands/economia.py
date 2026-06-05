@@ -7,7 +7,7 @@ from systems.economia.loja import cmd_loja
 from systems.economia.ferreiro import cmd_ferreiro
 from systems.economia.mercado import cmd_mercado_vender
 from systems.economia.mercador import cmd_mercador
-from loja_sazonal import cmd_loja_sazonal, cmd_loja_sazonal_remover
+from systems.economia.sazonal import cmd_loja_sazonal, cmd_loja_sazonal_remover
 from utils.decorators import admin_only
 
 
