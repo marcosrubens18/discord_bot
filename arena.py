@@ -1,10 +1,10 @@
-# arena.py — Sistema de Arenas Ranqueadas PvP (1v1 apenas - depois expandimos)
+# arena.py — Sistema de Arenas Ranqueadas PvP (1v1 apenas)
 import discord
 from discord import app_commands
 import asyncio
 import json
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db import get_pool
 from batalha import rodar_pvp, ARENAS, BATALHAS_ATIVAS
 from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO, COR_GOLD
@@ -30,11 +30,11 @@ DESAFIOS_POR_DIA = 10
 # ==================================================
 
 def get_temporada_atual():
-    agora = datetime.utcnow()
+    agora = datetime.now(timezone.utc)
     return f"{agora.year}_{agora.month}"
 
 def get_proxima_temporada():
-    agora = datetime.utcnow()
+    agora = datetime.now(timezone.utc)
     if agora.month == 12:
         return f"{agora.year + 1}_1"
     return f"{agora.year}_{agora.month + 1}"
@@ -92,7 +92,7 @@ async def atualizar_elo_jogador(user_id: int, rating: int, temporada: str = None
 async def registrar_desafio(user_id: int):
     pool = await get_pool()
     async with pool.acquire() as conn:
-        hoje = datetime.utcnow().date()
+        hoje = datetime.now(timezone.utc).date()
         
         existe = await conn.fetchrow("""
             SELECT desafios_feitos FROM arena_desafios 
@@ -317,6 +317,13 @@ async def cmd_arena_desafiar(interaction: discord.Interaction, jogador: discord.
             novo_elo1, _ = await get_elo_por_rating(rating_novo1)
             novo_elo2, _ = await get_elo_por_rating(rating_novo2)
             
+            # Registra pontos no passe
+            try:
+                from passe_temporada import adicionar_pontos_batalha
+                await adicionar_pontos_batalha(interaction.user.id, True, "arena")
+            except:
+                pass
+            
             embed_resultado = discord.Embed(
                 title="🏆 VITÓRIA NA ARENA!",
                 description=f"**{interaction.user.display_name}** venceu a batalha!\n\n"
@@ -339,6 +346,13 @@ async def cmd_arena_desafiar(interaction: discord.Interaction, jogador: discord.
             
             novo_elo1, _ = await get_elo_por_rating(rating_novo1)
             novo_elo2, _ = await get_elo_por_rating(rating_novo2)
+            
+            # Registra pontos no passe
+            try:
+                from passe_temporada import adicionar_pontos_batalha
+                await adicionar_pontos_batalha(jogador.id, True, "arena")
+            except:
+                pass
             
             embed_resultado = discord.Embed(
                 title="🏆 VITÓRIA NA ARENA!",
@@ -391,7 +405,7 @@ async def cmd_arena_meuperfil(interaction: discord.Interaction):
             ORDER BY data DESC LIMIT 10
         """, interaction.user.id)
         
-        hoje = datetime.utcnow().date()
+        hoje = datetime.now(timezone.utc).date()
         desafios = await conn.fetchrow("""
             SELECT desafios_feitos FROM arena_desafios 
             WHERE user_id = $1 AND data = $2
