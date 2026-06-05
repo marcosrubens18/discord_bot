@@ -1,4 +1,4 @@
-# systems/combate.py — Sistema de combate (batalhas, PvP, dupla)
+# systems/combate.py — Sistema de combate completo (PVE + PVP)
 
 import discord
 import asyncio
@@ -22,7 +22,7 @@ from utils.helpers import atualizar_todos_cargos
 from utils.cooldown import cooldown_manager
 from systems.personagem import salvar_resultado
 
-# Imports para views (serão movidos para views/batalha_view.py depois)
+# Import para views
 from views.batalha_view import BatalhaView, EscolherArenaView, AceitarDueloView
 
 # ==================================================
@@ -32,8 +32,28 @@ from views.batalha_view import BatalhaView, EscolherArenaView, AceitarDueloView
 BATALHAS_ATIVAS: set = set()
 
 # ==================================================
-# PROCESSAMENTO DE EFEITOS
+# FUNÇÕES AUXILIARES
 # ==================================================
+
+def get_mult_basico(nivel: int) -> float:
+    """Retorna o multiplicador de ataque básico baseado no nível"""
+    if nivel <= 9:
+        return 1.0
+    elif nivel <= 19:
+        return 1.1
+    elif nivel <= 29:
+        return 1.2
+    elif nivel <= 39:
+        return 1.3
+    elif nivel <= 49:
+        return 1.4
+    elif nivel <= 59:
+        return 1.5
+    elif nivel <= 74:
+        return 1.6
+    else:
+        return 1.8
+
 
 def processar_efeitos_turno(efeitos: dict) -> Tuple[int, List[str], dict]:
     """Processa efeitos de status no início do turno"""
@@ -62,6 +82,10 @@ def processar_efeitos_turno(efeitos: dict) -> Tuple[int, List[str], dict]:
             msgs.append(f"🔥 Queimadura causou **{valor}** de dano!")
         elif ef == "regeneracao":
             msgs.append(f"💚 Regeneracao: +{valor} HP!")
+        elif ef in ("defesa", "escudo", "esquiva", "escudo_total", "armadura", "reflexo",
+                    "buff_ataque", "buff_all", "berserker", "congelar", "paralisia",
+                    "atordoado", "confusao", "terror", "enfraquecer"):
+            pass
 
         if duracao > 0:
             novos_efeitos[ef] = {"duracao": duracao, "valor": valor}
@@ -167,26 +191,6 @@ class Passiva:
 # ==================================================
 # FUNÇÕES AUXILIARES DE COMBATE
 # ==================================================
-
-def get_mult_basico(nivel: int) -> float:
-    """Retorna o multiplicador de ataque básico baseado no nível"""
-    if nivel <= 9:
-        return 1.0
-    elif nivel <= 19:
-        return 1.1
-    elif nivel <= 29:
-        return 1.2
-    elif nivel <= 39:
-        return 1.3
-    elif nivel <= 49:
-        return 1.4
-    elif nivel <= 59:
-        return 1.5
-    elif nivel <= 74:
-        return 1.6
-    else:
-        return 1.8
-
 
 async def get_skills_jogador(user_id: int, classe_id: str) -> list:
     """Retorna as skills equipadas do jogador"""
@@ -503,7 +507,6 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
     BATALHAS_ATIVAS.discard(uid)
     vitoria = hp_m <= 0
 
-    # Registrar resultados
     xp_base = monstro["xp"]
     moedas_base = monstro["moedas"]
     lvlups, nivel_novo, rank_mudou, rank_obj = await salvar_resultado(
@@ -530,3 +533,271 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
         pass
 
     cooldown_manager.set(uid, "treinar", COOLDOWN_BATALHA)
+
+
+# ==================================================
+# ENGINE PVP (DUELO)
+# ==================================================
+
+async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback: Callable = None):
+    """Executa uma batalha PvP entre dois jogadores"""
+    from data.skills import get_skill_by_id
+    from data.constantes import ARENAS
+    from utils.calculos import calc_dano, barra_hp
+    from systems.personagem import salvar_resultado
+    from views.batalha_view import BatalhaView
+    
+    uid1, uid2 = p1["user_id"], p2["user_id"]
+
+    async def pegar_skills(p, uid):
+        from database.queries import get_skills_equipadas
+        ids = await get_skills_equipadas(uid)
+        sks = [get_skill_by_id(sid) for sid in ids if get_skill_by_id(sid)]
+        if not sks:
+            from data.skills import SKILLS_COMPLETAS
+            sks = SKILLS_COMPLETAS.get(p["classe_id"], [])[:4]
+        return sks
+
+    skills1 = await pegar_skills(p1, uid1)
+    skills2 = await pegar_skills(p2, uid2)
+
+    arma1 = await get_arma_equipada(uid1)
+    armadura1 = await get_armadura_equipada(uid1)
+    arma2 = await get_arma_equipada(uid2)
+    armadura2 = await get_armadura_equipada(uid2)
+
+    bonus_atk1, bonus_dfs1 = calcular_bonus_equip(p1["classe_id"], arma1, armadura1)
+    bonus_atk2, bonus_dfs2 = calcular_bonus_equip(p2["classe_id"], arma2, armadura2)
+
+    hp1 = p1["hp_atual"]
+    hp1mx = p1["hp_max"]
+    hp2 = p2["hp_atual"]
+    hp2mx = p2["hp_max"]
+    mana1 = p1.get("mana_atual", 100)
+    mana1mx = p1.get("mana_max", 100)
+    mana2 = p2.get("mana_atual", 100)
+    mana2mx = p2.get("mana_max", 100)
+    turno = 1
+    efeitos1 = {}
+    efeitos2 = {}
+    passiva1 = Passiva(p1["classe_id"])
+    passiva2 = Passiva(p2["classe_id"])
+    msgs = []
+    e1 = EMOJI_CLASSE.get(p1["classe_id"], "⚔️")
+    e2 = EMOJI_CLASSE.get(p2["classe_id"], "⚔️")
+    timeout1 = 0
+    timeout2 = 0
+
+    def barra_status_pvp():
+        return (
+            f"{e1} **{p1['nome']}** ❤️`{barra_hp(hp1, hp1mx)}`**{hp1}/{hp1mx}** 💙{mana1}/{mana1mx}\n"
+            f"{e2} **{p2['nome']}** ❤️`{barra_hp(hp2, hp2mx)}`**{hp2}/{hp2mx}** 💙{mana2}/{mana2mx}"
+        )
+
+    embed_ini = discord.Embed(
+        title=f"⚔️ Duelo PvP — {arena['emoji']} {arena['nome']}",
+        description=f"**{m1.mention}** vs **{m2.mention}**\n\n{barra_status_pvp()}",
+        color=arena["cor"]
+    )
+    msgs.append(await channel.send(embed=embed_ini))
+
+    for t in range(1, 21):
+        if hp1 <= 0 or hp2 <= 0:
+            break
+
+        # Turno p1
+        if hp1 > 0:
+            pocoes1 = await get_pocoes_inv(uid1)
+            view1 = BatalhaView(uid1, skills1, pocoes1, nivel=p1["nivel"])
+            embed_v1 = discord.Embed(
+                title=f"🎮 Turno {t} — {e1} {p1['nome']}, sua vez!",
+                description=barra_status_pvp(),
+                color=0x7F77DD
+            )
+            msg_v1 = await channel.send(content=m1.mention, embed=embed_v1, view=view1)
+            msgs.append(msg_v1)
+            await view1.wait()
+
+            try:
+                await msg_v1.edit(view=None)
+            except:
+                pass
+
+            acao1, val1 = view1.acao or ("timeout", None)
+            linha = ""
+
+            if acao1 == "atk_basico":
+                mult = get_mult_basico(p1["nivel"])
+                dano = calc_dano(p1["ataque"], p2["defesa"], mult, bonus_atk=bonus_atk1, nivel=p1["nivel"])
+                hp2 = max(0, hp2 - dano)
+                linha = f"{e1} Ataque Básico: **{dano} de dano**!"
+            elif acao1 == "defesa_basica":
+                add_efeito(efeitos1, "defesa_basica", 1)
+                linha = f"{e1} Postura defensiva!"
+            elif acao1 == "skill" and val1 is not None and val1 < len(skills1):
+                sk = skills1[val1]
+                if mana1 >= sk.get("mana", 0):
+                    mana1 -= sk.get("mana", 0)
+                    dano = calc_dano(p1["ataque"], p2["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk1)
+                    dano = int(dano * passiva1.multiplicador_dano())
+                    hp2 = max(0, hp2 - dano)
+                    linha = f"{e1} {sk['emoji']} **{sk['nome']}**: **{dano} de dano**!"
+                else:
+                    dano = calc_dano(p1["ataque"], p2["defesa"], 1.0, bonus_atk=bonus_atk1)
+                    hp2 = max(0, hp2 - dano)
+                    linha = f"{e1} Sem mana! Ataque básico: **{dano} de dano**."
+            elif acao1 == "pocao" and val1:
+                hp1, mana1, linha = await aplicar_efeito_pocao(val1, hp1, hp1mx, mana1, mana1mx)
+                await remover_pocao(uid1, val1)
+            elif acao1 == "fugir":
+                embed_f = discord.Embed(title=f"{e1} {p1['nome']} fugiu!", description=f"Vitória de **{p2['nome']}**!", color=0x888780)
+                await channel.send(embed=embed_f)
+                for m in msgs:
+                    try:
+                        await m.delete()
+                    except:
+                        pass
+                if callback:
+                    await callback(p2["user_id"], p1["user_id"])
+                return
+            elif acao1 == "timeout":
+                timeout1 += 1
+                if timeout1 >= 3:
+                    embed_f = discord.Embed(title=f"💤 {p1['nome']} foi expulso!", color=0x888780)
+                    await channel.send(embed=embed_f)
+                    if callback:
+                        await callback(p2["user_id"], p1["user_id"])
+                    return
+                else:
+                    dano = calc_dano(p1["ataque"], p2["defesa"], 1.0, bonus_atk=bonus_atk1)
+                    hp2 = max(0, hp2 - dano)
+                    linha = f"⏰ Auto ({timeout1}/3): **{dano} de dano**!"
+            else:
+                dano = calc_dano(p1["ataque"], p2["defesa"], 1.0, bonus_atk=bonus_atk1)
+                hp2 = max(0, hp2 - dano)
+                linha = f"⚔️ Ataque: **{dano} de dano**!"
+
+            mana1 = min(mana1mx, mana1 + 8)
+            embed_a1 = discord.Embed(
+                title=f"{e1} {p1['nome']} age!",
+                description=f"{linha}\n\n{barra_status_pvp()}",
+                color=arena["cor"]
+            )
+            msgs.append(await channel.send(embed=embed_a1))
+
+        if hp2 <= 0:
+            break
+
+        await asyncio.sleep(1.0)
+
+        # Turno p2
+        if hp2 > 0:
+            pocoes2 = await get_pocoes_inv(uid2)
+            view2 = BatalhaView(uid2, skills2, pocoes2, nivel=p2["nivel"])
+            embed_v2 = discord.Embed(
+                title=f"🎮 Turno {t} — {e2} {p2['nome']}, sua vez!",
+                description=barra_status_pvp(),
+                color=0xD85A30
+            )
+            msg_v2 = await channel.send(content=m2.mention, embed=embed_v2, view=view2)
+            msgs.append(msg_v2)
+            await view2.wait()
+
+            try:
+                await msg_v2.edit(view=None)
+            except:
+                pass
+
+            acao2, val2 = view2.acao or ("timeout", None)
+            linha = ""
+
+            if acao2 == "atk_basico":
+                mult = get_mult_basico(p2["nivel"])
+                dano = calc_dano(p2["ataque"], p1["defesa"], mult, bonus_atk=bonus_atk2, nivel=p2["nivel"])
+                hp1 = max(0, hp1 - dano)
+                linha = f"{e2} Ataque Básico: **{dano} de dano**!"
+            elif acao2 == "defesa_basica":
+                add_efeito(efeitos2, "defesa_basica", 1)
+                linha = f"{e2} Postura defensiva!"
+            elif acao2 == "skill" and val2 is not None and val2 < len(skills2):
+                sk = skills2[val2]
+                if mana2 >= sk.get("mana", 0):
+                    mana2 -= sk.get("mana", 0)
+                    dano = calc_dano(p2["ataque"], p1["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk2)
+                    dano = int(dano * passiva2.multiplicador_dano())
+                    hp1 = max(0, hp1 - dano)
+                    linha = f"{e2} {sk['emoji']} **{sk['nome']}**: **{dano} de dano**!"
+                else:
+                    dano = calc_dano(p2["ataque"], p1["defesa"], 1.0, bonus_atk=bonus_atk2)
+                    hp1 = max(0, hp1 - dano)
+                    linha = f"{e2} Sem mana! Ataque básico: **{dano} de dano**."
+            elif acao2 == "pocao" and val2:
+                hp2, mana2, linha = await aplicar_efeito_pocao(val2, hp2, hp2mx, mana2, mana2mx)
+                await remover_pocao(uid2, val2)
+            elif acao2 == "fugir":
+                embed_f = discord.Embed(title=f"{e2} {p2['nome']} fugiu!", description=f"Vitória de **{p1['nome']}**!", color=0x888780)
+                await channel.send(embed=embed_f)
+                for m in msgs:
+                    try:
+                        await m.delete()
+                    except:
+                        pass
+                if callback:
+                    await callback(p1["user_id"], p2["user_id"])
+                return
+            elif acao2 == "timeout":
+                timeout2 += 1
+                if timeout2 >= 3:
+                    embed_f = discord.Embed(title=f"💤 {p2['nome']} foi expulso!", color=0x888780)
+                    await channel.send(embed=embed_f)
+                    if callback:
+                        await callback(p1["user_id"], p2["user_id"])
+                    return
+                else:
+                    dano = calc_dano(p2["ataque"], p1["defesa"], 1.0, bonus_atk=bonus_atk2)
+                    hp1 = max(0, hp1 - dano)
+                    linha = f"⏰ Auto ({timeout2}/3): **{dano} de dano**!"
+            else:
+                dano = calc_dano(p2["ataque"], p1["defesa"], 1.0, bonus_atk=bonus_atk2)
+                hp1 = max(0, hp1 - dano)
+                linha = f"⚔️ Ataque: **{dano} de dano**!"
+
+            mana2 = min(mana2mx, mana2 + 8)
+            embed_a2 = discord.Embed(
+                title=f"{e2} {p2['nome']} age!",
+                description=f"{linha}\n\n{barra_status_pvp()}",
+                color=arena["cor"]
+            )
+            msgs.append(await channel.send(embed=embed_a2))
+
+        await asyncio.sleep(1.0)
+
+    # Resultado PvP
+    if hp1 > hp2:
+        vencedor, perdedor, mv, mp = p1, p2, m1, m2
+        hp_v = hp1
+    else:
+        vencedor, perdedor, mv, mp = p2, p1, m2, m1
+        hp_v = hp2
+
+    xp_v = 80
+    mo_v = 60
+    await salvar_resultado(vencedor["user_id"], hp_v, xp_v, mo_v, True, vencedor["classe_id"], vencedor["nivel"])
+    await salvar_resultado(perdedor["user_id"], 10, 20, 0, False, perdedor["classe_id"], perdedor["nivel"])
+
+    fim = discord.Embed(
+        title=f"🏆 {vencedor['nome']} vence o duelo!",
+        description=f"{mv.mention} derrotou {mp.mention}!\n\n+{xp_v} XP | +{mo_v} 🪙",
+        color=0xE4AF3C
+    )
+    await channel.send(embed=fim)
+
+    await asyncio.sleep(1.5)
+    for m in msgs:
+        try:
+            await m.delete()
+        except:
+            pass
+
+    if callback:
+        await callback(vencedor["user_id"], perdedor["user_id"])
