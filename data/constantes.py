@@ -164,6 +164,20 @@ ELOS = {
 }
 
 # ==================================================
+# FUNÇÕES AUXILIARES
+# ==================================================
+
+def get_party_bonus(nivel: int) -> dict:
+    """Retorna o bônus da party baseado no nível"""
+    return PARTY_NIVEIS.get(nivel, PARTY_NIVEIS[1])
+
+
+def get_bonus_por_membros(qtd: int) -> dict:
+    """Retorna o bônus baseado no número de membros"""
+    return BONUS_POR_MEMBROS.get(min(qtd, 5), BONUS_POR_MEMBROS[2])
+
+
+# ==================================================
 # IMAGENS (URLs)
 # ==================================================
 
