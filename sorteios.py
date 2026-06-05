@@ -27,7 +27,6 @@ async def init_db_sorteios():
                 item_id TEXT NOT NULL,
                 item_nome TEXT NOT NULL,
                 item_raridade TEXT DEFAULT 'Comum',
-                item_tipo TEXT DEFAULT 'item',
                 quantidade_item INTEGER DEFAULT 1,
                 quantidade_ganhadores INTEGER DEFAULT 1,
                 participantes_count INTEGER DEFAULT 0,
@@ -98,41 +97,36 @@ async def adicionar_participante(sorteio_id: int, usuario_id: int) -> bool:
         except:
             return False
 
-async def entregar_recompensa(conn, user_id: int, item_id: str, item_nome: str, item_raridade: str, item_tipo: str, quantidade: int):
+async def entregar_recompensa(conn, user_id: int, item_id: str, item_nome: str, item_raridade: str, quantidade: int):
     """Entrega a recompensa do sorteio para o vencedor"""
     
-    # MOEDAS
-    if item_tipo == "moedas":
+    # MOEDAS (IDs especiais)
+    if item_id.startswith("moedas_"):
+        qtd = int(item_id.split("_")[1])
         await conn.execute("""
             UPDATE personagens SET moedas = moedas + $1 WHERE user_id = $2
-        """, quantidade, user_id)
+        """, qtd, user_id)
         return
     
-    # XP
-    if item_tipo == "xp":
+    # XP (IDs especiais)
+    if item_id.startswith("xp_"):
+        qtd = int(item_id.split("_")[1])
         await conn.execute("""
             UPDATE personagens SET xp = xp + $1 WHERE user_id = $2
-        """, quantidade, user_id)
+        """, qtd, user_id)
         return
     
     # Fichas de roleta
-    if item_tipo == "ficha":
-        raridade_map = {
-            "Comum": "Comum",
-            "Incomum": "Incomum", 
-            "Raro": "Raro",
-            "Epico": "Epico",
-            "Lendario": "Lendario",
-            "Lendário": "Lendario"
-        }
-        raridade_giro = raridade_map.get(item_raridade, "Comum")
-        
+    if item_id.startswith("ficha_"):
+        raridade = item_id.replace("ficha_", "").capitalize()
+        if raridade == "Lendario":
+            raridade = "Lendario"
         await conn.execute("""
             INSERT INTO giros (user_id, roleta_id, raridade, quantidade)
             VALUES ($1, 'skill', $2, $3)
             ON CONFLICT (user_id, roleta_id, raridade)
             DO UPDATE SET quantidade = giros.quantidade + $3
-        """, user_id, raridade_giro, quantidade)
+        """, user_id, raridade, quantidade)
         return
     
     # Itens normais
@@ -146,10 +140,15 @@ async def entregar_recompensa(conn, user_id: int, item_id: str, item_nome: str, 
             quantidade, ex["id"]
         )
     else:
+        from catalogo import get_catalogo_completo
+        itens = get_catalogo_completo()
+        item = next((i for i in itens if i["id"] == item_id), None)
+        emoji = item["emoji"] if item else "🎁"
+        
         await conn.execute("""
             INSERT INTO inventario (user_id, item_id, nome, tipo, raridade, emoji, descricao, quantidade)
-            VALUES ($1, $2, $3, $4, $5, '🎁', $6, $7)
-        """, user_id, item_id, item_nome, "premio", item_raridade, f"Prêmio de sorteio", quantidade)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        """, user_id, item_id, item_nome, "premio", item_raridade, emoji, f"Prêmio de sorteio", quantidade)
 
 async def finalizar_sorteio(sorteio_id: int, guild, canal_id: int, mensagem_id: int, manual: bool = False):
     pool = await get_pool()
@@ -178,8 +177,7 @@ async def finalizar_sorteio(sorteio_id: int, guild, canal_id: int, mensagem_id: 
             await entregar_recompensa(
                 conn, vencedor_id,
                 sorteio["item_id"], sorteio["item_nome"],
-                sorteio["item_raridade"], sorteio["item_tipo"],
-                sorteio["quantidade_item"]
+                sorteio["item_raridade"], sorteio["quantidade_item"]
             )
         
         return vencedores, ids_participantes
@@ -231,87 +229,25 @@ def get_todos_itens_para_sorteio():
     # ==============================================
     # SEÇÃO 1: MOEDAS E XP
     # ==============================================
-    itens.append({
-        "id": "moedas_100",
-        "nome": "100 Moedas",
-        "raridade": "Comum",
-        "tipo": "moedas",
-        "emoji": "🪙",
-        "categoria": "💰 Moedas"
-    })
-    itens.append({
-        "id": "moedas_500",
-        "nome": "500 Moedas",
-        "raridade": "Incomum",
-        "tipo": "moedas",
-        "emoji": "🪙",
-        "categoria": "💰 Moedas"
-    })
-    itens.append({
-        "id": "moedas_1000",
-        "nome": "1000 Moedas",
-        "raridade": "Raro",
-        "tipo": "moedas",
-        "emoji": "🪙",
-        "categoria": "💰 Moedas"
-    })
-    itens.append({
-        "id": "moedas_5000",
-        "nome": "5000 Moedas",
-        "raridade": "Epico",
-        "tipo": "moedas",
-        "emoji": "🪙",
-        "categoria": "💰 Moedas"
-    })
-    itens.append({
-        "id": "moedas_10000",
-        "nome": "10000 Moedas",
-        "raridade": "Lendario",
-        "tipo": "moedas",
-        "emoji": "🪙",
-        "categoria": "💰 Moedas"
-    })
+    moedas = [100, 500, 1000, 5000, 10000]
+    for m in moedas:
+        itens.append({
+            "id": f"moedas_{m}",
+            "nome": f"{m} Moedas",
+            "raridade": "Comum" if m <= 500 else "Incomum" if m <= 1000 else "Raro" if m <= 5000 else "Epico",
+            "emoji": "🪙",
+            "categoria": "💰 Moedas"
+        })
     
-    itens.append({
-        "id": "xp_100",
-        "nome": "100 XP",
-        "raridade": "Comum",
-        "tipo": "xp",
-        "emoji": "⭐",
-        "categoria": "⭐ Experiência"
-    })
-    itens.append({
-        "id": "xp_500",
-        "nome": "500 XP",
-        "raridade": "Incomum",
-        "tipo": "xp",
-        "emoji": "⭐",
-        "categoria": "⭐ Experiência"
-    })
-    itens.append({
-        "id": "xp_1000",
-        "nome": "1000 XP",
-        "raridade": "Raro",
-        "tipo": "xp",
-        "emoji": "⭐",
-        "categoria": "⭐ Experiência"
-    })
-    itens.append({
-        "id": "xp_5000",
-        "nome": "5000 XP",
-        "raridade": "Epico",
-        "tipo": "xp",
-        "emoji": "⭐",
-        "categoria": "⭐ Experiência"
-    })
-    itens.append({
-        "id": "xp_10000",
-        "nome": "10000 XP",
-        "raridade": "Lendario",
-        "tipo": "xp",
-        "emoji": "⭐",
-        "categoria": "⭐ Experiência"
-    })
+    xps = [100, 500, 1000, 5000, 10000]
+    for x in xps:
+        itens.append({
+            "id": f"xp_{x}",
+            "nome": f"{x} XP",
+            "raridade": "Comum" if x <= 500 else "Incomum" if x <= 1000 else "Raro" if x <= 5000 else "Epico",
+            "emoji": "⭐",
+            "categoria": "⭐ Experiência"
+        })
     
     # ==============================================
     # SEÇÃO 2: FICHAS DE ROLETA
@@ -322,7 +258,6 @@ def get_todos_itens_para_sorteio():
             "id": f"ficha_{rar.lower()}",
             "nome": f"Ficha {rar}",
             "raridade": rar,
-            "tipo": "ficha",
             "emoji": "🎰",
             "categoria": "🎰 Fichas de Roleta"
         })
@@ -337,7 +272,6 @@ def get_todos_itens_para_sorteio():
                 "id": pocao["id"],
                 "nome": pocao["nome"],
                 "raridade": pocao["raridade"],
-                "tipo": "pocao",
                 "emoji": pocao.get("emoji", "🧪"),
                 "categoria": "🧪 Poções"
             })
@@ -355,7 +289,6 @@ def get_todos_itens_para_sorteio():
                     "id": arma["id"],
                     "nome": arma["nome"],
                     "raridade": arma["raridade"],
-                    "tipo": "arma",
                     "emoji": arma.get("emoji", "⚔️"),
                     "categoria": f"⚔️ Armas - {classe.title()}"
                 })
@@ -373,7 +306,6 @@ def get_todos_itens_para_sorteio():
                     "id": armadura["id"],
                     "nome": armadura["nome"],
                     "raridade": armadura["raridade"],
-                    "tipo": "armadura",
                     "emoji": armadura.get("emoji", "🛡️"),
                     "categoria": f"🛡️ Armaduras - {classe.title()}"
                 })
@@ -390,7 +322,6 @@ def get_todos_itens_para_sorteio():
                 "id": material["id"],
                 "nome": material["nome"],
                 "raridade": material["raridade"],
-                "tipo": "material",
                 "emoji": material.get("emoji", "📦"),
                 "categoria": "📦 Materiais"
             })
@@ -407,7 +338,6 @@ def get_todos_itens_para_sorteio():
                 "id": receita["id"],
                 "nome": receita["nome"],
                 "raridade": receita["raridade"],
-                "tipo": "forja",
                 "emoji": receita.get("emoji", "🔨"),
                 "categoria": "🔨 Itens de Forja"
             })
@@ -452,13 +382,12 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
         max_length=5
     )
     
-    def __init__(self, canal_id: int, item_id: str, item_nome: str, item_raridade: str, item_tipo: str, quantidade_item: int):
+    def __init__(self, canal_id: int, item_id: str, item_nome: str, item_raridade: str, quantidade_item: int):
         super().__init__()
         self.canal_id = canal_id
         self.item_id = item_id
         self.item_nome = item_nome
         self.item_raridade = item_raridade
-        self.item_tipo = item_tipo
         self.quantidade_item = quantidade_item
     
     async def on_submit(self, interaction: discord.Interaction):
@@ -482,13 +411,13 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
             sorteio = await conn.fetchrow("""
                 INSERT INTO sorteios 
                 (guild_id, canal_id, criador_id, titulo, descricao, imagem,
-                 item_id, item_nome, item_raridade, item_tipo, quantidade_item,
+                 item_id, item_nome, item_raridade, quantidade_item,
                  quantidade_ganhadores, data_encerramento)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING *
             """, interaction.guild.id, self.canal_id, interaction.user.id,
                 self.titulo.value, self.descricao.value, self.imagem.value,
-                self.item_id, self.item_nome, self.item_raridade, self.item_tipo,
+                self.item_id, self.item_nome, self.item_raridade,
                 self.quantidade_item, qtd_ganhadores, data_encerramento)
         
         embed = discord.Embed(
@@ -497,23 +426,16 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
             color=COR_PRIMARY
         )
         
-        # Define texto da recompensa baseado no tipo
-        if self.item_tipo == "moedas":
-            texto_recompensa = f"🪙 **{self.quantidade_item} Moedas**"
-        elif self.item_tipo == "xp":
-            texto_recompensa = f"⭐ **{self.quantidade_item} XP**"
-        elif self.item_tipo == "ficha":
-            texto_recompensa = f"🎰 **{self.quantidade_item}x Ficha {self.item_raridade}**"
-        elif self.item_tipo == "arma":
-            texto_recompensa = f"⚔️ **{self.item_nome}** x{self.quantidade_item}"
-        elif self.item_tipo == "armadura":
-            texto_recompensa = f"🛡️ **{self.item_nome}** x{self.quantidade_item}"
-        elif self.item_tipo == "pocao":
-            texto_recompensa = f"🧪 **{self.item_nome}** x{self.quantidade_item}"
-        elif self.item_tipo == "material":
-            texto_recompensa = f"📦 **{self.item_nome}** x{self.quantidade_item}"
-        elif self.item_tipo == "forja":
-            texto_recompensa = f"🔨 **{self.item_nome}** x{self.quantidade_item}"
+        # Define texto da recompensa baseado no ID
+        if self.item_id.startswith("moedas_"):
+            qtd = self.item_id.split("_")[1]
+            texto_recompensa = f"🪙 **{qtd} Moedas**"
+        elif self.item_id.startswith("xp_"):
+            qtd = self.item_id.split("_")[1]
+            texto_recompensa = f"⭐ **{qtd} XP**"
+        elif self.item_id.startswith("ficha_"):
+            rar = self.item_id.replace("ficha_", "").capitalize()
+            texto_recompensa = f"🎰 **{self.quantidade_item}x Ficha {rar}**"
         else:
             raridade_emoji = {
                 "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
@@ -613,20 +535,15 @@ async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
             vencedores_mentions.append(f"<@{vid}>")
     
     # Define texto da recompensa
-    if sorteio["item_tipo"] == "moedas":
-        texto_recompensa = f"🪙 **{sorteio['quantidade_item']} Moedas**"
-    elif sorteio["item_tipo"] == "xp":
-        texto_recompensa = f"⭐ **{sorteio['quantidade_item']} XP**"
-    elif sorteio["item_tipo"] == "ficha":
-        texto_recompensa = f"🎰 **{sorteio['quantidade_item']}x Ficha {sorteio['item_raridade']}**"
-    elif sorteio["item_tipo"] == "arma":
-        texto_recompensa = f"⚔️ **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
-    elif sorteio["item_tipo"] == "armadura":
-        texto_recompensa = f"🛡️ **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
-    elif sorteio["item_tipo"] == "pocao":
-        texto_recompensa = f"🧪 **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
-    elif sorteio["item_tipo"] == "material":
-        texto_recompensa = f"📦 **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
+    if sorteio["item_id"].startswith("moedas_"):
+        qtd = sorteio["item_id"].split("_")[1]
+        texto_recompensa = f"🪙 **{qtd} Moedas**"
+    elif sorteio["item_id"].startswith("xp_"):
+        qtd = sorteio["item_id"].split("_")[1]
+        texto_recompensa = f"⭐ **{qtd} XP**"
+    elif sorteio["item_id"].startswith("ficha_"):
+        rar = sorteio["item_id"].replace("ficha_", "").capitalize()
+        texto_recompensa = f"🎰 **{sorteio['quantidade_item']}x Ficha {rar}**"
     else:
         raridade_emoji = {
             "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
@@ -704,8 +621,8 @@ async def autocomplete_item_sorteio(interaction: discord.Interaction, current: s
     
     return [
         app_commands.Choice(
-            name=f"{i['emoji']} {i['nome']} [{i['raridade']}] - {i.get('categoria', i['tipo'].upper())}"[:100],
-            value=f"{i['id']}|{i['nome']}|{i['raridade']}|{i['tipo']}"
+            name=f"{i['emoji']} {i['nome']} [{i['raridade']}] - {i.get('categoria', 'Item')}"[:100],
+            value=f"{i['id']}|{i['nome']}|{i['raridade']}"
         )
         for i in filtrado[:25]
     ]
@@ -723,7 +640,7 @@ async def autocomplete_sorteio_ativo(interaction: discord.Interaction, current: 
     ][:25]
 
 # ==================================================
-# COMANDOS (CORRIGIDOS - SEM DEFER)
+# COMANDOS
 # ==================================================
 
 async def cmd_sorteio_criar(interaction: discord.Interaction, canal: str, item: str, quantidade: int):
@@ -744,20 +661,19 @@ async def cmd_sorteio_criar(interaction: discord.Interaction, canal: str, item: 
         return
     
     partes = item.split("|")
-    if len(partes) < 4:
+    if len(partes) < 3:
         await interaction.response.send_message("❌ Item inválido! Selecione da lista de sugestões.", ephemeral=True)
         return
     
     item_id = partes[0]
     item_nome = partes[1]
     item_raridade = partes[2]
-    item_tipo = partes[3]
     
     if quantidade < 1 or quantidade > 99999:
         await interaction.response.send_message("❌ Quantidade inválida! Use entre 1 e 99999.", ephemeral=True)
         return
     
-    modal = CriarSorteioModal(canal_obj.id, item_id, item_nome, item_raridade, item_tipo, quantidade)
+    modal = CriarSorteioModal(canal_obj.id, item_id, item_nome, item_raridade, quantidade)
     await interaction.response.send_modal(modal)
 
 async def cmd_sorteio_sortear(interaction: discord.Interaction, sorteio_id: int):
@@ -826,20 +742,15 @@ async def cmd_sorteio_info(interaction: discord.Interaction, sorteio_id: int):
     }.get(sorteio["status"], "❓ DESCONHECIDO")
     
     # Define texto da recompensa
-    if sorteio["item_tipo"] == "moedas":
-        texto_recompensa = f"🪙 {sorteio['quantidade_item']} Moedas"
-    elif sorteio["item_tipo"] == "xp":
-        texto_recompensa = f"⭐ {sorteio['quantidade_item']} XP"
-    elif sorteio["item_tipo"] == "ficha":
-        texto_recompensa = f"🎰 {sorteio['quantidade_item']}x Ficha {sorteio['item_raridade']}"
-    elif sorteio["item_tipo"] == "arma":
-        texto_recompensa = f"⚔️ {sorteio['item_nome']} x{sorteio['quantidade_item']}"
-    elif sorteio["item_tipo"] == "armadura":
-        texto_recompensa = f"🛡️ {sorteio['item_nome']} x{sorteio['quantidade_item']}"
-    elif sorteio["item_tipo"] == "pocao":
-        texto_recompensa = f"🧪 {sorteio['item_nome']} x{sorteio['quantidade_item']}"
-    elif sorteio["item_tipo"] == "material":
-        texto_recompensa = f"📦 {sorteio['item_nome']} x{sorteio['quantidade_item']}"
+    if sorteio["item_id"].startswith("moedas_"):
+        qtd = sorteio["item_id"].split("_")[1]
+        texto_recompensa = f"🪙 {qtd} Moedas"
+    elif sorteio["item_id"].startswith("xp_"):
+        qtd = sorteio["item_id"].split("_")[1]
+        texto_recompensa = f"⭐ {qtd} XP"
+    elif sorteio["item_id"].startswith("ficha_"):
+        rar = sorteio["item_id"].replace("ficha_", "").capitalize()
+        texto_recompensa = f"🎰 {sorteio['quantidade_item']}x Ficha {rar}"
     else:
         raridade_emoji = {
             "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
@@ -879,18 +790,15 @@ async def cmd_sorteios_listar(interaction: discord.Interaction):
     for s in sorteios:
         participantes = await get_participantes(s["id"])
         
-        if s["item_tipo"] == "moedas":
-            texto_recompensa = f"🪙 {s['quantidade_item']} Moedas"
-        elif s["item_tipo"] == "xp":
-            texto_recompensa = f"⭐ {s['quantidade_item']} XP"
-        elif s["item_tipo"] == "ficha":
-            texto_recompensa = f"🎰 {s['quantidade_item']}x Ficha {s['item_raridade']}"
-        elif s["item_tipo"] == "arma":
-            texto_recompensa = f"⚔️ {s['item_nome']} x{s['quantidade_item']}"
-        elif s["item_tipo"] == "armadura":
-            texto_recompensa = f"🛡️ {s['item_nome']} x{s['quantidade_item']}"
-        elif s["item_tipo"] == "pocao":
-            texto_recompensa = f"🧪 {s['item_nome']} x{s['quantidade_item']}"
+        if s["item_id"].startswith("moedas_"):
+            qtd = s["item_id"].split("_")[1]
+            texto_recompensa = f"🪙 {qtd} Moedas"
+        elif s["item_id"].startswith("xp_"):
+            qtd = s["item_id"].split("_")[1]
+            texto_recompensa = f"⭐ {qtd} XP"
+        elif s["item_id"].startswith("ficha_"):
+            rar = s["item_id"].replace("ficha_", "").capitalize()
+            texto_recompensa = f"🎰 {s['quantidade_item']}x Ficha {rar}"
         else:
             raridade_emoji = {
                 "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
