@@ -1,25 +1,26 @@
-# racas.py — Sistema de Racas completo
+# racas.py — Sistema de Racas completo (REBALANCEADO TEMPORADA 2)
 
 RACAS = {
     # ── BASICAS (escolha na criacao) ─────────────────────────────
     "humano": {
         "id": "humano", "nome": "Humano", "emoji": "👤",
-        "raridade": "Comum", "peso": 0,  # peso 0 = nao entra na roleta
-        "desc": "Versáteis e determinados. Ganham mais XP que qualquer outra raça.",
+        "raridade": "Comum", "peso": 0,
+        "desc": "Versáteis e determinados. Ganham mais XP e moedas que outras raças.",
         "lore": "Os humanos de Villa Eldoria são conhecidos pela sua resiliência e capacidade de adaptação.",
-        "passiva_desc": "+15% XP em todas as batalhas e dungeons",
-        "bonus_xp": 0.15,
+        "passiva_desc": "+10% XP e +5% moedas em batalhas e dungeons",  # REBALANCEADO
+        "bonus_xp": 0.10,      # REBALANCEADO (antes 0.15)
+        "bonus_moedas": 0.05,  # NOVO
         "cor": 0x888780,
         "cargos": "👤 Humano",
     },
     "anao": {
         "id": "anao", "nome": "Anão", "emoji": "🧔",
         "raridade": "Comum", "peso": 0,
-        "desc": "Resistentes como pedra. Defesa natural e imunidade a atordoamento.",
+        "desc": "Resistentes como pedra. Defesa natural e resistência a atordoamento.",
         "lore": "Os anões vivem nas montanhas de ferro e forjaram as melhores armas do mundo.",
-        "passiva_desc": "+8 DEF fixo em batalha, imune a atordoamento",
-        "bonus_def": 8,
-        "imune_atordoar": True,
+        "passiva_desc": "+5 DEF fixo, 50% de resistência a atordoamento",  # REBALANCEADO
+        "bonus_def": 5,        # REBALANCEADO (antes 8)
+        "resist_atordoar": 0.50,  # NOVO (antes imunidade total)
         "cor": 0xD85A30,
         "cargos": "🧔 Anão",
     },
@@ -41,7 +42,7 @@ RACAS = {
         "raridade": "Incomum", "peso": 8,
         "desc": "Amaldiçoado entre homem e fera. HP baixo desencadeia transformação.",
         "lore": "Mordidos pela lua, os licantropos carregam a maldição como um presente.",
-        "passiva_desc": "HP<50%: transforma (+30% ATK, imune veneno)",
+        "passiva_desc": "HP<60%: transforma (+30% ATK, imune veneno)",  # REBALANCEADO (antes 50%)
         "cor": 0x2ecc71,
         "cargos": "🐺 Licantropo",
     },
@@ -95,7 +96,7 @@ RACAS = {
         "raridade": "Épico", "peso": 1,
         "desc": "Descendentes de dragões em forma humana. Escamas e fogo nas veias.",
         "lore": "Quando dragões se uniram com mortais, nasceu uma raça entre dois mundos.",
-        "passiva_desc": "-20% dano recebido, imune queimadura, +10% dano de fogo",
+        "passiva_desc": "-12% dano recebido, imune queimadura, +10% dano de fogo",  # REBALANCEADO (antes 20%)
         "cor": 0xE67E22,
         "cargos": "🐉 Draconiano",
     },
@@ -111,9 +112,9 @@ RACAS = {
     "demonio": {
         "id": "demonio", "nome": "Demônio", "emoji": "😈",
         "raridade": "Lendário", "peso": 1,
-        "desc": "Ser das profundezas infernais. Poder cresce a cada turno sem parar.",
+        "desc": "Ser das profundezas infernais. Poder cresce nos primeiros turnos.",
         "lore": "Demônios que escaparam do inferno trazem o poder das trevas absolutas.",
-        "passiva_desc": "Cada turno +5% dano acumulado. Ataques causam queimadura passiva",
+        "passiva_desc": "Primeiros 10 turnos: +5% dano/turno (max +50%). Ataques causam queimadura",  # REBALANCEADO
         "cor": 0xC0392B,
         "cargos": "😈 Demônio",
     },
@@ -127,7 +128,7 @@ COR_RAR_RACA    = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Épico":
 def get_raca(raca_id):
     return RACAS.get(raca_id, RACAS["humano"])
 
-# ─── PASSIVA RACIAL ──────────────────────────────────────────────
+# ─── PASSIVA RACIAL (REBALANCEADA) ──────────────────────────────
 
 class PassivaRacial:
     def __init__(self, raca_id):
@@ -135,7 +136,7 @@ class PassivaRacial:
         self.turno     = 0
         self.ressuscitou = False  # anjo
         self.escudo_anjo = 0     # anjo - turnos ate proximo escudo
-        self.bonus_demonio = 0.0 # demonio - acumulo de dano
+        self.bonus_demonio = 0.0 # demonio - acumulo de dano (limitado a 10 turnos)
         self.transformado  = False # licantropo
 
     def inicio_turno(self, hp_j, hp_jmx):
@@ -148,18 +149,19 @@ class PassivaRacial:
         if self.raca_id == "elfo_floresta":
             cura = max(1, int(hp_jmx * 0.04))
 
-        # Demônio — acumula +5% dano por turno
+        # Demônio — acumula +5% dano por turno (apenas primeiros 10 turnos, cap 50%)
         if self.raca_id == "demonio":
-            self.bonus_demonio = min(1.0, self.bonus_demonio + 0.05)
+            if self.turno <= 10:
+                self.bonus_demonio = min(0.50, self.bonus_demonio + 0.05)
 
         # Anjo — escudo a cada 5 turnos
         if self.raca_id == "anjo":
             if self.turno % 5 == 0:
                 escudo = True
 
-        # Licantropo — transforma se HP < 50%
+        # Licantropo — transforma se HP < 60% (REBALANCEADO)
         if self.raca_id == "licantropo":
-            self.transformado = (hp_j / max(1, hp_jmx)) < 0.50
+            self.transformado = (hp_j / max(1, hp_jmx)) < 0.60
 
         return cura, escudo
 
@@ -176,7 +178,7 @@ class PassivaRacial:
     def reducao_dano(self):
         """Redução de dano recebido"""
         if self.raca_id == "draconiano":
-            return 0.20
+            return 0.12  # REBALANCEADO (antes 0.20)
         if self.raca_id == "anao":
             return 0.05
         return 0.0
@@ -184,7 +186,7 @@ class PassivaRacial:
     def bonus_defesa_fixa(self):
         """Bônus fixo de DEF"""
         if self.raca_id == "anao":
-            return 8
+            return 5  # REBALANCEADO (antes 8)
         return 0
 
     def bonus_critico(self):
@@ -202,7 +204,13 @@ class PassivaRacial:
     def bonus_xp(self):
         """Multiplicador de XP ganho"""
         if self.raca_id == "humano":
-            return 0.15
+            return 0.10  # REBALANCEADO (antes 0.15)
+        return 0.0
+
+    def bonus_moedas(self):
+        """Multiplicador de moedas ganhas"""
+        if self.raca_id == "humano":
+            return 0.05  # NOVO
         return 0.0
 
     def imune_status(self, status):
@@ -211,15 +219,21 @@ class PassivaRacial:
             "demonio":    ["veneno", "queimadura", "congelar"],
             "draconiano": ["queimadura"],
             "morto_vivo": ["veneno", "congelar", "queimadura", "atordoar"],
-            "anao":       ["atordoar"],
+            "anao":       [],  # Anão não é mais imune, apenas resistente
             "licantropo": ["veneno"] if self.transformado else [],
         }
         return status in imunidades.get(self.raca_id, [])
 
+    def resist_atordoar(self):
+        """Chance de resistir a atordoamento (Anão)"""
+        if self.raca_id == "anao":
+            return 0.50  # NOVO - 50% de chance de resistir
+        return 0.0
+
     def apos_tomar_dano(self, dano, hp_j, hp_jmx, atk_inimigo):
         """Retorna (contra_ataque_dano, dreno_hp)"""
         contra = 0
-        dreno  = 0
+        dreno = 0
 
         # Elfo Sombrio — 30% contra-ataque
         if self.raca_id == "elfo_sombrio" and __import__("random").random() < 0.30:
@@ -249,6 +263,14 @@ class PassivaRacial:
             self.ressuscitou = True
             return True
         return False
+
+    def modificar_dano_recebido(self, dano):
+        """Aplica redução de dano e retorna (dano_final, mensagem)"""
+        reducao = self.reducao_dano()
+        if reducao > 0:
+            dano_final = max(1, int(dano * (1 - reducao)))
+            return dano_final, f"🛡️ Redução de dano: -{int(reducao*100)}%"
+        return dano, ""
 
     def desc_passiva(self):
         raca = get_raca(self.raca_id)
