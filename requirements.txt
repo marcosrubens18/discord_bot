@@ -1,5 +1,4 @@
 discord.py
 aiohttp
-asyncg
+asyncpg
 google-genai
-python-dotenv
