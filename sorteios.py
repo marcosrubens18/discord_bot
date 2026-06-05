@@ -723,29 +723,29 @@ async def autocomplete_sorteio_ativo(interaction: discord.Interaction, current: 
     ][:25]
 
 # ==================================================
-# COMANDOS
+# COMANDOS (CORRIGIDOS - SEM DEFER)
 # ==================================================
 
 async def cmd_sorteio_criar(interaction: discord.Interaction, canal: str, item: str, quantidade: int):
-    await interaction.response.defer(ephemeral=True)
+    # NÃO usar defer aqui - modal precisa de resposta imediata
     
     if not interaction.user.guild_permissions.administrator:
-        await interaction.followup.send("❌ Apenas administradores podem criar sorteios!", ephemeral=True)
+        await interaction.response.send_message("❌ Apenas administradores podem criar sorteios!", ephemeral=True)
         return
     
     try:
         canal_id = int(canal)
         canal_obj = interaction.guild.get_channel(canal_id)
         if not canal_obj or not isinstance(canal_obj, discord.TextChannel):
-            await interaction.followup.send("❌ Canal inválido!", ephemeral=True)
+            await interaction.response.send_message("❌ Canal inválido!", ephemeral=True)
             return
     except:
-        await interaction.followup.send("❌ Canal inválido!", ephemeral=True)
+        await interaction.response.send_message("❌ Canal inválido!", ephemeral=True)
         return
     
     partes = item.split("|")
     if len(partes) < 4:
-        await interaction.followup.send("❌ Item inválido! Selecione da lista de sugestões.", ephemeral=True)
+        await interaction.response.send_message("❌ Item inválido! Selecione da lista de sugestões.", ephemeral=True)
         return
     
     item_id = partes[0]
@@ -754,7 +754,7 @@ async def cmd_sorteio_criar(interaction: discord.Interaction, canal: str, item: 
     item_tipo = partes[3]
     
     if quantidade < 1 or quantidade > 99999:
-        await interaction.followup.send("❌ Quantidade inválida! Use entre 1 e 99999.", ephemeral=True)
+        await interaction.response.send_message("❌ Quantidade inválida! Use entre 1 e 99999.", ephemeral=True)
         return
     
     modal = CriarSorteioModal(canal_obj.id, item_id, item_nome, item_raridade, item_tipo, quantidade)
