@@ -11,13 +11,15 @@ from database.queries import (
     get_arma_equipada, get_armadura_equipada
 )
 from data.skills import SKILLS_COMPLETAS
-from data.constantes import EMOJI_CLASSE, MONSTROS, ARENAS
+from data.constantes import EMOJI_CLASSE, ARENAS
+from data.monstros import MONSTROS
 from systems.combate import (
     BATALHAS_ATIVAS, calc_dano, BatalhaView,
     barra_hp, processar_efeitos_turno, add_efeito, efeito_ativo,
     Passiva, PassivaRacial, aplicar_efeito_pocao, remover_pocao,
-    calcular_bonus_equip, salvar_resultado
+    calcular_bonus_equip
 )
+from systems.personagem import salvar_resultado
 from systems.social.guildas import dar_xp_guilda, atualizar_missao_guilda, get_guilda_do_jogador
 
 
@@ -47,7 +49,7 @@ async def _processar_acao(acao, val, p, monstro, hp_m, hp_mmx, mana, mana_mx, hp
             return (hp_m, mana, hp_j, f"⚠️ Sem mana! Ataque básico: **{dano} de dano**.")
     
     elif acao == "pocao" and val:
-        hp_j, mana, linha = aplicar_efeito_pocao(val, hp_j, hp_jmx, mana, mana_mx)
+        hp_j, mana, linha = await aplicar_efeito_pocao(val, hp_j, hp_jmx, mana, mana_mx)
         await remover_pocao(uid, val)
         return (hp_m, mana, hp_j, linha)
     
