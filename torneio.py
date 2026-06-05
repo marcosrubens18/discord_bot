@@ -3,7 +3,7 @@ import discord
 from discord import app_commands
 import asyncio
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db import get_pool
 from batalha import rodar_pvp, ARENAS, BATALHAS_ATIVAS
 from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO, TEMPO_LUTA_TORNEIO
@@ -189,7 +189,7 @@ class CriarTorneioModal(discord.ui.Modal, title="Criar Torneio"):
         except:
             horas = 48
         
-        fim = datetime.utcnow() + timedelta(hours=horas)
+        fim = datetime.now(timezone.utc) + timedelta(hours=horas)
         
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -466,6 +466,13 @@ async def _registrar_vencedor(torneio_id, luta_id, vencedor_id, perdedor_id, gui
             UPDATE torneio_inscritos SET eliminado = TRUE 
             WHERE torneio_id = $1 AND user_id = $2
         """, torneio_id, perdedor_id)
+        
+        # Registra pontos no passe
+        try:
+            from passe_temporada import adicionar_pontos_batalha
+            await adicionar_pontos_batalha(vencedor_id, True, "torneio")
+        except:
+            pass
         
         await canal.send(f"🏆 **{vencedor_nome}** venceu a luta e avançou para a próxima fase!")
         
