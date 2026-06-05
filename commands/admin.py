@@ -6,7 +6,7 @@ from discord import app_commands
 from database.queries import get_personagem
 from systems.roleta import cmd_set_giros
 from systems.eventos import cmd_criar_evento, cmd_encerrar_evento, cmd_add_pontos
-from anuncios import cmd_anunciar, cmd_anunciar_evento, cmd_agendar_anuncio
+from utils.anuncios import cmd_anunciar, cmd_anunciar_evento, cmd_agendar_anuncio
 from utils.decorators import admin_only
 from commands.autocomplete import (
     autocomplete_item_categoria, autocomplete_item_premio, autocomplete_canal
