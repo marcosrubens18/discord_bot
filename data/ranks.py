@@ -48,4 +48,4 @@ def get_rank(nivel):
     for r in reversed(RANKS_NIVEL):
         if nivel >= r["nivel_min"]:
             return r
-    return RANKS_NIVEL[0]
+    return RANKS_NIVEL[0]    
