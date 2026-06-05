@@ -31,7 +31,7 @@ async def init_db_sorteios():
                 quantidade_ganhadores INTEGER DEFAULT 1,
                 participantes_count INTEGER DEFAULT 0,
                 data_criacao TIMESTAMP DEFAULT NOW(),
-                data_encerramento TIMESTAMP NOT NULL,
+                 TIMESTAMP NOT NULL,
                 status TEXT DEFAULT 'ativo'
             )
         """)
@@ -56,7 +56,7 @@ async def get_sorteios_ativos(guild_id: int) -> List[dict]:
         rows = await conn.fetch("""
             SELECT * FROM sorteios 
             WHERE guild_id = $1 AND status = 'ativo' 
-            ORDER BY data_encerramento ASC
+            ORDER BY  ASC
         """, guild_id)
         return [dict(r) for r in rows]
 
@@ -404,7 +404,9 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
         except:
             horas = 24
         
-        data_encerramento = datetime.now(timezone.utc) + timedelta(hours=horas)
+    from datetime import datetime, timedelta
+    data_encerramento = datetime.now() + timedelta(hours=horas)
+
         
         pool = await get_pool()
         async with pool.acquire() as conn:
