@@ -15,7 +15,7 @@ COR_RAR = {"Comum":0x888780,"Incomum":0x1D9E75,"Raro":0x378ADD,"Epico":0x7F77DD,
 from catalogo import SKILLS_COMPLETAS
 
 # ==================================================
-# RANKS DE DUNGEON
+# RANKS DE DUNGEON - REBALANCEADOS TEMPORADA 2
 # ==================================================
 
 RANKS = {
@@ -116,7 +116,7 @@ RANKS = {
             {"andar":4,"nome":"Fortaleza Celeste","emoji":"☁️","monstro":{"nome":"Anjo Caido","emoji":"👼","hp":1950,"ataque":365,"defesa":90,"skills":[{"nome":"Espadada Divina","emoji":"⚔️","dano":155}]}},
             {"andar":5,"nome":"Sala do Julgamento","emoji":"⚖️","monstro":{"nome":"Juiz Eterno","emoji":"⚖️","hp":2340,"ataque":404,"defesa":85,"skills":[{"nome":"Sentenca","emoji":"⚖️","dano":170}]}},
         ],
-        "chefe":{"nome":"Deus da Destruicao","emoji":"💥","hp":6000,"ataque":440,"defesa":100,
+        "chefe":{"nome":"Deus da Destruição","emoji":"💥","hp":6000,"ataque":440,"defesa":100,
                  "skills":[{"nome":"Apocalipse","emoji":"💥","dano":190},{"nome":"Destrocar Realidade","emoji":"🌀","dano":170},{"nome":"Pulso Divino","emoji":"✨","dano":210}],
                  "loot_raro":("olho_deus","Olho do Deus","material","Lendario","👁️","Material divino rarissimo"),
                  "loot_epico":("skill_apocalipse","Apocalipse","skill_especial","Lendario","💥","Skill UNICA: dano massivo em area")},
@@ -133,7 +133,8 @@ RANKS = {
             {"andar":4,"nome":"Nucleo do Mundo","emoji":"🌍","monstro":{"nome":"Guardiao do Nucleo","emoji":"🌍","hp":3500,"ataque":580,"defesa":150,"skills":[{"nome":"Terremoto Total","emoji":"🌍","dano":250}]}},
             {"andar":5,"nome":"Portal da Eternidade","emoji":"🌟","monstro":{"nome":"Ser Eterno","emoji":"🌟","hp":3750,"ataque":629,"defesa":160,"skills":[{"nome":"Raio Eterno","emoji":"🌟","dano":270}]}},
         ],
-        "chefe":{"nome":"O Criador","emoji":"🌟","hp":15000,"ataque":770,"defesa":200,
+        # REBALANCEAMENTO TEMPORADA 2: Chefe S nerfado
+        "chefe":{"nome":"O Criador","emoji":"🌟","hp":7000,"ataque":550,"defesa":150,
                  "skills":[{"nome":"Big Bang","emoji":"💥","dano":320},{"nome":"Singularidade","emoji":"⭐","dano":300},{"nome":"Recriar","emoji":"🌟","dano":0}],
                  "loot_raro":("titulo_conquistador","Titulo: Conquistador S","titulo","Lendario","🌟","Titulo exclusivo no servidor"),
                  "loot_epico":("classe_deus","Classe: Deus da Guerra","classe_especial","Lendario","⚔️","CLASSE UNICA — obtida apenas aqui")},
@@ -149,7 +150,8 @@ RANKS = {
             {"andar":3,"nome":"Salao dos Herois","emoji":"🏛️","monstro":{"nome":"Heroi Corrompido","emoji":"⚔️","hp":900,"ataque":228,"defesa":60,"skills":[{"nome":"Golpe Lendario","emoji":"⚔️","dano":110},{"nome":"Berserk","emoji":"🔥","dano":80}]}},
             {"andar":4,"nome":"Trono das Sombras","emoji":"🌑","monstro":{"nome":"Senhor das Sombras","emoji":"🌑","hp":960,"ataque":242,"defesa":65,"skills":[{"nome":"Trevas Absolutas","emoji":"🌑","dano":120},{"nome":"Medo","emoji":"😱","dano":85}]}},
             {"andar":5,"nome":"Camara do Criador","emoji":"✨","monstro":{"nome":"Anjo Caido","emoji":"👼","hp":1080,"ataque":266,"defesa":70,"skills":[{"nome":"Juizo Divino","emoji":"☀️","dano":130},{"nome":"Purificar","emoji":"✨","dano":95}]}},
-            {"andar":6,"nome":"Nucleo do Mundo","emoji":"🌍","monstro":{"nome":"CHEFE — O Criador","emoji":"🌌","hp":2400,"ataque":363,"defesa":100,"skills":[{"nome":"Aniquilacao","emoji":"💥","dano":200},{"nome":"Singularidade","emoji":"🕳️","dano":180},{"nome":"Transcender","emoji":"✨","dano":160}],"chefe":True}},
+            # REBALANCEAMENTO TEMPORADA 2: Chefe SS buffado (antes estava com HP menor que o S)
+            {"andar":6,"nome":"Nucleo do Mundo","emoji":"🌍","monstro":{"nome":"CHEFE — O Criador","emoji":"🌌","hp":10000,"ataque":680,"defesa":180,"skills":[{"nome":"Aniquilacao","emoji":"💥","dano":200},{"nome":"Singularidade","emoji":"🕳️","dano":180},{"nome":"Transcender","emoji":"✨","dano":160}],"chefe":True}},
         ],
         "loot_chefe": [
             ("coroa_criador","Coroa do Criador","armadura","Lendario","👑","A armadura definitiva"),
@@ -236,7 +238,8 @@ async def salvar_resultado_dungeon(user_id, hp_final, xp_total, classe_id, nivel
             needed = xp_needed_rank(nv)
             levelups += 1
         
-        hp_max = p["hp_max"] + levelups * 5
+        # REBALANCEAMENTO: +6 HP por nível (antes +5)
+        hp_max = p["hp_max"] + levelups * 6
         atk = p["ataque"] + levelups * 2
         dfs = p["defesa"] + levelups * 1
         
@@ -259,6 +262,19 @@ async def salvar_resultado_dungeon(user_id, hp_final, xp_total, classe_id, nivel
                     "INSERT INTO skills_desbloqueadas(user_id, skill_id) VALUES($1, $2) ON CONFLICT DO NOTHING",
                     user_id, s["id"]
                 )
+        
+        # Registrar pontos no passe e eventos
+        try:
+            from passe_temporada import adicionar_pontos_batalha
+            await adicionar_pontos_batalha(user_id, True, "dungeon")
+        except:
+            pass
+        
+        try:
+            from eventos import registrar_dungeon_evento
+            await registrar_dungeon_evento(user_id)
+        except:
+            pass
         
         return levelups, nv
 
@@ -894,7 +910,7 @@ async def cmd_dungeon(interaction: discord.Interaction, rank: str):
             if get_rank(p['nivel'])['rank'] != rank_obj_d['rank']:
                 rank_txt = f"\n🏅 Novo rank: {rank_obj_d['emoji']} **{rank_obj_d['rank']}**!"
             desc_final += f"\n\n🎉 **LEVEL UP! Nível {nivel_novo_d}!** (+{lvlups} nível){rank_txt}"
-            desc_final += f"\n+{lvlups * 5} HP | +{lvlups * 2} ATK | +{lvlups} DEF"
+            desc_final += f"\n+{lvlups * 6} HP | +{lvlups * 2} ATK | +{lvlups} DEF"
 
         embed_recomp = discord.Embed(
             title="🏆 Dungeon Concluída!",
