@@ -1,12 +1,15 @@
-# cooldown.py — Sistema de rate limiting e cooldown
-from datetime import datetime, timedelta
+# cooldown.py — Sistema de rate limiting e cooldown com locks para race conditions
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
+from asyncio import Lock
+import discord
 
 class CooldownManager:
-    """Gerencia cooldowns de comandos por usuário"""
+    """Gerencia cooldowns de comandos por usuário com locks para evitar race conditions"""
     
     def __init__(self):
-        self.cooldowns = defaultdict(dict)
+        self.cooldowns = {}
+        self.locks = defaultdict(Lock)
     
     def check(self, user_id: int, comando: str, segundos: int = 5) -> tuple:
         """
@@ -14,7 +17,7 @@ class CooldownManager:
         Retorna (pode_usar, segundos_restantes)
         """
         key = f"{user_id}_{comando}"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         if key in self.cooldowns:
             if now < self.cooldowns[key]:
@@ -25,7 +28,7 @@ class CooldownManager:
     def set(self, user_id: int, comando: str, segundos: int = 5) -> None:
         """Aplica cooldown para o comando"""
         key = f"{user_id}_{comando}"
-        self.cooldowns[key] = datetime.utcnow() + timedelta(seconds=segundos)
+        self.cooldowns[key] = datetime.now(timezone.utc) + timedelta(seconds=segundos)
     
     def clear(self, user_id: int, comando: str = None) -> None:
         """Limpa cooldown (útil para admin)"""
@@ -33,16 +36,31 @@ class CooldownManager:
             key = f"{user_id}_{comando}"
             self.cooldowns.pop(key, None)
         else:
-            self.cooldowns.pop(user_id, None)
+            keys_to_remove = [k for k in self.cooldowns.keys() if k.startswith(f"{user_id}_")]
+            for k in keys_to_remove:
+                self.cooldowns.pop(k, None)
     
     def get_remaining(self, user_id: int, comando: str) -> int:
         """Retorna segundos restantes de cooldown (0 se não houver)"""
         key = f"{user_id}_{comando}"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         if key in self.cooldowns and now < self.cooldowns[key]:
             return int((self.cooldowns[key] - now).total_seconds())
         return 0
+    
+    async def acquire(self, user_id: int, comando: str, segundos: int = 5) -> tuple:
+        """
+        Versão async que adquire lock e verifica cooldown atomicamente.
+        Retorna (pode_usar, segundos_restantes)
+        """
+        lock_key = f"{user_id}_{comando}"
+        async with self.locks[lock_key]:
+            pode, tempo = self.check(user_id, comando, segundos)
+            if pode:
+                self.set(user_id, comando, segundos)
+                return True, 0
+            return False, tempo
 
 
 # Instância global
@@ -54,18 +72,92 @@ cooldown_manager = CooldownManager()
 # ==================================================
 
 def cooldown(segundos: int = 5):
-    """Decorator para aplicar cooldown em comandos"""
+    """
+    Decorator para aplicar cooldown em comandos.
+    Usa a versão async com lock para evitar race conditions.
+    
+    Exemplo:
+        @bot.tree.command(name="treinar")
+        @cooldown(5)
+        async def treinar(interaction: discord.Interaction):
+            ...
+    """
     def decorator(func):
-        async def wrapper(interaction, *args, **kwargs):
-            pode, tempo = cooldown_manager.check(interaction.user.id, func.__name__, segundos)
+        async def wrapper(interaction: discord.Interaction, *args, **kwargs):
+            pode, tempo = await cooldown_manager.acquire(interaction.user.id, func.__name__, segundos)
             if not pode:
-                await interaction.response.send_message(
-                    f"⏰ Aguarde **{tempo} segundos** antes de usar este comando novamente!",
-                    ephemeral=True
-                )
+                try:
+                    await interaction.response.send_message(
+                        f"⏰ Aguarde **{tempo} segundos** antes de usar este comando novamente!",
+                        ephemeral=True
+                    )
+                except:
+                    # Se já respondeu, usa followup
+                    await interaction.followup.send(
+                        f"⏰ Aguarde **{tempo} segundos** antes de usar este comando novamente!",
+                        ephemeral=True
+                    )
                 return
-            result = await func(interaction, *args, **kwargs)
-            cooldown_manager.set(interaction.user.id, func.__name__, segundos)
-            return result
+            return await func(interaction, *args, **kwargs)
         return wrapper
     return decorator
+
+
+# ==================================================
+# DECORATOR PARA COOLDOWN POR JOGADOR (PvP)
+# ==================================================
+
+def player_cooldown(segundos: int = 5):
+    """
+    Decorator para cooldown que considera o jogador alvo também.
+    Usado para comandos como /desafiar, para não floodar o mesmo jogador.
+    """
+    def decorator(func):
+        async def wrapper(interaction: discord.Interaction, *args, **kwargs):
+            user_id = interaction.user.id
+            
+            # Tenta extrair o jogador alvo dos argumentos
+            target_id = None
+            if args and hasattr(args[0], 'id'):
+                target_id = args[0].id
+            elif 'jogador' in kwargs and hasattr(kwargs['jogador'], 'id'):
+                target_id = kwargs['jogador'].id
+            
+            # Chave única para o par (desafiante, desafiado)
+            if target_id:
+                key = f"pvp_{user_id}_{target_id}"
+                lock_key = key
+            else:
+                key = f"{user_id}_{func.__name__}"
+                lock_key = key
+            
+            async with cooldown_manager.locks[lock_key]:
+                now = datetime.now(timezone.utc)
+                if key in cooldown_manager.cooldowns:
+                    if now < cooldown_manager.cooldowns[key]:
+                        restante = int((cooldown_manager.cooldowns[key] - now).total_seconds())
+                        try:
+                            await interaction.response.send_message(
+                                f"⏰ Aguarde **{restante} segundos** antes de desafiar este jogador novamente!",
+                                ephemeral=True
+                            )
+                        except:
+                            await interaction.followup.send(
+                                f"⏰ Aguarde **{restante} segundos** antes de desafiar este jogador novamente!",
+                                ephemeral=True
+                            )
+                        return
+                
+                cooldown_manager.cooldowns[key] = now + timedelta(seconds=segundos)
+                return await func(interaction, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# ==================================================
+# FUNÇÃO PARA LIMPAR COOLDOWN DE UM USUÁRIO (ADMIN)
+# ==================================================
+
+async def clear_user_cooldown(user_id: int, comando: str = None):
+    """Limpa todos os cooldowns de um usuário (uso administrativo)"""
+    cooldown_manager.clear(user_id, comando)
