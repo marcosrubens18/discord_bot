@@ -130,6 +130,59 @@ async def equipar_skill(user_id: int, skill_id: str, slot: int):
 
 
 # ==================================================
+# POÇÕES
+# ==================================================
+
+async def get_pocoes_inv(user_id: int):
+    """Retorna as poções do inventário do usuário"""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            "SELECT * FROM inventario WHERE user_id = $1 AND (item_id LIKE 'pocao%' OR item_id = 'elixir')",
+            user_id
+        )
+
+
+async def remover_pocao(user_id: int, item_id: str):
+    """Remove uma poção do inventário"""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, quantidade FROM inventario WHERE user_id = $1 AND item_id = $2",
+            user_id, item_id
+        )
+        if row:
+            if row["quantidade"] > 1:
+                await conn.execute("UPDATE inventario SET quantidade = quantidade - 1 WHERE id = $1", row["id"])
+            else:
+                await conn.execute("DELETE FROM inventario WHERE id = $1", row["id"])
+
+
+# ==================================================
+# EQUIPAMENTOS
+# ==================================================
+
+async def get_arma_equipada(user_id: int):
+    """Retorna a arma equipada do usuário"""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            "SELECT * FROM inventario WHERE user_id = $1 AND tipo = 'arma' AND equipado = 1 LIMIT 1",
+            user_id
+        )
+
+
+async def get_armadura_equipada(user_id: int):
+    """Retorna a armadura equipada do usuário"""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            "SELECT * FROM inventario WHERE user_id = $1 AND tipo = 'armadura' AND equipado = 1 LIMIT 1",
+            user_id
+        )
+
+
+# ==================================================
 # GIROS (FICHAS DE ROLETA)
 # ==================================================
 
