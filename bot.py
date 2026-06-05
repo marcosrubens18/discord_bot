@@ -1575,7 +1575,6 @@ async def ajuda(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── REGISTRO DOS COMANDOS ────────────────────────────────────────
-register_party_commands(bot)
 register_passe_commands(bot)
 register_arena_commands(bot)
 register_torneio_commands(bot)
