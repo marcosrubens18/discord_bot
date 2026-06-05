@@ -49,7 +49,7 @@ from passe_temporada import register_passe_commands, init_db_passe
 from arena import register_arena_commands, init_db_arena
 
 # ─── COOLDOWN ─────────────────────────────────────────────────────
-from cooldown import cooldown
+# from cooldown import cooldown
 
 # Configuração de imagens (desabilitadas)
 IMG_PERFIL = IMG_SETUP = IMG_INVENTARIO = IMG_SKILLS = IMG_AJUDA = ""
