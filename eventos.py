@@ -2,7 +2,7 @@
 import discord
 import asyncio
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db import get_pool
 
 # ─── TIPOS DE PREMIO ──────────────────────────────────────────────
@@ -61,7 +61,7 @@ async def init_db_eventos():
     print("DB eventos OK!")
 
 # ==================================================
-# FUNÇÃO PARA REGISTRAR PONTOS AUTOMATICAMENTE (NOVA)
+# FUNÇÃO PARA REGISTRAR PONTOS AUTOMATICAMENTE
 # ==================================================
 
 async def registrar_pontos_evento(user_id: int, tipo: str, valor: int = 1):
@@ -164,7 +164,7 @@ class CriarEventoModal(discord.ui.Modal, title="Criar Novo Evento"):
             horas = max(1, int(self.duracao_horas.value))
         except:
             horas = 24
-        fim = datetime.utcnow() + timedelta(hours=horas)
+        fim = datetime.now(timezone.utc) + timedelta(hours=horas)
 
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -230,14 +230,16 @@ async def encerrar_evento(evento_id, guild):
     pool = await get_pool()
     async with pool.acquire() as conn:
         evento = await conn.fetchrow("SELECT * FROM eventos WHERE id=$1", evento_id)
-        if not evento or evento["encerrado"]: return
+        if not evento or evento["encerrado"]:
+            return
         await conn.execute("UPDATE eventos SET ativo=FALSE, encerrado=TRUE WHERE id=$1", evento_id)
         participantes = await conn.fetch("SELECT * FROM evento_participantes WHERE evento_id=$1 ORDER BY pontos DESC LIMIT 3", evento_id)
 
-    if not participantes: return
+    if not participantes:
+        return
 
     vencedor = participantes[0]
-    tipo_info   = TIPOS_EVENTO.get(evento["tipo"], TIPOS_EVENTO["livre"])
+    tipo_info = TIPOS_EVENTO.get(evento["tipo"], TIPOS_EVENTO["livre"])
     premio_info = TIPOS_PREMIO.get(evento["premio_tipo"], TIPOS_PREMIO["moedas"])
     canal = guild.get_channel(evento["canal_id"])
 
@@ -265,7 +267,8 @@ async def _entregar_premio(guild, user_id, tipo, valor):
     try:
         async with pool.acquire() as conn:
             p = await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
-            if not p: return "Jogador sem personagem"
+            if not p:
+                return "Jogador sem personagem"
 
             if tipo == "moedas":
                 qtd = int(valor)
@@ -280,8 +283,10 @@ async def _entregar_premio(guild, user_id, tipo, valor):
             elif tipo == "ficha":
                 qtd = int(valor)
                 ex = await conn.fetchrow("SELECT id FROM giros WHERE user_id=$1 AND roleta_id='skill'", user_id)
-                if ex: await conn.execute("UPDATE giros SET quantidade=quantidade+$1 WHERE user_id=$2 AND roleta_id='skill'", qtd, user_id)
-                else: await conn.execute("INSERT INTO giros(user_id,roleta_id,quantidade) VALUES($1,'skill',$2)", user_id, qtd)
+                if ex:
+                    await conn.execute("UPDATE giros SET quantidade=quantidade+$1 WHERE user_id=$2 AND roleta_id='skill'", qtd, user_id)
+                else:
+                    await conn.execute("INSERT INTO giros(user_id,roleta_id,quantidade) VALUES($1,'skill',$2)", user_id, qtd)
                 return f"+{qtd} fichas 🎰"
 
             elif tipo == "item":
@@ -289,20 +294,26 @@ async def _entregar_premio(guild, user_id, tipo, valor):
                 if len(partes) >= 2:
                     item_id, nome = partes[0], partes[1]
                     tipo_item = partes[2] if len(partes)>2 else "material"
-                    raridade  = partes[3] if len(partes)>3 else "Lendario"
-                    emoji     = partes[4] if len(partes)>4 else "🎁"
-                    desc      = partes[5] if len(partes)>5 else "Premio de evento"
+                    raridade = partes[3] if len(partes)>3 else "Lendario"
+                    emoji = partes[4] if len(partes)>4 else "🎁"
+                    desc = partes[5] if len(partes)>5 else "Premio de evento"
                     ex = await conn.fetchrow("SELECT id FROM inventario WHERE user_id=$1 AND item_id=$2", user_id, item_id)
-                    if ex: await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
-                    else: await conn.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
-                        user_id, item_id, nome, tipo_item, raridade, emoji, desc)
+                    if ex:
+                        await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
+                    else:
+                        await conn.execute("""
+                            INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao)
+                            VALUES($1,$2,$3,$4,$5,$6,$7)
+                        """, user_id, item_id, nome, tipo_item, raridade, emoji, desc)
                     return f"{emoji} {nome}"
 
             elif tipo == "cargo":
                 member = guild.get_member(user_id)
                 if member:
                     cargo = discord.utils.get(guild.roles, name=valor)
-                    if cargo: await member.add_roles(cargo); return f"Cargo: {valor} 🎖️"
+                    if cargo:
+                        await member.add_roles(cargo)
+                        return f"Cargo: {valor} 🎖️"
                 return f"Cargo '{valor}' nao encontrado"
 
             elif tipo == "classe":
@@ -310,6 +321,7 @@ async def _entregar_premio(guild, user_id, tipo, valor):
                 return f"Classe alterada para {valor} ✨"
 
     except Exception as e:
+        print(f"Erro ao entregar premio: {e}")
         return f"Erro ao entregar: {e}"
     return "Premio entregue!"
 
@@ -318,15 +330,19 @@ async def _participar_evento(interaction: discord.Interaction, evento_id: int):
     async with pool.acquire() as conn:
         evento = await conn.fetchrow("SELECT * FROM eventos WHERE id=$1 AND ativo=TRUE AND encerrado=FALSE", evento_id)
         if not evento:
-            await interaction.response.send_message("Este evento ja encerrou!", ephemeral=True); return
+            await interaction.response.send_message("Este evento ja encerrou!", ephemeral=True)
+            return
         p = await conn.fetchrow("SELECT nome FROM personagens WHERE user_id=$1", interaction.user.id)
         if not p:
-            await interaction.response.send_message("Crie seu personagem primeiro!", ephemeral=True); return
+            await interaction.response.send_message("Crie seu personagem primeiro!", ephemeral=True)
+            return
         ex = await conn.fetchrow("SELECT id FROM evento_participantes WHERE evento_id=$1 AND user_id=$2", evento_id, interaction.user.id)
         if ex:
-            await interaction.response.send_message("Voce ja esta inscrito neste evento!", ephemeral=True); return
-        await conn.execute("INSERT INTO evento_participantes(evento_id,user_id,nome) VALUES($1,$2,$3)",
-            evento_id, interaction.user.id, p["nome"])
+            await interaction.response.send_message("Voce ja esta inscrito neste evento!", ephemeral=True)
+            return
+        await conn.execute("""
+            INSERT INTO evento_participantes(evento_id,user_id,nome) VALUES($1,$2,$3)
+        """, evento_id, interaction.user.id, p["nome"])
     await interaction.response.send_message(f"✅ Inscrito no evento **{evento['titulo']}**! Boa sorte!", ephemeral=True)
 
 # ─── COMANDOS EXPORTADOS ──────────────────────────────────────────
@@ -339,7 +355,8 @@ async def cmd_eventos(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     eventos = await get_todos_eventos(apenas_ativos=True)
     if not eventos:
-        await interaction.followup.send("Nenhum evento ativo no momento!", ephemeral=True); return
+        await interaction.followup.send("Nenhum evento ativo no momento!", ephemeral=True)
+        return
     embed = discord.Embed(title="🎉 Eventos Ativos", color=0xE4AF3C)
     for ev in eventos:
         tipo_info = TIPOS_EVENTO.get(ev["tipo"], TIPOS_EVENTO["livre"])
@@ -360,9 +377,10 @@ async def cmd_evento_info(interaction: discord.Interaction, evento_id: int = 0):
         else:
             evento = await conn.fetchrow("SELECT * FROM eventos WHERE ativo=TRUE ORDER BY id DESC LIMIT 1")
     if not evento:
-        await interaction.followup.send("Evento nao encontrado!", ephemeral=True); return
+        await interaction.followup.send("Evento nao encontrado!", ephemeral=True)
+        return
     participantes = await get_participantes(evento["id"])
-    tipo_info   = TIPOS_EVENTO.get(evento["tipo"], TIPOS_EVENTO["livre"])
+    tipo_info = TIPOS_EVENTO.get(evento["tipo"], TIPOS_EVENTO["livre"])
     premio_info = TIPOS_PREMIO.get(evento["premio_tipo"], TIPOS_PREMIO["moedas"])
     fim_ts = int(evento["fim"].timestamp()) if evento["fim"] else 0
     embed = discord.Embed(
@@ -372,12 +390,14 @@ async def cmd_evento_info(interaction: discord.Interaction, evento_id: int = 0):
     )
     embed.add_field(name="Tipo",   value=f"{tipo_info['emoji']} {tipo_info['nome']}", inline=True)
     embed.add_field(name="Status", value="🟢 Ativo" if evento["ativo"] else "🔴 Encerrado", inline=True)
-    if fim_ts: embed.add_field(name="Termina", value=f"<t:{fim_ts}:R>", inline=True)
+    if fim_ts:
+        embed.add_field(name="Termina", value=f"<t:{fim_ts}:R>", inline=True)
     embed.add_field(name=f"{premio_info['emoji']} Premio", value=evento["premio_desc"] or evento["premio_valor"], inline=False)
     if participantes:
         top = "\n".join([f"**{i+1}.** {p['nome']} — {p['pontos']} pts" for i, p in enumerate(participantes[:5])])
         embed.add_field(name=f"Top Participantes ({len(participantes)} inscritos)", value=top, inline=False)
-    if evento["imagem_url"]: embed.set_image(url=evento["imagem_url"])
+    if evento["imagem_url"]:
+        embed.set_image(url=evento["imagem_url"])
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 async def cmd_encerrar_evento(interaction: discord.Interaction, evento_id: int):
@@ -386,7 +406,8 @@ async def cmd_encerrar_evento(interaction: discord.Interaction, evento_id: int):
     async with pool.acquire() as conn:
         ev = await conn.fetchrow("SELECT * FROM eventos WHERE id=$1", evento_id)
     if not ev:
-        await interaction.followup.send("Evento nao encontrado!", ephemeral=True); return
+        await interaction.followup.send("Evento nao encontrado!", ephemeral=True)
+        return
     await encerrar_evento(evento_id, interaction.guild)
     await interaction.followup.send(f"✅ Evento **{ev['titulo']}** encerrado e premio entregue!", ephemeral=True)
 
@@ -397,7 +418,8 @@ async def cmd_add_pontos(interaction: discord.Interaction, jogador: discord.Memb
         if not evento_id:
             ev = await conn.fetchrow("SELECT id FROM eventos WHERE ativo=TRUE ORDER BY id DESC LIMIT 1")
             if not ev:
-                await interaction.followup.send("Nenhum evento ativo!", ephemeral=True); return
+                await interaction.followup.send("Nenhum evento ativo!", ephemeral=True)
+                return
             evento_id = ev["id"]
         ex = await conn.fetchrow("SELECT id FROM evento_participantes WHERE evento_id=$1 AND user_id=$2", evento_id, jogador.id)
         if ex:
@@ -405,8 +427,9 @@ async def cmd_add_pontos(interaction: discord.Interaction, jogador: discord.Memb
         else:
             p = await conn.fetchrow("SELECT nome FROM personagens WHERE user_id=$1", jogador.id)
             nome = p["nome"] if p else jogador.display_name
-            await conn.execute("INSERT INTO evento_participantes(evento_id,user_id,nome,pontos) VALUES($1,$2,$3,$4)",
-                evento_id, jogador.id, nome, pontos)
+            await conn.execute("""
+                INSERT INTO evento_participantes(evento_id,user_id,nome,pontos) VALUES($1,$2,$3,$4)
+            """, evento_id, jogador.id, nome, pontos)
     await interaction.followup.send(f"✅ +{pontos} pontos para **{jogador.display_name}** no evento #{evento_id}!", ephemeral=True)
 
 async def get_evento_ativo():
