@@ -2,7 +2,7 @@
 import discord
 import asyncio
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db import get_pool
 
 # ─── DB ───────────────────────────────────────────────────────────
@@ -97,20 +97,26 @@ class DungeonEventoCriarModal(discord.ui.Modal, title="Criar Dungeon de Evento")
         super().__init__()
         self.guild = guild
         self.canal_id_pre = canal_id
-        if premio: self.premio_input.default = premio
+        if premio:
+            self.premio_input.default = premio
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         await init_db_dungeon_evento()
 
         # Parse config
-        rank_min = "F"; modo = "tempo"; dias = 7; max_tent = 0
+        rank_min = "F"
+        modo = "tempo"
+        dias = 7
+        max_tent = 0
         try:
             partes = [x.strip() for x in str(self.config_input).split("|")]
-            if partes[0]: rank_min = partes[0].upper()
+            if partes[0]:
+                rank_min = partes[0].upper()
             if len(partes) > 1:
                 fc = partes[1].lower()
-                if "primeiro" in fc: modo = "primeiro"
+                if "primeiro" in fc:
+                    modo = "primeiro"
                 else:
                     modo = "tempo"
                     nums = "".join(filter(str.isdigit, fc))
@@ -118,7 +124,8 @@ class DungeonEventoCriarModal(discord.ui.Modal, title="Criar Dungeon de Evento")
             if len(partes) > 2:
                 t = partes[2].lower()
                 max_tent = 0 if "ilimit" in t else int("".join(filter(str.isdigit, t)) or "0")
-        except: pass
+        except:
+            pass
 
         img_url = str(self.imagem_input).strip() if self.imagem_input else ""
         pool = await get_pool()
@@ -191,7 +198,8 @@ class AdicionarAndarModal(discord.ui.Modal, title="Adicionar Andar"):
                 it = get_item_por_chave(loot_chave)
                 if it:
                     self.loot_input.default = f"{it['id']}|{it['nome']}|{it['tipo']}|{it['raridade']}|{it['emoji']}"
-            except: pass
+            except:
+                pass
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -200,20 +208,23 @@ class AdicionarAndarModal(discord.ui.Modal, title="Adicionar Andar"):
         try:
             numero = int(str(self.numero_input).strip())
         except:
-            await interaction.followup.send("Numero do andar invalido!", ephemeral=True); return
+            await interaction.followup.send("Numero do andar invalido!", ephemeral=True)
+            return
 
         # Parse emoji|nome
         partes_m = str(self.monstro_input).split("|", 1)
         if len(partes_m) == 2:
-            emoji = partes_m[0].strip(); nome_m = partes_m[1].strip()
+            emoji = partes_m[0].strip()
+            nome_m = partes_m[1].strip()
         else:
-            emoji = "👹"; nome_m = str(self.monstro_input).strip()
+            emoji = "👹"
+            nome_m = str(self.monstro_input).strip()
 
         # Parse hp|atk|def
         hp = atk = dfs = 0
         try:
             partes_s = str(self.stats_input).split("|")
-            hp  = int(partes_s[0].strip()) if len(partes_s) > 0 else 100
+            hp = int(partes_s[0].strip()) if len(partes_s) > 0 else 100
             atk = int(partes_s[1].strip()) if len(partes_s) > 1 else 20
             dfs = int(partes_s[2].strip()) if len(partes_s) > 2 else 5
         except:
@@ -221,16 +232,17 @@ class AdicionarAndarModal(discord.ui.Modal, title="Adicionar Andar"):
 
         # Parse loot
         l_id = l_nome = l_emoji = ""
-        l_tipo = "material"; l_rar = "Raro"
+        l_tipo = "material"
+        l_rar = "Raro"
         if self.loot_input and str(self.loot_input).strip():
             partes_l = str(self.loot_input).split("|")
-            l_id    = partes_l[0].strip() if len(partes_l) > 0 else ""
-            l_nome  = partes_l[1].strip() if len(partes_l) > 1 else ""
-            l_tipo  = partes_l[2].strip() if len(partes_l) > 2 else "material"
-            l_rar   = partes_l[3].strip() if len(partes_l) > 3 else "Raro"
+            l_id = partes_l[0].strip() if len(partes_l) > 0 else ""
+            l_nome = partes_l[1].strip() if len(partes_l) > 1 else ""
+            l_tipo = partes_l[2].strip() if len(partes_l) > 2 else "material"
+            l_rar = partes_l[3].strip() if len(partes_l) > 3 else "Raro"
             l_emoji = partes_l[4].strip() if len(partes_l) > 4 else "📦"
 
-        boss = str(self.boss_input).strip().lower() in ("sim","s","yes","1")
+        boss = str(self.boss_input).strip().lower() in ("sim", "s", "yes", "1")
 
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -265,7 +277,8 @@ async def _fechar_dungeon_evento(dungeon_id, guild, motivo=""):
     async with pool.acquire() as conn:
         dg = await conn.fetchrow(
             "SELECT * FROM dungeons_evento WHERE id=$1 AND status='ativa'", dungeon_id)
-        if not dg: return
+        if not dg:
+            return
         await conn.execute(
             "UPDATE dungeons_evento SET status='fechada', fechada_em=NOW() WHERE id=$1", dungeon_id)
     canal = guild.get_channel(dg["canal_id"])
@@ -278,11 +291,13 @@ async def cmd_dungeon_evento_ativar(interaction: discord.Interaction, dungeon_id
     async with pool.acquire() as conn:
         dg = await conn.fetchrow("SELECT * FROM dungeons_evento WHERE id=$1", dungeon_id)
         if not dg:
-            await interaction.followup.send("Dungeon nao encontrada!", ephemeral=True); return
+            await interaction.followup.send("Dungeon nao encontrada!", ephemeral=True)
+            return
         andares = await conn.fetch(
             "SELECT * FROM dungeon_evento_andares WHERE dungeon_id=$1 ORDER BY numero", dungeon_id)
         if not andares:
-            await interaction.followup.send("Adicione pelo menos 1 andar antes!", ephemeral=True); return
+            await interaction.followup.send("Adicione pelo menos 1 andar antes!", ephemeral=True)
+            return
         await conn.execute("UPDATE dungeons_evento SET status='ativa' WHERE id=$1", dungeon_id)
 
     tent_txt = f"{dg['max_tentativas']}x" if dg["max_tentativas"] else "Ilimitadas"
@@ -299,10 +314,12 @@ async def cmd_dungeon_evento_ativar(interaction: discord.Interaction, dungeon_id
     embed.add_field(name="Duracao",    value=fecha_txt,          inline=True)
     embed.add_field(name="Premio",     value=dg["premio"],       inline=False)
     embed.set_footer(text=f"Dungeon #{dungeon_id} | Clique para entrar!")
-    if dg["imagem_url"]: embed.set_image(url=dg["imagem_url"])
+    if dg["imagem_url"]:
+        embed.set_image(url=dg["imagem_url"])
 
     class EntrarView(discord.ui.View):
-        def __init__(self): super().__init__(timeout=None)
+        def __init__(self):
+            super().__init__(timeout=None)
         @discord.ui.button(label="Entrar na Dungeon!", style=discord.ButtonStyle.danger,
                            custom_id=f"dg_evento_{dungeon_id}")
         async def btn(self, inter: discord.Interaction, b):
@@ -333,34 +350,40 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
         dg = await conn.fetchrow(
             "SELECT * FROM dungeons_evento WHERE id=$1 AND status='ativa'", dungeon_id)
         if not dg:
-            await interaction.followup.send("Esta dungeon nao esta ativa!", ephemeral=True); return
+            await interaction.followup.send("Esta dungeon nao esta ativa!", ephemeral=True)
+            return
         p = await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", interaction.user.id)
         if not p:
-            await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True); return
+            await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True)
+            return
         from catalogo import get_rank
-        ranks_order = ["F","E","D","C","B","A","S","SS"]
+        ranks_order = ["F", "E", "D", "C", "B", "A", "S", "SS"]
         rank_p = get_rank(p["nivel"])["rank"]
         if ranks_order.index(rank_p) < ranks_order.index(dg["rank_minimo"]):
             await interaction.followup.send(
                 f"Rank insuficiente! Precisa ser Rank **{dg['rank_minimo']}** ou superior.",
-                ephemeral=True); return
+                ephemeral=True)
+            return
         if dg["max_tentativas"] > 0:
             cnt = await conn.fetchval(
                 "SELECT COUNT(*) FROM dungeon_evento_runs WHERE dungeon_id=$1 AND user_id=$2",
                 dungeon_id, interaction.user.id)
             if cnt >= dg["max_tentativas"]:
                 await interaction.followup.send(
-                    f"Limite de tentativas atingido ({dg['max_tentativas']}x)!", ephemeral=True); return
+                    f"Limite de tentativas atingido ({dg['max_tentativas']}x)!", ephemeral=True)
+                return
         from batalha import BATALHAS_ATIVAS
         if interaction.user.id in BATALHAS_ATIVAS:
-            await interaction.followup.send("Voce ja esta em batalha!", ephemeral=True); return
+            await interaction.followup.send("Voce ja esta em batalha!", ephemeral=True)
+            return
         andares = await conn.fetch(
             "SELECT * FROM dungeon_evento_andares WHERE dungeon_id=$1 ORDER BY numero", dungeon_id)
         run = await conn.fetchrow(
             "INSERT INTO dungeon_evento_runs(dungeon_id,user_id) VALUES($1,$2) RETURNING *",
             dungeon_id, interaction.user.id)
     if not andares:
-        await interaction.followup.send("Dungeon sem andares!", ephemeral=True); return
+        await interaction.followup.send("Dungeon sem andares!", ephemeral=True)
+        return
 
     # Imports do sistema de batalha
     from batalha import (
@@ -376,26 +399,33 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
     BATALHAS_ATIVAS.add(uid)
 
     # Stats do jogador
-    hp_j    = p["hp_atual"];  hp_jmx  = p["hp_max"]
-    mana_j  = p["mana_atual"]; mana_jmx = p["mana_max"]
+    hp_j = p["hp_atual"]
+    hp_jmx = p["hp_max"]
+    mana_j = p.get("mana_atual", 100)
+    mana_jmx = p.get("mana_max", 100)
     emoji_j = EMOJI_CLASSE.get(p["classe_id"], "⚔️")
     efeitos_j = {}
-    passiva       = Passiva(p["classe_id"])
-    passiva_racial = PassivaRacial(p.get("raca_id","humano"))
+    passiva = Passiva(p["classe_id"])
+    passiva_racial = PassivaRacial(p.get("raca_id", "humano"))
     timeout_count = 0
 
     # Skills equipadas
     ids_eq = await get_skills_eq(uid)
-    skills = [s for sid in ids_eq for s in SC.get(p["classe_id"],[]) if s["id"]==sid]
+    skills = []
+    for sid in ids_eq:
+        for s in SC.get(p["classe_id"], []):
+            if s["id"] == sid:
+                skills.append(s)
+                break
     if not skills:
-        skills = SC.get(p["classe_id"],[])[:4]
+        skills = SC.get(p["classe_id"], [])[:4]
 
     # Equipamentos
-    arma     = await get_arma_equipada(uid)
+    arma = await get_arma_equipada(uid)
     armadura = await get_armadura_equipada(uid)
     bonus_atk, bonus_dfs = calcular_bonus_equip(p["classe_id"], arma, armadura)
-    arma_txt    = f"{arma['emoji']} {arma['nome']}" if arma else "Sem arma"
-    armadura_txt= f"{armadura['emoji']} {armadura['nome']}" if armadura else "Sem armadura"
+    arma_txt = f"{arma['emoji']} {arma['nome']}" if arma else "Sem arma"
+    armadura_txt = f"{armadura['emoji']} {armadura['nome']}" if armadura else "Sem armadura"
 
     msgs_run = []
 
@@ -405,7 +435,8 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
         description=f"**{len(andares)} andares** te aguardam!\n\n⚔️ {arma_txt} | 🛡️ {armadura_txt}",
         color=0x7F77DD
     )
-    if dg["imagem_url"]: embed_entrada.set_image(url=dg["imagem_url"])
+    if dg["imagem_url"]:
+        embed_entrada.set_image(url=dg["imagem_url"])
     msgs_run.append(await interaction.followup.send(embed=embed_entrada, wait=True))
 
     async def terminar(vitoria: bool, motivo: str = ""):
@@ -421,7 +452,8 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
 
     # ── Loop por andares ─────────────────────────────────────────
     for andar in andares:
-        hp_m  = andar["hp"]; hp_mmx = andar["hp"]
+        hp_m = andar["hp"]
+        hp_mmx = andar["hp"]
         efeitos_m = {}
         turno = 1
         boss_tag = " 💀 BOSS" if andar["eh_boss"] else ""
@@ -429,8 +461,8 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
 
         def barra_status():
             return (
-                f"{emoji_j} **{p['nome']}** ❤️`{barra_hp(hp_j,hp_jmx)}`**{hp_j}/{hp_jmx}** 💙{mana_j}/{mana_jmx}\n"
-                f"{andar['emoji_monstro']} **{andar['nome_monstro']}** ❤️`{barra_hp(hp_m,hp_mmx)}`**{hp_m}/{hp_mmx}**"
+                f"{emoji_j} **{p['nome']}** ❤️`{barra_hp(hp_j, hp_jmx)}`**{hp_j}/{hp_jmx}** 💙{mana_j}/{mana_jmx}\n"
+                f"{andar['emoji_monstro']} **{andar['nome_monstro']}** ❤️`{barra_hp(hp_m, hp_mmx)}`**{hp_m}/{hp_mmx}**"
             )
 
         embed_andar = discord.Embed(
@@ -443,33 +475,41 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
         while hp_j > 0 and hp_m > 0:
             # Efeitos de status
             dano_ef, msgs_ef, efeitos_j = processar_efeitos_turno(efeitos_j)
-            if dano_ef > 0: hp_j = max(0, hp_j - dano_ef)
+            if dano_ef > 0:
+                hp_j = max(0, hp_j - dano_ef)
             dano_ef_m, msgs_ef_m, efeitos_m = processar_efeitos_turno(efeitos_m)
-            if dano_ef_m > 0: hp_m = max(0, hp_m - dano_ef_m)
+            if dano_ef_m > 0:
+                hp_m = max(0, hp_m - dano_ef_m)
 
             # Passiva inicio de turno
             cura_p = passiva.inicio_turno(hp_j, hp_jmx)
-            if cura_p > 0: hp_j = min(hp_jmx, hp_j + cura_p)
+            if cura_p > 0:
+                hp_j = min(hp_jmx, hp_j + cura_p)
 
-            if hp_m <= 0: break
+            if hp_m <= 0:
+                break
 
             # View de batalha
             pocoes = await get_pocoes_inv(uid)
-            view   = BatalhaView(uid, skills, pocoes, nivel=p["nivel"])
+            view = BatalhaView(uid, skills, pocoes, nivel=p["nivel"])
             passiva_txt = passiva.desc_passiva()
             embed_vez = discord.Embed(
                 title=f"🎮 Turno {turno} — Sua vez!",
                 description=barra_status() + (f"\n{passiva_txt}" if passiva_txt else ""),
                 color=0x7F77DD
             )
-            if msgs_ef:   embed_vez.add_field(name="Efeitos", value="\n".join(msgs_ef), inline=False)
-            if msgs_ef_m: embed_vez.add_field(name="Efeitos no inimigo", value="\n".join(msgs_ef_m), inline=False)
+            if msgs_ef:
+                embed_vez.add_field(name="Efeitos", value="\n".join(msgs_ef), inline=False)
+            if msgs_ef_m:
+                embed_vez.add_field(name="Efeitos no inimigo", value="\n".join(msgs_ef_m), inline=False)
             msg_vez = await interaction.followup.send(embed=embed_vez, view=view, wait=True)
             msgs_run.append(msg_vez)
             await view.wait()
             acao, val = view.acao or ("timeout", None)
-            try: await msg_vez.edit(view=None)
-            except: pass
+            try:
+                await msg_vez.edit(view=None)
+            except:
+                pass
 
             # Inatividade
             if acao == "timeout":
@@ -504,14 +544,22 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
 
             elif acao == "atk_basico":
                 nv = p["nivel"]
-                if nv <= 9:    mb = 1.0
-                elif nv <= 19: mb = 1.1
-                elif nv <= 29: mb = 1.2
-                elif nv <= 39: mb = 1.3
-                elif nv <= 49: mb = 1.4
-                elif nv <= 59: mb = 1.5
-                elif nv <= 74: mb = 1.6
-                else:          mb = 1.8
+                if nv <= 9:
+                    mb = 1.0
+                elif nv <= 19:
+                    mb = 1.1
+                elif nv <= 29:
+                    mb = 1.2
+                elif nv <= 39:
+                    mb = 1.3
+                elif nv <= 49:
+                    mb = 1.4
+                elif nv <= 59:
+                    mb = 1.5
+                elif nv <= 74:
+                    mb = 1.6
+                else:
+                    mb = 1.8
                 dano = calc_dano(p["ataque"], andar["defesa"], mb, bonus_atk=bonus_atk,
                                 nivel=nv, hp_max_monstro=hp_mmx)
                 hp_m = max(0, hp_m - dano)
@@ -549,24 +597,24 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
                         linha_jogador = f"{sk['emoji']} **{sk['nome']}**: +{cura} HP! ❤️"
                         cor_acao = 0x2ecc71
                     elif efeito == "dreno":
-                        dano = calc_dano(p["ataque"], andar["defesa"], sk.get("dano",1.0),
+                        dano = calc_dano(p["ataque"], andar["defesa"], sk.get("dano", 1.0),
                                         bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
                         roubo = int(dano // 2 * passiva.apos_dreno())
                         hp_m = max(0, hp_m - dano)
                         hp_j = min(hp_jmx, hp_j + roubo)
                         linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** +{roubo} HP drenado!"
                         cor_acao = 0x1D9E75
-                    elif efeito in ("defesa","escudo","esquiva","escudo_total","armadura","reflexo"):
+                    elif efeito in ("defesa", "escudo", "esquiva", "escudo_total", "armadura", "reflexo"):
                         dur = 3 if efeito == "armadura" else (2 if efeito == "escudo_total" else 1)
                         add_efeito(efeitos_j, efeito, dur)
                         linha_jogador = f"{sk['emoji']} **{sk['nome']}**! Efeito ativo por {dur} turno(s)."
                         cor_acao = 0x7F77DD
-                    elif efeito in ("buff_ataque","buff_all","berserker"):
+                    elif efeito in ("buff_ataque", "buff_all", "berserker"):
                         add_efeito(efeitos_j, efeito, 3)
                         linha_jogador = f"{sk['emoji']} **{sk['nome']}**! Buff ativo por 3 turnos."
                         cor_acao = 0xD85A30
-                    elif efeito in ("queimadura","veneno","atordoar","paralisia","congelar"):
-                        dano = calc_dano(p["ataque"], andar["defesa"], sk.get("dano",1.0),
+                    elif efeito in ("queimadura", "veneno", "atordoar", "paralisia", "congelar"):
+                        dano = calc_dano(p["ataque"], andar["defesa"], sk.get("dano", 1.0),
                                         bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx,
                                         passiva_mult=passiva.multiplicador_dano())
                         hp_m = max(0, hp_m - dano)
@@ -574,7 +622,7 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
                         linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** + {efeito}!"
                         cor_acao = 0xD85A30
                     else:
-                        dano = calc_dano(p["ataque"], andar["defesa"], sk.get("dano",1.0),
+                        dano = calc_dano(p["ataque"], andar["defesa"], sk.get("dano", 1.0),
                                         bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx,
                                         passiva_mult=passiva.multiplicador_dano())
                         hp_m = max(0, hp_m - dano)
@@ -589,8 +637,9 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
                 break
 
             # Ataque do monstro
-            dano_m_base = calc_dano(andar["ataque"], p["defesa"], bonus_atk=bonus_dfs)
+            dano_m_base = calc_dano(andar["ataque"], p["defesa"], bonus_atk=bonus_dfs, nivel=p["nivel"])
             tomou = True
+            
             # Verifica efeitos defensivos
             if efeito_ativo(efeitos_j, "defesa_basica") or efeito_ativo(efeitos_j, "defesa"):
                 if random.random() < 0.6:
@@ -599,18 +648,26 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
             elif efeito_ativo(efeitos_j, "escudo") or efeito_ativo(efeitos_j, "esquiva"):
                 dano_m_base = 0
                 tomou = False
+                if efeito_ativo(efeitos_j, "escudo"):
+                    efeitos_j["escudo"]["duracao"] -= 1
+                if efeito_ativo(efeitos_j, "esquiva"):
+                    efeitos_j["esquiva"]["duracao"] = 0
+            
             # Passiva racial
             dano_m_final, linha_racial = passiva_racial.modificar_dano_recebido(dano_m_base)
             hp_j = max(0, hp_j - dano_m_final)
-            mana_j = min(mana_jmx, mana_j + 8)
+            
+            # Regenera mana
+            regen = 8
+            mana_j = min(mana_jmx, mana_j + regen)
 
-            cor_hp = 0x1D9E75 if hp_j > hp_jmx*0.5 else (0xE4AF3C if hp_j > hp_jmx*0.25 else 0xE24B4A)
+            cor_hp = 0x1D9E75 if hp_j > hp_jmx * 0.5 else (0xE4AF3C if hp_j > hp_jmx * 0.25 else 0xE24B4A)
             desc_turno = (
                 f"{linha_jogador}\n"
                 f"{andar['emoji_monstro']} contra-ataca: **{dano_m_final} de dano**!"
                 + (f" (bloqueado!)" if not tomou else "")
                 + (f"\n{linha_racial}" if linha_racial else "")
-                + f"\n\n{barra_status()}"
+                + f"\n💙 +{regen} mana regenerada\n\n{barra_status()}"
             )
             embed_turno = discord.Embed(description=desc_turno, color=cor_hp)
             msgs_run.append(await interaction.followup.send(embed=embed_turno, wait=True))
@@ -650,6 +707,20 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
 
     # ── Dungeon completa! ─────────────────────────────────────────
     await terminar(True)
+    
+    # Registra pontos no passe e eventos
+    try:
+        from passe_temporada import adicionar_pontos_batalha
+        await adicionar_pontos_batalha(uid, True, "dungeon")
+    except:
+        pass
+    
+    try:
+        from eventos import registrar_dungeon_evento
+        await registrar_dungeon_evento(uid)
+    except:
+        pass
+
     await interaction.followup.send(embed=discord.Embed(
         title=f"🏆 {dg['nome']} — COMPLETADA!",
         description=f"Parabens! Todos os **{len(andares)} andares** concluidos!\n\n🏆 **Premio:** {dg['premio']}",
@@ -657,7 +728,6 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
 
     # Entrega premio
     try:
-        from eventos import _entregar_premio
         s = dg["premio"].lower()
         if "moedas" in s:
             qtd = int("".join(filter(str.isdigit, s)) or "0")
@@ -694,8 +764,9 @@ async def cmd_dungeon_evento_info(interaction: discord.Interaction, dungeon_id: 
     async with pool.acquire() as conn:
         dg = await conn.fetchrow("SELECT * FROM dungeons_evento WHERE id=$1", dungeon_id)
         if not dg:
-            await interaction.followup.send("Dungeon nao encontrada!", ephemeral=True); return
-        andares   = await conn.fetch(
+            await interaction.followup.send("Dungeon nao encontrada!", ephemeral=True)
+            return
+        andares = await conn.fetch(
             "SELECT * FROM dungeon_evento_andares WHERE dungeon_id=$1 ORDER BY numero", dungeon_id)
         concluidas = await conn.fetchval(
             "SELECT COUNT(*) FROM dungeon_evento_runs WHERE dungeon_id=$1 AND concluida=TRUE", dungeon_id)
@@ -717,7 +788,8 @@ async def cmd_dungeon_evento_info(interaction: discord.Interaction, dungeon_id: 
             for a in andares
         ])
         embed.add_field(name="Andares Configurados", value=lista[:1000], inline=False)
-    if dg["imagem_url"]: embed.set_image(url=dg["imagem_url"])
+    if dg["imagem_url"]:
+        embed.set_image(url=dg["imagem_url"])
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 async def cmd_dungeon_evento_fechar(interaction: discord.Interaction, dungeon_id: int):
