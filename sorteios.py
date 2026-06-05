@@ -2,7 +2,7 @@
 import discord
 from discord import app_commands
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Optional, List
 from db import get_pool
 from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO
@@ -31,7 +31,7 @@ async def init_db_sorteios():
                 quantidade_ganhadores INTEGER DEFAULT 1,
                 participantes_count INTEGER DEFAULT 0,
                 data_criacao TIMESTAMP DEFAULT NOW(),
-                 TIMESTAMP NOT NULL,
+                data_encerramento TIMESTAMP NOT NULL,
                 status TEXT DEFAULT 'ativo'
             )
         """)
@@ -56,7 +56,7 @@ async def get_sorteios_ativos(guild_id: int) -> List[dict]:
         rows = await conn.fetch("""
             SELECT * FROM sorteios 
             WHERE guild_id = $1 AND status = 'ativo' 
-            ORDER BY  ASC
+            ORDER BY data_encerramento ASC
         """, guild_id)
         return [dict(r) for r in rows]
 
@@ -404,9 +404,8 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
         except:
             horas = 24
         
-    from datetime import datetime, timedelta
-    data_encerramento = datetime.now() + timedelta(hours=horas)
-
+        # CORREÇÃO: data sem timezone para compatibilidade com PostgreSQL
+        data_encerramento = datetime.now() + timedelta(hours=horas)
         
         pool = await get_pool()
         async with pool.acquire() as conn:
@@ -437,6 +436,8 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
             texto_recompensa = f"⭐ **{qtd} XP**"
         elif self.item_id.startswith("ficha_"):
             rar = self.item_id.replace("ficha_", "").capitalize()
+            if rar == "Lendario":
+                rar = "Lendario"
             texto_recompensa = f"🎰 **{self.quantidade_item}x Ficha {rar}**"
         else:
             raridade_emoji = {
@@ -492,11 +493,18 @@ async def _agendar_encerramento_sorteio(sorteio_id: int, segundos: int, guild):
     await finalizar_e_anunciar_sorteio(sorteio_id, guild)
 
 async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
+    from datetime import datetime
+    
     pool = await get_pool()
     async with pool.acquire() as conn:
         sorteio = await conn.fetchrow("SELECT * FROM sorteios WHERE id = $1 AND status = 'ativo'", sorteio_id)
         if not sorteio:
             return
+    
+    # Verifica se já passou da data de encerramento
+    if sorteio["data_encerramento"] and datetime.now() < sorteio["data_encerramento"]:
+        # Ainda não encerrou, não fazer nada
+        return
     
     vencedores, participantes = await finalizar_sorteio(sorteio_id, guild, sorteio["canal_id"], sorteio["mensagem_id"], False)
     
@@ -545,6 +553,8 @@ async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
         texto_recompensa = f"⭐ **{qtd} XP**"
     elif sorteio["item_id"].startswith("ficha_"):
         rar = sorteio["item_id"].replace("ficha_", "").capitalize()
+        if rar == "Lendario":
+            rar = "Lendario"
         texto_recompensa = f"🎰 **{sorteio['quantidade_item']}x Ficha {rar}**"
     else:
         raridade_emoji = {
@@ -752,6 +762,8 @@ async def cmd_sorteio_info(interaction: discord.Interaction, sorteio_id: int):
         texto_recompensa = f"⭐ {qtd} XP"
     elif sorteio["item_id"].startswith("ficha_"):
         rar = sorteio["item_id"].replace("ficha_", "").capitalize()
+        if rar == "Lendario":
+            rar = "Lendario"
         texto_recompensa = f"🎰 {sorteio['quantidade_item']}x Ficha {rar}"
     else:
         raridade_emoji = {
@@ -800,6 +812,8 @@ async def cmd_sorteios_listar(interaction: discord.Interaction):
             texto_recompensa = f"⭐ {qtd} XP"
         elif s["item_id"].startswith("ficha_"):
             rar = s["item_id"].replace("ficha_", "").capitalize()
+            if rar == "Lendario":
+                rar = "Lendario"
             texto_recompensa = f"🎰 {s['quantidade_item']}x Ficha {rar}"
         else:
             raridade_emoji = {
