@@ -14,7 +14,7 @@ from catalogo import (
     get_catalogo_completo, get_item_por_chave, get_itens_por_categoria
 )
 from utils import atualizar_cargo_nivel, atualizar_cargo_rank, atualizar_todos_cargos
-from setup_cmd import cmd_setup
+from setup_cmd import cmd_setup    
 from dungeon import cmd_dungeon
 from hospital import cmd_hospital, cmd_girar, cmd_set_giros, init_db_hospital, COR_RAR, EMOJI_FICHA
 from batalha import (
@@ -1577,7 +1577,6 @@ async def ajuda(interaction: discord.Interaction):
 # ─── REGISTRO DOS COMANDOS ────────────────────────────────────────
 register_passe_commands(bot)
 register_arena_commands(bot)
-register_torneio_commands(bot)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
