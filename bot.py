@@ -48,6 +48,9 @@ from passe_temporada import register_passe_commands, init_db_passe
 # ─── ARENA RANQUEADA ──────────────────────────────────────────────
 from arena import register_arena_commands, init_db_arena
 
+# ─── COOLDOWN ─────────────────────────────────────────────────────
+from cooldown import cooldown
+
 # Configuração de imagens (desabilitadas)
 IMG_PERFIL = IMG_SETUP = IMG_INVENTARIO = IMG_SKILLS = IMG_AJUDA = ""
 IMG_LOJA = IMG_FERREIRO = IMG_HOSPITAL = IMG_MERCADO = IMG_MERCADOR = ""
@@ -110,23 +113,24 @@ async def get_treino_uso(user_id):
         async with pool.acquire() as conn:
             row = await conn.fetchrow('SELECT * FROM treino_uso WHERE user_id=$1', user_id)
             if not row: return 0, None
-            from datetime import datetime
-            if row['reset_em'] and datetime.utcnow() >= row['reset_em']:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            if row['reset_em'] and now >= row['reset_em']:
                 await conn.execute('UPDATE treino_uso SET count=0, reset_em=NULL WHERE user_id=$1', user_id)
                 return 0, None
             return row['count'], row['reset_em']
     except Exception as e:
-        print(f'Ergo get_treino_uso: {e}')
+        print(f'Erro get_treino_uso: {e}')
         return 0, None
 
 async def incrementar_treino(user_id):
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
         pool = await get_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow('SELECT count FROM treino_uso WHERE user_id=$1', user_id)
             novo = (row['count'] if row else 0) + 1
-            reset_em = datetime.utcnow() + timedelta(hours=2) if novo >= 20 else None
+            reset_em = datetime.now(timezone.utc) + timedelta(hours=2) if novo >= 20 else None
             await conn.execute(
                 'INSERT INTO treino_uso(user_id,count,reset_em) VALUES($1,$2,$3) ON CONFLICT(user_id) DO UPDATE SET count=$2, reset_em=COALESCE($3, treino_uso.reset_em)',
                 user_id, novo, reset_em)
@@ -721,6 +725,7 @@ async def dar(interaction: discord.Interaction, jogador: discord.Member, item: s
     app_commands.Choice(name="Dificil",  value="dificil"),
     app_commands.Choice(name="Lendario", value="lendario"),
 ])
+@cooldown(5)
 async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     await interaction.response.defer()
     if em_batalha(interaction.user.id):
@@ -730,8 +735,8 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
         await interaction.followup.send("Use /criar_personagem primeiro!", ephemeral=True); return
     count, reset_em = await get_treino_uso(interaction.user.id)
     if count >= 20 and reset_em:
-        from datetime import datetime
-        secs = int((reset_em - datetime.utcnow()).total_seconds())
+        from datetime import datetime, timezone
+        secs = int((reset_em - datetime.now(timezone.utc)).total_seconds())
         mins = secs // 60; segs = secs % 60
         await interaction.followup.send(
             f"Voce ja treinou 20 vezes! Descanse. Treina novamente em {mins}min {segs}s.", ephemeral=True); return
@@ -772,10 +777,92 @@ async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     finally:
         await incrementar_treino(interaction.user.id)
 
+# ─── /treinar-dupla ──────────────────────────────────────────────
+
+@bot.tree.command(name="treinar-dupla", description="Batalha em dupla contra um monstro (+20% recompensa)")
+@app_commands.describe(parceiro="Jogador para lutar ao seu lado")
+async def treinar_dupla(interaction: discord.Interaction, parceiro: discord.Member):
+    await interaction.response.defer()
+    
+    if em_batalha(interaction.user.id) or em_batalha(parceiro.id):
+        await interaction.followup.send("Um dos jogadores ja esta em batalha!", ephemeral=True)
+        return
+    
+    if parceiro.bot or parceiro.id == interaction.user.id:
+        await interaction.followup.send("Jogador invalido!", ephemeral=True)
+        return
+    
+    p1 = await get_personagem(interaction.user.id)
+    p2 = await get_personagem(parceiro.id)
+    
+    if not p1 or not p2:
+        await interaction.followup.send("Um dos jogadores nao tem personagem!", ephemeral=True)
+        return
+    
+    class AceitarDuplaView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=60)
+            self.aceito = False
+        
+        @discord.ui.button(label="✅ Aceitar", style=discord.ButtonStyle.success)
+        async def aceitar(self, inter: discord.Interaction, button):
+            if inter.user.id != parceiro.id:
+                await inter.response.send_message("Nao e voce!", ephemeral=True)
+                return
+            self.aceito = True
+            await inter.response.defer()
+            self.stop()
+        
+        @discord.ui.button(label="❌ Recusar", style=discord.ButtonStyle.danger)
+        async def recusar(self, inter: discord.Interaction, button):
+            if inter.user.id != parceiro.id:
+                await inter.response.send_message("Nao e voce!", ephemeral=True)
+                return
+            self.aceito = False
+            await inter.response.defer()
+            self.stop()
+    
+    embed_convite = discord.Embed(
+        title="⚔️ Convite para Batalha em Dupla!",
+        description=f"**{interaction.user.display_name}** convidou **{parceiro.display_name}** para batalharem juntos!\n\n"
+                   f"**Bonus:** +20% XP e Moedas!\n"
+                   f"**Monstro:** HP dobrado!\n\n"
+                   f"⏱️ Voce tem 60 segundos para aceitar!",
+        color=0x7F77DD
+    )
+    
+    view = AceitarDuplaView()
+    await interaction.followup.send(content=parceiro.mention, embed=embed_convite, view=view)
+    await view.wait()
+    
+    if not view.aceito:
+        await interaction.edit_original_response(content="❌ Convite recusado ou expirado!", embed=None, view=None)
+        return
+    
+    dificuldade = "facil" if p1["nivel"] < 10 else "medio" if p1["nivel"] < 20 else "dificil" if p1["nivel"] < 35 else "lendario"
+    monstros_d = [m for m in MONSTROS if m["dificuldade"] == dificuldade]
+    monstro = random.choice(monstros_d)
+    arena = random.choice(ARENAS)
+    
+    await interaction.edit_original_response(
+        embed=discord.Embed(
+            title=f"⚔️ Batalha em Dupla!",
+            description=f"{interaction.user.mention} + {parceiro.mention} vs **{monstro['emoji']} {monstro['nome']}**\n"
+                       f"🏟️ Arena: {arena['emoji']} {arena['nome']}\n\n"
+                       f"**Monstro com HP dobrado!**\n"
+                       f"**+20% de recompensa!**",
+            color=arena["cor"]
+        ),
+        view=None
+    )
+    
+    await rodar_treino_dupla(interaction, p1, p2, monstro, arena, interaction.user, parceiro)
+
 # ─── /desafiar ───────────────────────────────────────────────────
 
 @bot.tree.command(name="desafiar", description="Desafia outro jogador para um duelo PvP")
 @app_commands.describe(jogador="Jogador a desafiar")
+@cooldown(5)
 async def desafiar(interaction: discord.Interaction, jogador: discord.Member):
     await interaction.response.defer()
     if em_batalha(interaction.user.id):
@@ -810,6 +897,7 @@ async def desafiar(interaction: discord.Interaction, jogador: discord.Member):
     app_commands.Choice(name="Rank S (Nv 60+)",  value="S"),
     app_commands.Choice(name="Rank SS (Nv 75+)", value="SS"),
 ])
+@cooldown(10)
 async def dungeon(interaction: discord.Interaction, rank: str = "F"):
     if interaction.user.id in BATALHAS_ATIVAS:
         await interaction.response.send_message("Voce ja esta em batalha!", ephemeral=True); return
@@ -818,12 +906,14 @@ async def dungeon(interaction: discord.Interaction, rank: str = "F"):
 # ─── /hospital ───────────────────────────────────────────────────
 
 @bot.tree.command(name="hospital", description="Restaure seu HP e Mana no hospital")
+@cooldown(3)
 async def hospital(interaction: discord.Interaction):
     await cmd_hospital(interaction)
 
 # ─── /girar ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="girar", description="Use fichas de roleta para ganhar itens raros")
+@cooldown(2)
 async def girar(interaction: discord.Interaction):
     await cmd_girar(interaction)
 
@@ -836,6 +926,7 @@ async def girar(interaction: discord.Interaction):
     app_commands.Choice(name="Armaduras", value="armaduras"),
     app_commands.Choice(name="Pocoes",    value="pocoes"),
 ])
+@cooldown(2)
 async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
     await interaction.response.defer(ephemeral=True)
     p = await get_personagem(interaction.user.id)
@@ -872,11 +963,13 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
         if ex: await conn.execute("UPDATE inventario SET quantidade=quantidade+1 WHERE id=$1", ex["id"])
         else: await conn.execute("INSERT INTO inventario(user_id,item_id,nome,tipo,raridade,emoji,descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
             interaction.user.id, it["id"], it["nome"], categoria.rstrip("s"), it["raridade"], it["emoji"], it.get("desc",""))
+        await atualizar_progresso(interaction.user.id, "moedas_gastas", preco)
     await interaction.followup.send(f"Comprou {it['emoji']} **{it['nome']}** por {preco} moedas!", ephemeral=True)
 
 # ─── /ferreiro ───────────────────────────────────────────────────
 
 @bot.tree.command(name="ferreiro", description="Forje itens com materiais de dungeon")
+@cooldown(2)
 async def ferreiro(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     p = await get_personagem(interaction.user.id)
@@ -931,12 +1024,14 @@ async def ferreiro(interaction: discord.Interaction):
 # ─── /mercado ────────────────────────────────────────────────────
 
 @bot.tree.command(name="mercado", description="Venda itens do inventario por moedas")
+@cooldown(2)
 async def mercado(interaction: discord.Interaction):
     await cmd_mercado_vender(interaction)
 
 # ─── /mercador ───────────────────────────────────────────────────
 
 @bot.tree.command(name="mercador", description="Troque materiais por itens exclusivos")
+@cooldown(3)
 async def mercador(interaction: discord.Interaction):
     await cmd_mercador(interaction)
 
@@ -1286,69 +1381,101 @@ async def torneio_cancelar(interaction: discord.Interaction, torneio_id: int):
 
 # ─── /party_criar ────────────────────────────────────────────────
 
-# @bot.tree.command(name="party_criar", description="Cria uma nova party")
-# async def party_criar(interaction: discord.Interaction):
-#     from party import cmd_party_criar
-#     await cmd_party_criar(interaction)
+@bot.tree.command(name="party_criar", description="Cria uma nova party")
+async def party_criar(interaction: discord.Interaction):
+    from party import cmd_party_criar
+    await cmd_party_criar(interaction)
 
-# # ─── /party_info ─────────────────────────────────────────────────
+# ─── /party_info ─────────────────────────────────────────────────
 
-# @bot.tree.command(name="party_info", description="Mostra informações da sua party")
-# async def party_info(interaction: discord.Interaction):
-#     from party import cmd_party_info
-#     await cmd_party_info(interaction)
+@bot.tree.command(name="party_info", description="Mostra informações da sua party")
+async def party_info(interaction: discord.Interaction):
+    from party import cmd_party_info
+    await cmd_party_info(interaction)
 
-# # ─── /party_convidar ─────────────────────────────────────────────
+# ─── /party_convidar ─────────────────────────────────────────────
 
-# @bot.tree.command(name="party_convidar", description="Convida um jogador para sua party")
-# @app_commands.describe(jogador="Jogador a ser convidado")
-# async def party_convidar(interaction: discord.Interaction, jogador: discord.Member):
-#     from party import cmd_party_convidar
-#     await cmd_party_convidar(interaction, jogador)
+@bot.tree.command(name="party_convidar", description="Convida um jogador para sua party")
+@app_commands.describe(jogador="Jogador a ser convidado")
+async def party_convidar(interaction: discord.Interaction, jogador: discord.Member):
+    from party import cmd_party_convidar
+    await cmd_party_convidar(interaction, jogador)
 
-# # ─── /party_sair ─────────────────────────────────────────────────
+# ─── /party_sair ─────────────────────────────────────────────────
 
-# @bot.tree.command(name="party_sair", description="Sai da sua party atual")
-# async def party_sair(interaction: discord.Interaction):
-#     from party import cmd_party_sair
-#     await cmd_party_sair(interaction)
+@bot.tree.command(name="party_sair", description="Sai da sua party atual")
+async def party_sair(interaction: discord.Interaction):
+    from party import cmd_party_sair
+    await cmd_party_sair(interaction)
 
-# # ─── /party_expulsar ─────────────────────────────────────────────
+# ─── /party_expulsar ─────────────────────────────────────────────
 
-# @bot.tree.command(name="party_expulsar", description="Expulsa um membro da party (apenas líder)")
-# @app_commands.describe(jogador="Membro a ser expulso")
-# async def party_expulsar(interaction: discord.Interaction, jogador: discord.Member):
-#     from party import cmd_party_expulsar
-#     await cmd_party_expulsar(interaction, jogador)
+@bot.tree.command(name="party_expulsar", description="Expulsa um membro da party (apenas líder)")
+@app_commands.describe(jogador="Membro a ser expulso")
+async def party_expulsar(interaction: discord.Interaction, jogador: discord.Member):
+    from party import cmd_party_expulsar
+    await cmd_party_expulsar(interaction, jogador)
 
-# # ─── /party_lider ────────────────────────────────────────────────
+# ─── /party_lider ────────────────────────────────────────────────
 
-# @bot.tree.command(name="party_lider", description="Transfere liderança para outro membro")
-# @app_commands.describe(jogador="Novo líder")
-# async def party_lider(interaction: discord.Interaction, jogador: discord.Member):
-#     from party import cmd_party_lider
-#     await cmd_party_lider(interaction, jogador)
+@bot.tree.command(name="party_lider", description="Transfere liderança para outro membro")
+@app_commands.describe(jogador="Novo líder")
+async def party_lider(interaction: discord.Interaction, jogador: discord.Member):
+    from party import cmd_party_lider
+    await cmd_party_lider(interaction, jogador)
 
-# # ─── /party_encerrar ─────────────────────────────────────────────
+# ─── /party_encerrar ─────────────────────────────────────────────
 
-# @bot.tree.command(name="party_encerrar", description="Encerra sua party permanentemente (apenas líder)")
-# async def party_encerrar(interaction: discord.Interaction):
-#     from party import cmd_party_encerrar
-#     await cmd_party_encerrar(interaction)
+@bot.tree.command(name="party_encerrar", description="Encerra sua party permanentemente (apenas líder)")
+async def party_encerrar(interaction: discord.Interaction):
+    from party import cmd_party_encerrar
+    await cmd_party_encerrar(interaction)
 
-# # ─── /party_painel ───────────────────────────────────────────────
+# ─── /party_painel ───────────────────────────────────────────────
 
-# @bot.tree.command(name="party_painel", description="Mostra painel completo da party")
-# async def party_painel(interaction: discord.Interaction):
-#     from party import cmd_party_painel
-#     await cmd_party_painel(interaction)
+@bot.tree.command(name="party_painel", description="Mostra painel completo da party")
+async def party_painel(interaction: discord.Interaction):
+    from party import cmd_party_painel
+    await cmd_party_painel(interaction)
 
-# # ─── /party_convites ─────────────────────────────────────────────
+# ─── /party_convites ─────────────────────────────────────────────
 
-# @bot.tree.command(name="party_convites", description="Lista convites pendentes da party")
-# async def party_convites(interaction: discord.Interaction):
-#     from party import cmd_party_convites
-#     await cmd_party_convites(interaction)
+@bot.tree.command(name="party_convites", description="Lista convites pendentes da party")
+async def party_convites(interaction: discord.Interaction):
+    from party import cmd_party_convites
+    await cmd_party_convites(interaction)
+
+# ─── /dungeon-evento-andar ───────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-andar", description="[ADMIN] Adiciona um andar a dungeon de evento")
+@app_commands.describe(dungeon_id="ID da dungeon", loot_item="Item que pode ser dropado (opcional)")
+@app_commands.autocomplete(loot_item=autocomplete_item_todos)
+@app_commands.checks.has_permissions(administrator=True)
+async def dungeon_evento_andar(interaction: discord.Interaction, dungeon_id: int, loot_item: str = ""):
+    await interaction.response.send_modal(AdicionarAndarModal(dungeon_id, loot_item))
+
+# ─── /dungeon-evento-ativar ─────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-ativar", description="[ADMIN] Ativa uma dungeon de evento")
+@app_commands.describe(dungeon_id="ID da dungeon")
+@app_commands.checks.has_permissions(administrator=True)
+async def dungeon_evento_ativar(interaction: discord.Interaction, dungeon_id: int):
+    await cmd_dungeon_evento_ativar(interaction, dungeon_id)
+
+# ─── /dungeon-evento-info ────────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-info", description="Mostra informações da dungeon de evento")
+@app_commands.describe(dungeon_id="ID da dungeon")
+async def dungeon_evento_info(interaction: discord.Interaction, dungeon_id: int):
+    await cmd_dungeon_evento_info(interaction, dungeon_id)
+
+# ─── /dungeon-evento-fechar ──────────────────────────────────────
+
+@bot.tree.command(name="dungeon-evento-fechar", description="[ADMIN] Fecha uma dungeon de evento")
+@app_commands.describe(dungeon_id="ID da dungeon")
+@app_commands.checks.has_permissions(administrator=True)
+async def dungeon_evento_fechar(interaction: discord.Interaction, dungeon_id: int):
+    await cmd_dungeon_evento_fechar(interaction, dungeon_id)
 
 # ─── /tutorial ───────────────────────────────────────────────────
 
@@ -1456,13 +1583,14 @@ async def ajuda(interaction: discord.Interaction):
     embed.add_field(name="🏰 Party",   value="`/party_criar` `/party_info` `/party_convidar` `/party_sair` `/party_expulsar` `/party_lider` `/party_encerrar` `/party_painel` `/party_convites`", inline=False)
     embed.add_field(name="🎫 Passe",   value="`/passe_ver` `/passe_resgatar` `/passe_ranking` `/passe_recompensas`", inline=False)
     embed.add_field(name="🏆 Arena",   value="`/arena_desafiar` `/arena_ranking` `/arena_meuperfil` `/arena_recompensas` `/arena_temporada`", inline=False)
-    embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-criar` `/dungeon-evento-configurar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
+    embed.add_field(name="Dungeon Evento", value="`/dungeon-evento-andar` `/dungeon-evento-ativar` `/dungeon-evento-info` `/dungeon-evento-fechar`", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ─── REGISTRO DOS COMANDOS ────────────────────────────────────────
 register_party_commands(bot)
 register_passe_commands(bot)
 register_arena_commands(bot)
+register_torneio_commands(bot)
 
 # ─── SYNC MANUAL ─────────────────────────────────────────────────
 
@@ -1493,7 +1621,6 @@ async def on_ready():
     cmds_no_tree = len(bot.tree.get_commands())
     print(f"Comandos no tree: {cmds_no_tree}")
 
-    # DB
     try:
         await init_db()
         await init_db_batalha()
