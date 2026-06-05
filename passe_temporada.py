@@ -3,7 +3,7 @@ import discord
 from discord import app_commands
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db import get_pool
 from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO, COR_GOLD
 
@@ -202,6 +202,13 @@ async def adicionar_pontos_passe(user_id: int, pontos: int, fonte: str = "batalh
             SET pontos = $1, nivel = $2
             WHERE user_id = $3 AND temporada_id = $4
         """, novos_pontos, nivel_novo, user_id, TEMPORADA_ATUAL["id"])
+        
+        # Registra no histórico os níveis subidos
+        for nv in novos_niveis:
+            await conn.execute("""
+                INSERT INTO passe_historico (user_id, temporada_id, nivel, recompensa)
+                VALUES ($1, $2, $3, 'level_up')
+            """, user_id, TEMPORADA_ATUAL["id"], nv)
     
     return {
         "pontos_ganhos": pontos,
@@ -299,10 +306,13 @@ async def adicionar_pontos_batalha(user_id: int, vitoria: bool, tipo: str = "tre
     
     pontos = pontos_por_tipo.get(tipo, 10)
     
-    from party import get_party_do_jogador
-    party = await get_party_do_jogador(user_id)
-    if party:
-        pontos = int(pontos * 1.2)
+    try:
+        from party import get_party_do_jogador
+        party = await get_party_do_jogador(user_id)
+        if party:
+            pontos = int(pontos * 1.2)
+    except:
+        pass
     
     resultado = await adicionar_pontos_passe(user_id, pontos, tipo)
     return resultado
@@ -351,7 +361,8 @@ async def cmd_passe_ver(interaction: discord.Interaction):
               f"**🎯 Ganhe pontos em batalhas!**\n"
               f"• Vitória no treino: +10 pts\n"
               f"• Vitória na arena: +15 pts\n"
-              f"• Completar dungeon: +20 pts",
+              f"• Completar dungeon: +20 pts\n"
+              f"• Vencer torneio: +25 pts",
         inline=False
     )
     
@@ -366,7 +377,12 @@ async def cmd_passe_ver(interaction: discord.Interaction):
             inline=False
         )
     
-    embed.set_footer(text=f"Temporada termina em: <t:{int(TEMPORADA_ATUAL['data_fim'].timestamp())}:R>")
+    data_fim = TEMPORADA_ATUAL["data_fim"]
+    if isinstance(data_fim, datetime):
+        embed.set_footer(text=f"Temporada termina em: <t:{int(data_fim.timestamp())}:R>")
+    else:
+        embed.set_footer(text="Temporada em andamento!")
+    
     await interaction.followup.send(embed=embed)
 
 async def cmd_passe_resgatar(interaction: discord.Interaction, nivel: int):
@@ -550,30 +566,6 @@ async def cmd_passe_admin_configurar(interaction: discord.Interaction):
             await inter.response.send_message("✅ Configuração da temporada atualizada!", ephemeral=True)
     
     await interaction.response.send_modal(ConfigurarPasseModal())
-
-async def adicionar_pontos_dungeon(user_id: int, vitoria: bool):
-    """Adiciona pontos ao passe por completar dungeon"""
-    if not vitoria:
-        return None
-    
-    from passe_temporada import adicionar_pontos_passe
-    return await adicionar_pontos_passe(user_id, 20, "dungeon")
-
-async def adicionar_pontos_torneio(user_id: int, vitoria: bool):
-    """Adiciona pontos ao passe por vencer torneio"""
-    if not vitoria:
-        return None
-    
-    from passe_temporada import adicionar_pontos_passe
-    return await adicionar_pontos_passe(user_id, 25, "torneio")
-
-async def adicionar_pontos_arena(user_id: int, vitoria: bool):
-    """Adiciona pontos ao passe por vencer na arena"""
-    if not vitoria:
-        return None
-    
-    from passe_temporada import adicionar_pontos_passe
-    return await adicionar_pontos_passe(user_id, 15, "arena")
 
 # ==================================================
 # REGISTRO DOS COMANDOS
