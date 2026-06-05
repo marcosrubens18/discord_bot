@@ -14,7 +14,7 @@ from catalogo import (
     get_catalogo_completo, get_item_por_chave, get_itens_por_categoria
 )
 from utils import atualizar_cargo_nivel, atualizar_cargo_rank, atualizar_todos_cargos
-from setup_cmd import cmd_setup    
+from setup_cmd import cmd_setup
 from dungeon import cmd_dungeon
 from hospital import cmd_hospital, cmd_girar, cmd_set_giros, init_db_hospital, COR_RAR, EMOJI_FICHA
 from batalha import (
@@ -57,9 +57,10 @@ IMG_CLASSE = {}
 
 # ─── DADOS ───────────────────────────────────────────────────────
 def calcular_stats(poder_valor, destino_id, nivel=1):
-    hp = 80 + poder_valor*2 + nivel*5
-    atk = 8 + poder_valor//5 + nivel*2
-    dfs = 5 + poder_valor//6 + nivel*1
+    # REBALANCEAMENTO TEMPORADA 2 - FÓRMULA AJUSTADA
+    hp = 90 + poder_valor*2 + nivel*6      # Antigo: 80 + poder_valor*2 + nivel*5
+    atk = 9 + poder_valor//5 + nivel*2      # Antigo: 8 + poder_valor//5 + nivel*2
+    dfs = 6 + poder_valor//7 + nivel*1      # Antigo: 5 + poder_valor//6 + nivel*1
     if destino_id == "prodigio":    atk = int(atk*1.12); dfs = int(dfs*0.95)
     elif destino_id == "guardiao":  dfs = int(dfs*1.12); atk = int(atk*0.95)
     elif destino_id == "abencado":  hp=int(hp*1.08); atk=int(atk*1.05); dfs=int(dfs*1.05)
@@ -478,7 +479,7 @@ async def criar_personagem(interaction: discord.Interaction):
     skills_s = disp[:2]
 
     hp, atk, dfs = calcular_stats(poder["valor"], destino["id"], 1)
-    if raca["id"] == "anao": dfs += 8
+    if raca["id"] == "anao": dfs += 5  # REBALANCEAMENTO: Anão agora dá +5 DEF (antes +8)
     nome = interaction.user.display_name
 
     pool_db = await get_pool()
@@ -1137,7 +1138,9 @@ async def set_nivel(interaction: discord.Interaction, jogador: discord.Member, n
     if not p:
         await interaction.followup.send(f"{jogador.display_name} nao tem personagem!", ephemeral=True); return
     nd = nivel - p["nivel"]
-    hp_n = max(50, p["hp_max"]+nd*5); atk_n = max(5, p["ataque"]+nd*2); dfs_n = max(3, p["defesa"]+nd*1)
+    hp_n = max(50, p["hp_max"]+nd*6)  # REBALANCEAMENTO: +6 HP por nível (antes +5)
+    atk_n = max(5, p["ataque"]+nd*2)
+    dfs_n = max(3, p["defesa"]+nd*1)
     mana_n = calcular_mana_max(p["classe_id"], nivel, p["poder_valor"], p["destino_id"])
     pool_db = await get_pool()
     async with pool_db.acquire() as conn:
@@ -1598,9 +1601,7 @@ async def sync_cmd(ctx):
 
 # ─── EVENTOS ─────────────────────────────────────────────────────
 
-_synced = False
-
-@bot.event
+_synced = False@bot.event
 async def on_ready():
     global _synced
     print(f"Bot: {bot.user}")
