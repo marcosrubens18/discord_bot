@@ -12,7 +12,6 @@ from constants import COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INF
 # ==================================================
 
 async def init_db_sorteios():
-    """Inicializa as tabelas de sorteios no banco de dados"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("""
@@ -102,7 +101,21 @@ async def adicionar_participante(sorteio_id: int, usuario_id: int) -> bool:
 async def entregar_recompensa(conn, user_id: int, item_id: str, item_nome: str, item_raridade: str, item_tipo: str, quantidade: int):
     """Entrega a recompensa do sorteio para o vencedor"""
     
-    # Se for ficha de roleta
+    # MOEDAS
+    if item_tipo == "moedas":
+        await conn.execute("""
+            UPDATE personagens SET moedas = moedas + $1 WHERE user_id = $2
+        """, quantidade, user_id)
+        return
+    
+    # XP
+    if item_tipo == "xp":
+        await conn.execute("""
+            UPDATE personagens SET xp = xp + $1 WHERE user_id = $2
+        """, quantidade, user_id)
+        return
+    
+    # Fichas de roleta
     if item_tipo == "ficha":
         raridade_map = {
             "Comum": "Comum",
@@ -122,7 +135,7 @@ async def entregar_recompensa(conn, user_id: int, item_id: str, item_nome: str, 
         """, user_id, raridade_giro, quantidade)
         return
     
-    # Se for item normal
+    # Itens normais
     ex = await conn.fetchrow(
         "SELECT id, quantidade FROM inventario WHERE user_id = $1 AND item_id = $2",
         user_id, item_id
@@ -208,14 +221,101 @@ async def atualizar_embed_sorteio(guild, canal_id: int, mensagem_id: int):
         await msg.edit(embed=embed)
 
 # ==================================================
-# FUNÇÃO PARA LISTAR TODOS OS ITENS DO JOGO
+# LISTA COMPLETA DE ITENS POR SEÇÃO
 # ==================================================
 
 def get_todos_itens_para_sorteio():
-    """Retorna TODOS os itens disponíveis para sorteio (armas, armaduras, poções, materiais, fichas)"""
+    """Retorna TODOS os itens disponíveis para sorteio organizados por seção"""
     itens = []
     
-    # 1. FICHAS DE ROLETA
+    # ==============================================
+    # SEÇÃO 1: MOEDAS E XP
+    # ==============================================
+    itens.append({
+        "id": "moedas_100",
+        "nome": "100 Moedas",
+        "raridade": "Comum",
+        "tipo": "moedas",
+        "emoji": "🪙",
+        "categoria": "💰 Moedas"
+    })
+    itens.append({
+        "id": "moedas_500",
+        "nome": "500 Moedas",
+        "raridade": "Incomum",
+        "tipo": "moedas",
+        "emoji": "🪙",
+        "categoria": "💰 Moedas"
+    })
+    itens.append({
+        "id": "moedas_1000",
+        "nome": "1000 Moedas",
+        "raridade": "Raro",
+        "tipo": "moedas",
+        "emoji": "🪙",
+        "categoria": "💰 Moedas"
+    })
+    itens.append({
+        "id": "moedas_5000",
+        "nome": "5000 Moedas",
+        "raridade": "Epico",
+        "tipo": "moedas",
+        "emoji": "🪙",
+        "categoria": "💰 Moedas"
+    })
+    itens.append({
+        "id": "moedas_10000",
+        "nome": "10000 Moedas",
+        "raridade": "Lendario",
+        "tipo": "moedas",
+        "emoji": "🪙",
+        "categoria": "💰 Moedas"
+    })
+    
+    itens.append({
+        "id": "xp_100",
+        "nome": "100 XP",
+        "raridade": "Comum",
+        "tipo": "xp",
+        "emoji": "⭐",
+        "categoria": "⭐ Experiência"
+    })
+    itens.append({
+        "id": "xp_500",
+        "nome": "500 XP",
+        "raridade": "Incomum",
+        "tipo": "xp",
+        "emoji": "⭐",
+        "categoria": "⭐ Experiência"
+    })
+    itens.append({
+        "id": "xp_1000",
+        "nome": "1000 XP",
+        "raridade": "Raro",
+        "tipo": "xp",
+        "emoji": "⭐",
+        "categoria": "⭐ Experiência"
+    })
+    itens.append({
+        "id": "xp_5000",
+        "nome": "5000 XP",
+        "raridade": "Epico",
+        "tipo": "xp",
+        "emoji": "⭐",
+        "categoria": "⭐ Experiência"
+    })
+    itens.append({
+        "id": "xp_10000",
+        "nome": "10000 XP",
+        "raridade": "Lendario",
+        "tipo": "xp",
+        "emoji": "⭐",
+        "categoria": "⭐ Experiência"
+    })
+    
+    # ==============================================
+    # SEÇÃO 2: FICHAS DE ROLETA
+    # ==============================================
     raridades_fichas = ["Comum", "Incomum", "Raro", "Epico", "Lendario"]
     for rar in raridades_fichas:
         itens.append({
@@ -224,26 +324,29 @@ def get_todos_itens_para_sorteio():
             "raridade": rar,
             "tipo": "ficha",
             "emoji": "🎰",
-            "categoria": "Fichas"
+            "categoria": "🎰 Fichas de Roleta"
         })
     
-    # 2. ARMADURAS (de todas as classes)
+    # ==============================================
+    # SEÇÃO 3: POÇÕES
+    # ==============================================
     try:
-        from catalogo import ARMADURAS_POR_CLASSE
-        for classe, armaduras in ARMADURAS_POR_CLASSE.items():
-            for armadura in armaduras:
-                itens.append({
-                    "id": armadura["id"],
-                    "nome": armadura["nome"],
-                    "raridade": armadura["raridade"],
-                    "tipo": "armadura",
-                    "emoji": armadura.get("emoji", "🛡️"),
-                    "categoria": f"Armadura ({classe})"
-                })
+        from catalogo import POCOES_CAT
+        for pocao in POCOES_CAT:
+            itens.append({
+                "id": pocao["id"],
+                "nome": pocao["nome"],
+                "raridade": pocao["raridade"],
+                "tipo": "pocao",
+                "emoji": pocao.get("emoji", "🧪"),
+                "categoria": "🧪 Poções"
+            })
     except:
         pass
     
-    # 3. ARMAS (de todas as classes)
+    # ==============================================
+    # SEÇÃO 4: ARMAS
+    # ==============================================
     try:
         from catalogo import ARMAS_POR_CLASSE
         for classe, armas in ARMAS_POR_CLASSE.items():
@@ -254,27 +357,32 @@ def get_todos_itens_para_sorteio():
                     "raridade": arma["raridade"],
                     "tipo": "arma",
                     "emoji": arma.get("emoji", "⚔️"),
-                    "categoria": f"Arma ({classe})"
+                    "categoria": f"⚔️ Armas - {classe.title()}"
                 })
     except:
         pass
     
-    # 4. POÇÕES
+    # ==============================================
+    # SEÇÃO 5: ARMADURAS
+    # ==============================================
     try:
-        from catalogo import POCOES_CAT
-        for pocao in POCOES_CAT:
-            itens.append({
-                "id": pocao["id"],
-                "nome": pocao["nome"],
-                "raridade": pocao["raridade"],
-                "tipo": "pocao",
-                "emoji": pocao.get("emoji", "🧪"),
-                "categoria": "Poções"
-            })
+        from catalogo import ARMADURAS_POR_CLASSE
+        for classe, armaduras in ARMADURAS_POR_CLASSE.items():
+            for armadura in armaduras:
+                itens.append({
+                    "id": armadura["id"],
+                    "nome": armadura["nome"],
+                    "raridade": armadura["raridade"],
+                    "tipo": "armadura",
+                    "emoji": armadura.get("emoji", "🛡️"),
+                    "categoria": f"🛡️ Armaduras - {classe.title()}"
+                })
     except:
         pass
     
-    # 5. MATERIAIS
+    # ==============================================
+    # SEÇÃO 6: MATERIAIS
+    # ==============================================
     try:
         from catalogo import MATERIAIS_CAT
         for material in MATERIAIS_CAT:
@@ -284,12 +392,14 @@ def get_todos_itens_para_sorteio():
                 "raridade": material["raridade"],
                 "tipo": "material",
                 "emoji": material.get("emoji", "📦"),
-                "categoria": "Materiais"
+                "categoria": "📦 Materiais"
             })
     except:
         pass
     
-    # 6. ITENS DE FORJA (RECEITAS)
+    # ==============================================
+    # SEÇÃO 7: ITENS DE FORJA
+    # ==============================================
     try:
         from batalha import RECEITAS
         for receita in RECEITAS:
@@ -299,7 +409,7 @@ def get_todos_itens_para_sorteio():
                 "raridade": receita["raridade"],
                 "tipo": "forja",
                 "emoji": receita.get("emoji", "🔨"),
-                "categoria": "Itens de Forja"
+                "categoria": "🔨 Itens de Forja"
             })
     except:
         pass
@@ -387,8 +497,12 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
             color=COR_PRIMARY
         )
         
-        # Define emoji e texto da recompensa
-        if self.item_tipo == "ficha":
+        # Define texto da recompensa baseado no tipo
+        if self.item_tipo == "moedas":
+            texto_recompensa = f"🪙 **{self.quantidade_item} Moedas**"
+        elif self.item_tipo == "xp":
+            texto_recompensa = f"⭐ **{self.quantidade_item} XP**"
+        elif self.item_tipo == "ficha":
             texto_recompensa = f"🎰 **{self.quantidade_item}x Ficha {self.item_raridade}**"
         elif self.item_tipo == "arma":
             texto_recompensa = f"⚔️ **{self.item_nome}** x{self.quantidade_item}"
@@ -499,7 +613,11 @@ async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
             vencedores_mentions.append(f"<@{vid}>")
     
     # Define texto da recompensa
-    if sorteio["item_tipo"] == "ficha":
+    if sorteio["item_tipo"] == "moedas":
+        texto_recompensa = f"🪙 **{sorteio['quantidade_item']} Moedas**"
+    elif sorteio["item_tipo"] == "xp":
+        texto_recompensa = f"⭐ **{sorteio['quantidade_item']} XP**"
+    elif sorteio["item_tipo"] == "ficha":
         texto_recompensa = f"🎰 **{sorteio['quantidade_item']}x Ficha {sorteio['item_raridade']}**"
     elif sorteio["item_tipo"] == "arma":
         texto_recompensa = f"⚔️ **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
@@ -571,9 +689,8 @@ async def autocomplete_canal(interaction: discord.Interaction, current: str):
     ]
 
 async def autocomplete_item_sorteio(interaction: discord.Interaction, current: str):
-    """Autocomplete para TODOS os itens do jogo"""
+    """Autocomplete para TODOS os itens organizados por seção"""
     
-    # Busca todos os itens disponíveis
     todos_itens = get_todos_itens_para_sorteio()
     
     # Filtra pela busca
@@ -583,8 +700,7 @@ async def autocomplete_item_sorteio(interaction: discord.Interaction, current: s
         filtrado = todos_itens[:25]
     
     # Ordena por categoria
-    ordem_categorias = {"Fichas": 1, "Armas": 2, "Armaduras": 3, "Poções": 4, "Materiais": 5, "Itens de Forja": 6}
-    filtrado.sort(key=lambda x: (ordem_categorias.get(x.get("categoria", "Outros"), 99), x["nome"]))
+    filtrado.sort(key=lambda x: (x.get("categoria", "Outros"), x["nome"]))
     
     return [
         app_commands.Choice(
@@ -637,8 +753,8 @@ async def cmd_sorteio_criar(interaction: discord.Interaction, canal: str, item: 
     item_raridade = partes[2]
     item_tipo = partes[3]
     
-    if quantidade < 1 or quantidade > 999:
-        await interaction.followup.send("❌ Quantidade inválida! Use entre 1 e 999.", ephemeral=True)
+    if quantidade < 1 or quantidade > 99999:
+        await interaction.followup.send("❌ Quantidade inválida! Use entre 1 e 99999.", ephemeral=True)
         return
     
     modal = CriarSorteioModal(canal_obj.id, item_id, item_nome, item_raridade, item_tipo, quantidade)
@@ -710,7 +826,11 @@ async def cmd_sorteio_info(interaction: discord.Interaction, sorteio_id: int):
     }.get(sorteio["status"], "❓ DESCONHECIDO")
     
     # Define texto da recompensa
-    if sorteio["item_tipo"] == "ficha":
+    if sorteio["item_tipo"] == "moedas":
+        texto_recompensa = f"🪙 {sorteio['quantidade_item']} Moedas"
+    elif sorteio["item_tipo"] == "xp":
+        texto_recompensa = f"⭐ {sorteio['quantidade_item']} XP"
+    elif sorteio["item_tipo"] == "ficha":
         texto_recompensa = f"🎰 {sorteio['quantidade_item']}x Ficha {sorteio['item_raridade']}"
     elif sorteio["item_tipo"] == "arma":
         texto_recompensa = f"⚔️ {sorteio['item_nome']} x{sorteio['quantidade_item']}"
@@ -759,7 +879,11 @@ async def cmd_sorteios_listar(interaction: discord.Interaction):
     for s in sorteios:
         participantes = await get_participantes(s["id"])
         
-        if s["item_tipo"] == "ficha":
+        if s["item_tipo"] == "moedas":
+            texto_recompensa = f"🪙 {s['quantidade_item']} Moedas"
+        elif s["item_tipo"] == "xp":
+            texto_recompensa = f"⭐ {s['quantidade_item']} XP"
+        elif s["item_tipo"] == "ficha":
             texto_recompensa = f"🎰 {s['quantidade_item']}x Ficha {s['item_raridade']}"
         elif s["item_tipo"] == "arma":
             texto_recompensa = f"⚔️ {s['item_nome']} x{s['quantidade_item']}"
@@ -801,7 +925,7 @@ def register_sorteio_commands(bot):
     @app_commands.describe(
         canal="Canal onde o sorteio será divulgado",
         item="Item que será sorteado (digite para buscar)",
-        quantidade="Quantidade do item"
+        quantidade="Quantidade do item/moedas/XP"
     )
     @app_commands.autocomplete(canal=autocomplete_canal, item=autocomplete_item_sorteio)
     async def sorteio_criar(interaction: discord.Interaction, canal: str, item: str, quantidade: int = 1):
