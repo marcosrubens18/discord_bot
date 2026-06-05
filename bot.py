@@ -1601,7 +1601,9 @@ async def sync_cmd(ctx):
 
 # ─── EVENTOS ─────────────────────────────────────────────────────
 
-_synced = False@bot.event
+_synced = False
+
+@bot.event
 async def on_ready():
     global _synced
     print(f"Bot: {bot.user}")
