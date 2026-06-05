@@ -623,6 +623,59 @@ async def cmd_sorteio_info(interaction: discord.Interaction, sorteio_id: int):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ==================================================
+# COMANDO LISTAR SORTEIOS
+# ==================================================
+
+async def cmd_sorteios_listar(interaction: discord.Interaction):
+    """Lista todos os sorteios ativos"""
+    await interaction.response.defer(ephemeral=True)
+    
+    sorteios = await get_sorteios_ativos(interaction.guild.id)
+    if not sorteios:
+        await interaction.followup.send("📭 Nenhum sorteio ativo no momento!", ephemeral=True)
+        return
+    
+    embed = discord.Embed(
+        title="🎲 SORTEIOS ATIVOS",
+        description=f"Total: {len(sorteios)} sorteio(s) ativo(s)",
+        color=COR_PRIMARY
+    )
+    
+    for s in sorteios:
+        participantes = await get_participantes(s["id"])
+        raridade_emoji = {
+            "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
+            "Epico": "🟪", "Lendario": "🟧", "Lendário": "🟧"
+        }.get(s["item_raridade"], "🎁")
+        
+        embed.add_field(
+            name=f"#{s['id']} - {s['titulo']}",
+            value=f"🎁 {raridade_emoji} {s['item_nome']} x{s['quantidade_item']}\n"
+                  f"👥 {len(participantes)} participantes\n"
+                  f"⏰ Termina: <t:{int(s['data_encerramento'].timestamp())}:R>\n"
+                  f"🔗 ID: `{s['id']}`",
+            inline=False
+        )
+    
+    embed.set_footer(text="Use /sorteio_info [ID] para ver detalhes")
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+# ==================================================
+# FUNÇÃO PARA REAGENDAR SORTEIOS (CHAMADA NO on_ready)
+# ==================================================
+
+async def reagendar_sorteios_pendentes():
+    """Reagenda sorteios que deveriam ter sido encerrados enquanto o bot estava offline"""
+    await init_db_sorteios()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        expirados = await conn.fetch("""
+            SELECT id FROM sorteios 
+            WHERE status = 'ativo' AND data_encerramento <= NOW()
+        """)
+        return [exp["id"] for exp in expirados]
+
+# ==================================================
 # REGISTRO DOS COMANDOS
 # ==================================================
 
@@ -659,51 +712,4 @@ def register_sorteio_commands(bot):
     
     @bot.tree.command(name="sorteios", description="Lista todos os sorteios ativos")
     async def sorteios_listar(interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        
-        sorteios = await get_sorteios_ativos(interaction.guild.id)
-        if not sorteios:
-            await interaction.followup.send("📭 Nenhum sorteio ativo no momento!", ephemeral=True)
-            return
-        
-        embed = discord.Embed(
-            title="🎲 SORTEIOS ATIVOS",
-            description=f"Total: {len(sorteios)} sorteio(s) ativo(s)",
-            color=COR_PRIMARY
-        )
-        
-        for s in sorteios:
-            participantes = await get_participantes(s["id"])
-            raridade_emoji = {
-                "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
-                "Epico": "🟪", "Lendario": "🟧", "Lendário": "🟧"
-            }.get(s["item_raridade"], "🎁")
-            
-            embed.add_field(
-                name=f"#{s['id']} - {s['titulo']}",
-                value=f"🎁 {raridade_emoji} {s['item_nome']} x{s['quantidade_item']}\n"
-                      f"👥 {len(participantes)} participantes\n"
-                      f"⏰ Termina: <t:{int(s['data_encerramento'].timestamp())}:R>\n"
-                      f"🔗 ID: `{s['id']}`",
-                inline=False
-            )
-        
-        embed.set_footer(text="Use /sorteio_info [ID] para ver detalhes")
-        await interaction.followup.send(embed=embed, ephemeral=True)
-
-    # Reagendar sorteios pendentes ao iniciar o bot
-    @bot.event
-    async def on_ready_sorteios():
-        await init_db_sorteios()
-        # Busca sorteios ativos que já passaram do prazo
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            expirados = await conn.fetch("""
-                SELECT id FROM sorteios 
-                WHERE status = 'ativo' AND data_encerramento <= NOW()
-            """)
-            for exp in expirados:
-                asyncio.create_task(finalizar_e_anunciar_sorteio(exp["id"], None))
-    
-    # Chama a função de reagendamento
-    asyncio.create_task(on_ready_sorteios())
+        await cmd_sorteios_listar(interaction)
