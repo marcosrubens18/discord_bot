@@ -540,6 +540,33 @@ async def cmd_passe_admin_configurar(interaction: discord.Interaction):
     await interaction.response.send_modal(ConfigurarPasseModal())
 
 
+# Adicione no final de systems/passe.py
+
+async def adicionar_pontos_batalha(user_id: int, vitoria: bool, tipo: str = "treino"):
+    """Função de compatibilidade - chamada de outros módulos"""
+    if not vitoria:
+        return None
+    
+    pontos_por_tipo = {
+        "treino": 10,
+        "arena": 15,
+        "dungeon": 20,
+        "torneio": 25,
+    }
+    
+    pontos = pontos_por_tipo.get(tipo, 10)
+    
+    try:
+        from systems.social.party import get_party_do_jogador
+        party = await get_party_do_jogador(user_id)
+        if party:
+            pontos = int(pontos * 1.2)
+    except:
+        pass
+    
+    resultado = await adicionar_pontos_passe(user_id, pontos, tipo)
+    return resultado
+
 # ==================================================
 # AUTOCOMPLETE
 # ==================================================
