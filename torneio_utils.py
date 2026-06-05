@@ -89,4 +89,4 @@ def gerar_chaves(participantes_ids: List[int], participantes_nomes: List[str]) -
         ))
         luta_num += 1
     
-    return chaves
+    return chaves    
