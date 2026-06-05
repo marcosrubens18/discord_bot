@@ -226,9 +226,7 @@ def get_todos_itens_para_sorteio():
     """Retorna TODOS os itens disponíveis para sorteio organizados por seção"""
     itens = []
     
-    # ==============================================
     # SEÇÃO 1: MOEDAS E XP
-    # ==============================================
     moedas = [100, 500, 1000, 5000, 10000]
     for m in moedas:
         itens.append({
@@ -249,9 +247,7 @@ def get_todos_itens_para_sorteio():
             "categoria": "⭐ Experiência"
         })
     
-    # ==============================================
     # SEÇÃO 2: FICHAS DE ROLETA
-    # ==============================================
     raridades_fichas = ["Comum", "Incomum", "Raro", "Epico", "Lendario"]
     for rar in raridades_fichas:
         itens.append({
@@ -262,9 +258,7 @@ def get_todos_itens_para_sorteio():
             "categoria": "🎰 Fichas de Roleta"
         })
     
-    # ==============================================
     # SEÇÃO 3: POÇÕES
-    # ==============================================
     try:
         from catalogo import POCOES_CAT
         for pocao in POCOES_CAT:
@@ -278,9 +272,7 @@ def get_todos_itens_para_sorteio():
     except:
         pass
     
-    # ==============================================
     # SEÇÃO 4: ARMAS
-    # ==============================================
     try:
         from catalogo import ARMAS_POR_CLASSE
         for classe, armas in ARMAS_POR_CLASSE.items():
@@ -295,9 +287,7 @@ def get_todos_itens_para_sorteio():
     except:
         pass
     
-    # ==============================================
     # SEÇÃO 5: ARMADURAS
-    # ==============================================
     try:
         from catalogo import ARMADURAS_POR_CLASSE
         for classe, armaduras in ARMADURAS_POR_CLASSE.items():
@@ -312,9 +302,7 @@ def get_todos_itens_para_sorteio():
     except:
         pass
     
-    # ==============================================
     # SEÇÃO 6: MATERIAIS
-    # ==============================================
     try:
         from catalogo import MATERIAIS_CAT
         for material in MATERIAIS_CAT:
@@ -328,9 +316,7 @@ def get_todos_itens_para_sorteio():
     except:
         pass
     
-    # ==============================================
     # SEÇÃO 7: ITENS DE FORJA
-    # ==============================================
     try:
         from batalha import RECEITAS
         for receita in RECEITAS:
@@ -345,6 +331,20 @@ def get_todos_itens_para_sorteio():
         pass
     
     return itens
+
+# ==================================================
+# VIEW DO BOTÃO DE PARTICIPAR (FORA DO MODAL)
+# ==================================================
+
+class SorteioParticiparView(discord.ui.View):
+    def __init__(self, sorteio_id: int, canal_id: int):
+        super().__init__(timeout=None)
+        self.sorteio_id = sorteio_id
+        self.canal_id = canal_id
+    
+    @discord.ui.button(label="🎟 Participar", style=discord.ButtonStyle.success)
+    async def participar(self, inter: discord.Interaction, button):
+        await cmd_sorteio_participar(inter, self.sorteio_id, self.canal_id)
 
 # ==================================================
 # MODAL DE CRIAÇÃO DE SORTEIO
@@ -457,23 +457,12 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
         
         embed.set_footer(text=f"Sorteio #{sorteio['id']} • Boa sorte!")
         
-        # CORREÇÃO: Usar self.sorteio_id dentro da classe
-        class SorteioView(discord.ui.View):
-            def __init__(self, s_id: int, c_id: int):
-                super().__init__(timeout=None)
-                self.sorteio_id = s_id
-                self.canal_id = c_id
-            
-            @discord.ui.button(label="🎟 Participar", style=discord.ButtonStyle.success, custom_id=f"sorteio_participar_{self.sorteio_id}")
-            async def participar(self, inter: discord.Interaction, button):
-                await cmd_sorteio_participar(inter, self.sorteio_id, self.canal_id)
-        
         canal = interaction.guild.get_channel(self.canal_id)
         if not canal:
             await interaction.followup.send("❌ Canal não encontrado!", ephemeral=True)
             return
         
-        view = SorteioView(sorteio["id"], self.canal_id)
+        view = SorteioParticiparView(sorteio["id"], self.canal_id)
         msg = await canal.send(embed=embed, view=view)
         
         async with pool.acquire() as conn:
@@ -502,7 +491,6 @@ async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
         if not sorteio:
             return
     
-    # Verifica se já passou da data de encerramento
     if sorteio["data_encerramento"] and datetime.now() < sorteio["data_encerramento"]:
         return
     
@@ -544,7 +532,6 @@ async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
         else:
             vencedores_mentions.append(f"<@{vid}>")
     
-    # Define texto da recompensa
     if sorteio["item_id"].startswith("moedas_"):
         qtd = sorteio["item_id"].split("_")[1]
         texto_recompensa = f"🪙 **{qtd} Moedas**"
@@ -618,8 +605,6 @@ async def autocomplete_canal(interaction: discord.Interaction, current: str):
     ]
 
 async def autocomplete_item_sorteio(interaction: discord.Interaction, current: str):
-    """Autocomplete para TODOS os itens organizados por seção"""
-    
     todos_itens = get_todos_itens_para_sorteio()
     
     if current:
@@ -654,8 +639,6 @@ async def autocomplete_sorteio_ativo(interaction: discord.Interaction, current: 
 # ==================================================
 
 async def cmd_sorteio_criar(interaction: discord.Interaction, canal: str, item: str, quantidade: int):
-    # NÃO usar defer aqui - modal precisa de resposta imediata
-    
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message("❌ Apenas administradores podem criar sorteios!", ephemeral=True)
         return
