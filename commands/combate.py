@@ -10,7 +10,7 @@ from data.monstros import MONSTROS
 from data.constantes import ARENAS, COOLDOWN_BATALHA
 from systems.combate import rodar_treino, rodar_pvp, EscolherArenaView, AceitarDueloView, BATALHAS_ATIVAS
 from systems.combate import cooldown_manager
-from dupla import rodar_treino_dupla
+from systems.dupla import rodar_treino_dupla
 from utils.decorators import em_batalha_guard
 
 
