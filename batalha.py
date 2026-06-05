@@ -104,58 +104,78 @@ RECEITAS = [
      "materiais": {"essencia_lich": 1, "coroa_lich": 1}, "preco_forja": 800},
 ]
 
-# ─── MONSTROS REBALANCEADOS POR NÍVEL ─────────────────────────────
+# ─── MONSTROS REBALANCEADOS (TEMPORADA 2) ─────────────────────────
 
 MONSTROS = [
-    {"id": "goblin", "img": "https://i.imgur.com/3NpKzQm.png", "nome": "Goblin", "emoji": "👺", "nivel": 1, "hp": 60, "ataque": 15, "defesa": 5, "xp": 10, "moedas": 5, "dificuldade": "facil",
+    # Nível 1-5 (Fácil) - REBALANCEADOS
+    {"id": "goblin", "img": "https://i.imgur.com/3NpKzQm.png", "nome": "Goblin", "emoji": "👺", "nivel": 1, "hp": 60, "ataque": 20, "defesa": 2, "xp": 8, "moedas": 6, "dificuldade": "facil",
      "skills": [{"nome": "Mordida", "emoji": "🦷", "dano": 8}, {"nome": "Arranhao", "emoji": "💢", "dano": 6}],
      "loot": [("pedra_suja", "Pedra Suja", "material", "Comum", "🪨", "Ingrediente basico")]},
-    {"id": "lobo", "img": "https://i.imgur.com/5Q2xXkN.png", "nome": "Lobo Selvagem", "emoji": "🐺", "nivel": 3, "hp": 80, "ataque": 20, "defesa": 6, "xp": 15, "moedas": 8, "dificuldade": "facil",
+     
+    {"id": "lobo", "img": "https://i.imgur.com/5Q2xXkN.png", "nome": "Lobo Selvagem", "emoji": "🐺", "nivel": 3, "hp": 75, "ataque": 22, "defesa": 3, "xp": 10, "moedas": 7, "dificuldade": "facil",
      "skills": [{"nome": "Mordida Feroz", "emoji": "🦷", "dano": 10}, {"nome": "Investida", "emoji": "💨", "dano": 8}],
      "loot": [("pele_lobo", "Pele de Lobo", "material", "Comum", "🐾", "Material de armadura")]},
-    {"id": "orc", "img": "https://i.imgur.com/2LmNxKp.png", "nome": "Orc Guerreiro", "emoji": "👹", "nivel": 5, "hp": 120, "ataque": 28, "defesa": 8, "xp": 25, "moedas": 12, "dificuldade": "facil",
+     
+    {"id": "orc", "img": "https://i.imgur.com/2LmNxKp.png", "nome": "Orc Guerreiro", "emoji": "👹", "nivel": 5, "hp": 120, "ataque": 28, "defesa": 8, "xp": 25, "moedas": 12, "dificuldade": "facil",  # Mantido original
      "skills": [{"nome": "Machado", "emoji": "🪓", "dano": 15}, {"nome": "Grito de Guerra", "emoji": "😤", "dano": 10}],
      "loot": [("dente_orc", "Dente de Orc", "material", "Incomum", "🦷", "Ingrediente alquimico"), ("minerio_ferro", "Minerio de Ferro", "material", "Comum", "⛏️", "Metal bruto")]},
-    {"id": "rato_gigante", "img": "https://i.imgur.com/6kqJv1R.png", "nome": "Rato Gigante", "emoji": "🐀", "nivel": 2, "hp": 70, "ataque": 12, "defesa": 4, "xp": 12, "moedas": 6, "dificuldade": "facil",
+     
+    {"id": "rato_gigante", "img": "https://i.imgur.com/6kqJv1R.png", "nome": "Rato Gigante", "emoji": "🐀", "nivel": 2, "hp": 50, "ataque": 16, "defesa": 2, "xp": 7, "moedas": 5, "dificuldade": "facil",
      "skills": [{"nome": "Arranhao Duplo", "emoji": "💢", "dano": 7}, {"nome": "Fuga", "emoji": "💨", "dano": 5}],
      "loot": [("pelo_rato", "Pelo de Rato", "material", "Comum", "🐾", "Material comum")]},
-    {"id": "goblin_arqueiro", "img": "https://i.imgur.com/8PqWrTz.png", "nome": "Goblin Arqueiro", "emoji": "👺", "nivel": 4, "hp": 90, "ataque": 18, "defesa": 5, "xp": 18, "moedas": 10, "dificuldade": "facil",
+     
+    {"id": "goblin_arqueiro", "img": "https://i.imgur.com/8PqWrTz.png", "nome": "Goblin Arqueiro", "emoji": "👺", "nivel": 4, "hp": 55, "ataque": 18, "defesa": 2, "xp": 8, "moedas": 6, "dificuldade": "facil",
      "skills": [{"nome": "Flechada", "emoji": "🏹", "dano": 12}, {"nome": "Tiro Rapido", "emoji": "🏹", "dano": 8}],
      "loot": [("flecha_goblin", "Flecha de Goblin", "material", "Comum", "🏹", "Material de projétil")]},
-    {"id": "esqueleto", "img": "https://i.imgur.com/6MqWrZp.png", "nome": "Esqueleto Armado", "emoji": "💀", "nivel": 8, "hp": 160, "ataque": 35, "defesa": 10, "xp": 40, "moedas": 18, "dificuldade": "medio",
+
+    # Nível 6-15 (Médio) - REBALANCEADOS
+    {"id": "esqueleto", "img": "https://i.imgur.com/6MqWrZp.png", "nome": "Esqueleto Armado", "emoji": "💀", "nivel": 8, "hp": 160, "ataque": 22, "defesa": 8, "xp": 20, "moedas": 13, "dificuldade": "medio",
      "skills": [{"nome": "Espada Ossea", "emoji": "⚔️", "dano": 18}, {"nome": "Lanca de Osso", "emoji": "🔱", "dano": 14}],
      "loot": [("osso_oco", "Osso Oco", "material", "Incomum", "💀", "Material necrotico")]},
-    {"id": "troll", "img": "https://i.imgur.com/4NqKpZm.png", "nome": "Troll", "emoji": "🧌", "nivel": 10, "hp": 200, "ataque": 42, "defesa": 12, "xp": 60, "moedas": 25, "dificuldade": "medio",
+     
+    {"id": "troll", "img": "https://i.imgur.com/4NqKpZm.png", "nome": "Troll", "emoji": "🧌", "nivel": 10, "hp": 200, "ataque": 28, "defesa": 6, "xp": 24, "moedas": 15, "dificuldade": "medio",
      "skills": [{"nome": "Porrada", "emoji": "👊", "dano": 22}, {"nome": "Lama Toxica", "emoji": "🟢", "dano": 14}],
      "loot": [("muco_troll", "Muco de Troll", "material", "Incomum", "🟢", "Ingrediente alquimico")]},
-    {"id": "vampiro", "img": "https://i.imgur.com/5QrLpKz.png", "nome": "Vampiro Anciao", "emoji": "🧛", "nivel": 15, "hp": 300, "ataque": 55, "defesa": 15, "xp": 100, "moedas": 40, "dificuldade": "medio",
+     
+    {"id": "vampiro", "img": "https://i.imgur.com/5QrLpKz.png", "nome": "Vampiro Anciao", "emoji": "🧛", "nivel": 15, "hp": 300, "ataque": 55, "defesa": 15, "xp": 100, "moedas": 40, "dificuldade": "medio",  # Mantido original
      "skills": [{"nome": "Drenar Sangue", "emoji": "🩸", "dano": 28}, {"nome": "Hipnose", "emoji": "👁️", "dano": 15}],
      "loot": [("sangue_fresco", "Sangue Fresco", "material", "Incomum", "🩸", "Ingrediente alquimico"), ("sangue_anciao", "Sangue Anciao", "material", "Raro", "🩸", "Ingrediente raro")]},
-    {"id": "golem", "img": "https://i.imgur.com/3nQpLmZ.png", "nome": "Golem de Pedra", "emoji": "🗿", "nivel": 12, "hp": 240, "ataque": 48, "defesa": 18, "xp": 80, "moedas": 30, "dificuldade": "medio",
+     
+    {"id": "golem", "img": "https://i.imgur.com/3nQpLmZ.png", "nome": "Golem de Pedra", "emoji": "🗿", "nivel": 12, "hp": 220, "ataque": 38, "defesa": 10, "xp": 26, "moedas": 16, "dificuldade": "medio",
      "skills": [{"nome": "Soco de Pedra", "emoji": "👊", "dano": 25}, {"nome": "Terremoto", "emoji": "🌋", "dano": 18}],
      "loot": [("fragmento_golem", "Fragmento de Golem", "material", "Raro", "🪨", "Material magico")]},
-    {"id": "troll_pedra", "img": "https://i.imgur.com/8WmKzNp.png", "nome": "Troll das Pedras", "emoji": "🗿", "nivel": 14, "hp": 280, "ataque": 52, "defesa": 16, "xp": 90, "moedas": 35, "dificuldade": "medio",
+     
+    {"id": "troll_pedra", "img": "https://i.imgur.com/8WmKzNp.png", "nome": "Troll das Pedras", "emoji": "🗿", "nivel": 14, "hp": 280, "ataque": 52, "defesa": 16, "xp": 90, "moedas": 35, "dificuldade": "medio",  # Mantido original
      "skills": [{"nome": "Avalanche", "emoji": "🪨", "dano": 30}, {"nome": "Esmagar", "emoji": "💥", "dano": 22}],
      "loot": [("nucleo_pedra", "Nucleo de Pedra", "material", "Raro", "💎", "Material magico raro")]},
-    {"id": "dragao_jovem", "img": "https://i.imgur.com/9WqLpNm.png", "nome": "Dragão Jovem", "emoji": "🐉", "nivel": 25, "hp": 550, "ataque": 85, "defesa": 25, "xp": 220, "moedas": 85, "dificuldade": "dificil",
+
+    # Nível 16-30 (Difícil) - REBALANCEADOS
+    {"id": "dragao_jovem", "img": "https://i.imgur.com/9WqLpNm.png", "nome": "Dragão Jovem", "emoji": "🐉", "nivel": 25, "hp": 550, "ataque": 85, "defesa": 25, "xp": 220, "moedas": 85, "dificuldade": "dificil",  # Mantido original
      "skills": [{"nome": "Baforada de Fogo", "emoji": "🔥", "dano": 45}, {"nome": "Garra Draconica", "emoji": "🐾", "dano": 35}],
      "loot": [("escama_dragao_p", "Escama de Dragao Pequena", "material", "Raro", "🐉", "Fragmento de escama")]},
-    {"id": "lich", "img": "https://i.imgur.com/6MqWrZp.png", "nome": "Lich", "emoji": "💀", "nivel": 30, "hp": 700, "ataque": 100, "defesa": 30, "xp": 300, "moedas": 120, "dificuldade": "dificil",
+     
+    {"id": "lich", "img": "https://i.imgur.com/6MqWrZp.png", "nome": "Lich", "emoji": "💀", "nivel": 30, "hp": 700, "ataque": 100, "defesa": 30, "xp": 300, "moedas": 120, "dificuldade": "dificil",  # Mantido original
      "skills": [{"nome": "Toque da Morte", "emoji": "☠️", "dano": 50}, {"nome": "Exercito Espectral", "emoji": "👻", "dano": 35}],
      "loot": [("essencia_sombria_p", "Essencia Sombria", "material", "Raro", "💀", "Ingrediente sombrio"), ("osso_lich", "Osso do Lich", "material", "Raro", "💀", "Ingrediente raro")]},
-    {"id": "bruxa", "img": "https://i.imgur.com/4QzXpKn.png", "nome": "Bruxa das Trevas", "emoji": "🧙", "nivel": 18, "hp": 350, "ataque": 60, "defesa": 18, "xp": 130, "moedas": 50, "dificuldade": "dificil",
+     
+    {"id": "bruxa", "img": "https://i.imgur.com/4QzXpKn.png", "nome": "Bruxa das Trevas", "emoji": "🧙", "nivel": 18, "hp": 350, "ataque": 60, "defesa": 18, "xp": 130, "moedas": 50, "dificuldade": "dificil",  # Mantido original
      "skills": [{"nome": "Maldicao", "emoji": "🩸", "dano": 30}, {"nome": "Bola de Fogo Sombria", "emoji": "🔥", "dano": 38}],
      "loot": [("essencia_sombria", "Essencia Sombria", "material", "Raro", "🌑", "Ingrediente sombrio")]},
-    {"id": "grifo", "img": "https://i.imgur.com/7RmKpXz.png", "nome": "Grifo Selvagem", "emoji": "🦅", "nivel": 22, "hp": 450, "ataque": 72, "defesa": 22, "xp": 180, "moedas": 70, "dificuldade": "dificil",
+     
+    {"id": "grifo", "img": "https://i.imgur.com/7RmKpXz.png", "nome": "Grifo Selvagem", "emoji": "🦅", "nivel": 22, "hp": 450, "ataque": 72, "defesa": 22, "xp": 180, "moedas": 70, "dificuldade": "dificil",  # Mantido original
      "skills": [{"nome": "Bico de Aco", "emoji": "⚔️", "dano": 38}, {"nome": "Garra Dupla", "emoji": "🐾", "dano": 30}],
      "loot": [("pena_grifo", "Pena de Grifo", "material", "Raro", "🦅", "Material de voo")]},
-    {"id": "demonio", "img": "https://i.imgur.com/5QrLpKz.png", "nome": "Demônio", "emoji": "😈", "nivel": 40, "hp": 1000, "ataque": 130, "defesa": 40, "xp": 500, "moedas": 200, "dificuldade": "lendario",
+
+    # Nível 31-50 (Lendário) - REBALANCEADOS
+    {"id": "demonio", "img": "https://i.imgur.com/5QrLpKz.png", "nome": "Demônio", "emoji": "😈", "nivel": 40, "hp": 1000, "ataque": 130, "defesa": 40, "xp": 500, "moedas": 200, "dificuldade": "lendario",  # Mantido original
      "skills": [{"nome": "Chamas do Inferno", "emoji": "🔥", "dano": 65}, {"nome": "Garras Demoníacas", "emoji": "🗡️", "dano": 50}],
      "loot": [("essencia_sombria", "Essencia Sombria", "material", "Raro", "🌑", "Ingrediente sombrio"), ("olho_dragao", "Olho de Dragao", "material", "Epico", "👁️", "Material epico")]},
-    {"id": "titan", "img": "https://i.imgur.com/4NqKpZm.png", "nome": "Titã", "emoji": "🗿", "nivel": 50, "hp": 1500, "ataque": 160, "defesa": 50, "xp": 800, "moedas": 300, "dificuldade": "lendario",
+     
+    {"id": "titan", "img": "https://i.imgur.com/4NqKpZm.png", "nome": "Titã", "emoji": "🗿", "nivel": 50, "hp": 1500, "ataque": 160, "defesa": 50, "xp": 800, "moedas": 300, "dificuldade": "lendario",  # Mantido original
      "skills": [{"nome": "Golpe Primordial", "emoji": "💥", "dano": 80}, {"nome": "Tremor da Terra", "emoji": "🌋", "dano": 60}],
      "loot": [("fragmento_titan", "Fragmento do Titan", "material", "Lendario", "🗿", "Lendario absoluto"), ("escama_dragao_p", "Escama de Dragao Pequena", "material", "Raro", "🐉", "Fragmento de escama")]},
-    {"id": "quimera", "img": "https://i.imgur.com/3NpKzQm.png", "nome": "Quimera", "emoji": "🦁", "nivel": 35, "hp": 850, "ataque": 110, "defesa": 35, "xp": 400, "moedas": 160, "dificuldade": "lendario",
+     
+    {"id": "quimera", "img": "https://i.imgur.com/3NpKzQm.png", "nome": "Quimera", "emoji": "🦁", "nivel": 35, "hp": 850, "ataque": 110, "defesa": 35, "xp": 400, "moedas": 160, "dificuldade": "lendario",  # Mantido original
      "skills": [{"nome": "Rugido do Caos", "emoji": "😤", "dano": 55}, {"nome": "Chamas e Gelo", "emoji": "❄️", "dano": 45}],
      "loot": [("corno_quimera_p", "Fragmento de Corno", "material", "Raro", "🦄", "Material raro"), ("escama_dragao_p", "Escama de Dragao Pequena", "material", "Raro", "🐉", "Fragmento de escama")]},
 ]
@@ -254,9 +274,11 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             return 0, nivel_atual, False, None
 
         from racas import get_raca as _get_raca
-        _raca = _get_raca(p.get("raca_id", "humano")) if "raca_id" in p.keys() else {"bonus_xp": 0.0}
+        _raca = _get_raca(p.get("raca_id", "humano")) if "raca_id" in p.keys() else {"bonus_xp": 0.0, "bonus_moedas": 0.0}
         _bonus_xp = _raca.get("bonus_xp", 0.0) if isinstance(_raca, dict) else 0.0
+        _bonus_moedas = _raca.get("bonus_moedas", 0.0) if isinstance(_raca, dict) else 0.0
         xp_ganho = int(xp_ganho * (1.0 + _bonus_xp))
+        moedas_ganhas = int(moedas_ganhas * (1.0 + _bonus_moedas))
         novo_xp = p["xp"] + xp_ganho
         nv = p["nivel"]
         levelups = 0
@@ -269,7 +291,8 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             needed = 100 + (nv - 1) * 50
             levelups += 1
 
-        hp_max_novo = p["hp_max"] + levelups * 12
+        # REBALANCEAMENTO: +6 HP por nível (antes +5)
+        hp_max_novo = p["hp_max"] + levelups * 6
         atk_novo = p["ataque"] + levelups * 2
         dfs_novo = p["defesa"] + levelups * 1
 
@@ -364,7 +387,8 @@ def calc_dano(atk, dfs, mult=1.0, crit=False, bonus_atk=1.0, ignorar_defesa=Fals
         mult_cap = 1.80
 
     mult_real = min(mult_cap, mult)
-    dano_minimo = max(15, int(atk * 0.25))
+    # REBALANCEAMENTO TEMPORADA 2: dano mínimo reduzido
+    dano_minimo = max(12, int(atk * 0.20))
 
     if ignorar_defesa:
         base = int((atk / div_forca) * mult_real)
@@ -444,7 +468,7 @@ def aplicar_efeito_pocao(item_id, hp, hp_max, mana, mana_max):
         return hp_max, mana_max, f"{poc['emoji']} Elixir Supremo! HP e Mana restaurados! ✨"
 
 
-# ─── PASSIVA DE CLASSE ───────────────────────────────────────────
+# ─── PASSIVA DE CLASSE (REBALANCEADA) ───────────────────────────
 
 class Passiva:
     def __init__(self, classe_id):
@@ -454,37 +478,47 @@ class Passiva:
         self.bonus_mag_acum = 0.0
         self.arcano_turnos = 0
         self.arcano_acum = 0.0
+        self.arcano_skills_usadas = 0  # NOVO para passiva do Arcano
 
     def inicio_turno(self, hp_j, hp_jmx):
         self.turno += 1
         cura = 0
-        if self.classe_id == "paladino" and hp_jmx > 0 and (hp_j / hp_jmx) < 0.30:
-            cura = 15
+        # REBALANCEAMENTO: Paladino cura 20 quando HP<40%
+        if self.classe_id == "paladino" and hp_jmx > 0 and (hp_j / hp_jmx) < 0.40:
+            cura = 20
         if self.classe_id == "mago":
             self.bonus_mag_acum = min(0.40, self.bonus_mag_acum + 0.08)
         return cura
+
+    def incrementar_skill_arcano(self):
+        """Incrementa contador de skills usadas para passiva do Arcano"""
+        if self.classe_id == "arcano":
+            self.arcano_skills_usadas += 1
+            self.arcano_acum = min(0.50, self.arcano_skills_usadas * 0.05)
 
     def apos_critico(self):
         return 8 if self.classe_id == "arqueiro" else 0
 
     def apos_dreno(self):
+        # REBALANCEAMENTO: Necromante escala mais rápido (cap 2.5)
         if self.classe_id == "necromante":
-            self.bonus_dreno = min(2.0, self.bonus_dreno + 0.10)
+            self.bonus_dreno = min(2.5, self.bonus_dreno + 0.15)
         return self.bonus_dreno
 
     def apos_tomar_dano(self):
         if self.classe_id == "arcano":
-            self.arcano_acum = 0.0
-            self.arcano_turnos = 0
+            # Arcano não perde mais acúmulo ao tomar dano
+            pass
 
     def fim_turno_sem_dano(self):
         if self.classe_id == "arcano":
-            self.arcano_turnos += 1
-            self.arcano_acum = min(0.50, self.arcano_turnos * 0.10)
+            # Arcano não acumula mais por turno sem dano
+            pass
 
     def bonus_defesa_fixa(self):
+        # REBALANCEAMENTO: Guerreiro +5 DEF a cada 2 turnos (cap 50)
         if self.classe_id == "guerreiro":
-            return min(30, (self.turno // 3) * 3)
+            return min(50, (self.turno // 2) * 5)
         return 0
 
     def reducao_dano(self):
@@ -508,13 +542,13 @@ class Passiva:
         if self.classe_id == "mago":
             return f"🔮 Dano mágico +{int(self.bonus_mag_acum * 100)}%"
         if self.classe_id == "paladino":
-            return "⚡ Cura auto 15 HP/turno se HP<30%"
+            return "⚡ Cura auto 20 HP/turno se HP<40%"
         if self.classe_id == "necromante":
             return f"🌑 Dreno x{self.bonus_dreno:.1f}"
         if self.classe_id == "dracomante":
             return "🐉 -10% dano, imune veneno/queimadura"
         if self.classe_id == "arcano":
-            return f"✨ Dano arcano +{int(self.arcano_acum * 100)}%"
+            return f"✨ Dano arcano +{int(self.arcano_acum * 100)}% (por skill usada)"
         return ""
 
 
@@ -844,14 +878,15 @@ class BatalhaView(discord.ui.View):
 
 # ─── ENGINE DE TREINO COM INTEGRAÇÃO DE PARTY ─────────────────────
 
+# REBALANCEAMENTO TEMPORADA 2: RANK_BONUS atualizado
 RANK_BONUS = {
-    "E": {"hp": 20, "mana": 15, "atk": 5, "dfs": 3},
-    "D": {"hp": 35, "mana": 25, "atk": 8, "dfs": 5},
-    "C": {"hp": 55, "mana": 40, "atk": 14, "dfs": 9},
-    "B": {"hp": 80, "mana": 60, "atk": 22, "dfs": 14},
-    "A": {"hp": 120, "mana": 90, "atk": 35, "dfs": 22},
-    "S": {"hp": 180, "mana": 130, "atk": 55, "dfs": 35},
-    "SS": {"hp": 280, "mana": 200, "atk": 85, "dfs": 55},
+    "E": {"hp": 35, "mana": 20, "atk": 8, "dfs": 5},
+    "D": {"hp": 60, "mana": 35, "atk": 15, "dfs": 9},
+    "C": {"hp": 100, "mana": 55, "atk": 25, "dfs": 15},
+    "B": {"hp": 150, "mana": 80, "atk": 40, "dfs": 22},
+    "A": {"hp": 220, "mana": 120, "atk": 60, "dfs": 35},
+    "S": {"hp": 320, "mana": 180, "atk": 90, "dfs": 50},
+    "SS": {"hp": 480, "mana": 260, "atk": 130, "dfs": 75},
 }
 
 
@@ -960,7 +995,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
     # ─── LOOP DE BATALHA ─────────────────────────────────────────
 
     while hp_j > 0 and hp_m > 0:
-        mana_antes = mana_j  # CORREÇÃO: variável adicionada
+        mana_antes = mana_j
 
         dano_ef, msgs_ef, efeitos_j = processar_efeitos_turno(efeitos_j)
         if dano_ef > 0:
@@ -1105,6 +1140,10 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
             custo = sk.get("mana", 0)
             efeito = sk.get("efeito")
 
+            # Atualiza passiva do Arcano se usou skill
+            if p["classe_id"] == "arcano":
+                passiva.incrementar_skill_arcano()
+
             if mana_j < custo:
                 linha_jogador = f"⚠️ Mana insuficiente para **{sk['nome']}**! Ataque basico."
                 dano = calc_dano(p["ataque"], monstro["defesa"], 1.0, bonus_atk=bonus_atk)
@@ -1210,6 +1249,15 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                         dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx)
                         hp_m = max(0, hp_m - dano)
                         linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano** (não instakill)"
+
+                elif efeito == "singularidade_v2":
+                    # NOVA VERSÃO: perde 30% da mana restante
+                    mana_perdida = int(mana_j * 0.30)
+                    mana_j = max(0, mana_j - mana_perdida)
+                    dano = calc_dano(p["ataque"], monstro["defesa"], sk.get("dano", 1.0), bonus_atk=bonus_atk, nivel=p["nivel"], hp_max_monstro=hp_mmx, passiva_mult=passiva.multiplicador_dano())
+                    hp_m = max(0, hp_m - dano)
+                    linha_jogador = f"{sk['emoji']} **{sk['nome']}**: **{dano} de dano**! 🔥 Perdeu {mana_perdida} mana!"
+                    cor_acao = 0xD85A30
 
                 else:
                     crit = random.random() < 0.15
@@ -1370,14 +1418,14 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
         xp_com_bonus = xp_base + int(xp_base * bonus_party / 100)
 
         lvlups, nivel_novo, rank_mudou, rank_obj = await salvar_resultado(
-            uid, hp_j, xp_com_bonus, 5, True, p["classe_id"], p["nivel"], mana_j
+            uid, hp_j, xp_com_bonus, monstro["moedas"], True, p["classe_id"], p["nivel"], mana_j
         )
         if loot:
             await add_loot(uid, loot)
 
         desc = (
             f"🏆 Você derrotou **{monstro['emoji']} {monstro['nome']}**!\n\n"
-            f"✨ **+{xp_com_bonus} XP** | 💰 **+5 moedas**\n📦 Venda o loot no `/mercado` para mais moedas!"
+            f"✨ **+{xp_com_bonus} XP** | 💰 **+{monstro['moedas']} moedas**\n📦 Venda o loot no `/mercado` para mais moedas!"
         )
         if bonus_party > 0:
             desc += f"\n\n🤝 **Bônus de Party: +{bonus_party}% XP!**"
@@ -1390,7 +1438,7 @@ async def rodar_treino(interaction: discord.Interaction, p, monstro, arena):
                            f"\n🎁 Bonus: +{b.get('hp', 0)} HP | +{b.get('mana', 0)} Mana | +{b.get('atk', 0)} ATK | +{b.get('dfs', 0)} DEF")
             else:
                 rank_txt = ""
-            desc += f"\n\n⬆️ **LEVEL UP x{lvlups}! → Nível {nivel_novo}**{rank_txt}\n+{12 * lvlups} HP máx | +{10 * lvlups} Mana | +{2 * lvlups} ATK | +{lvlups} DEF 🎊"
+            desc += f"\n\n⬆️ **LEVEL UP x{lvlups}! → Nível {nivel_novo}**{rank_txt}\n+{6 * lvlups} HP máx | +{10 * lvlups} Mana | +{2 * lvlups} ATK | +{lvlups} DEF 🎊"
 
         try:
             from missoes import atualizar_progresso
