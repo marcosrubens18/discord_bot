@@ -48,9 +48,6 @@ from passe_temporada import register_passe_commands, init_db_passe
 # ─── ARENA RANQUEADA ──────────────────────────────────────────────
 from arena import register_arena_commands, init_db_arena
 
-# ─── COOLDOWN ─────────────────────────────────────────────────────
-# from cooldown import cooldown
-
 # Configuração de imagens (desabilitadas)
 IMG_PERFIL = IMG_SETUP = IMG_INVENTARIO = IMG_SKILLS = IMG_AJUDA = ""
 IMG_LOJA = IMG_FERREIRO = IMG_HOSPITAL = IMG_MERCADO = IMG_MERCADOR = ""
@@ -725,7 +722,6 @@ async def dar(interaction: discord.Interaction, jogador: discord.Member, item: s
     app_commands.Choice(name="Dificil",  value="dificil"),
     app_commands.Choice(name="Lendario", value="lendario"),
 ])
-@cooldown(5)
 async def treinar(interaction: discord.Interaction, dificuldade: str = "facil"):
     await interaction.response.defer()
     if em_batalha(interaction.user.id):
@@ -862,7 +858,6 @@ async def treinar_dupla(interaction: discord.Interaction, parceiro: discord.Memb
 
 @bot.tree.command(name="desafiar", description="Desafia outro jogador para um duelo PvP")
 @app_commands.describe(jogador="Jogador a desafiar")
-@cooldown(5)
 async def desafiar(interaction: discord.Interaction, jogador: discord.Member):
     await interaction.response.defer()
     if em_batalha(interaction.user.id):
@@ -897,7 +892,6 @@ async def desafiar(interaction: discord.Interaction, jogador: discord.Member):
     app_commands.Choice(name="Rank S (Nv 60+)",  value="S"),
     app_commands.Choice(name="Rank SS (Nv 75+)", value="SS"),
 ])
-@cooldown(10)
 async def dungeon(interaction: discord.Interaction, rank: str = "F"):
     if interaction.user.id in BATALHAS_ATIVAS:
         await interaction.response.send_message("Voce ja esta em batalha!", ephemeral=True); return
@@ -906,14 +900,12 @@ async def dungeon(interaction: discord.Interaction, rank: str = "F"):
 # ─── /hospital ───────────────────────────────────────────────────
 
 @bot.tree.command(name="hospital", description="Restaure seu HP e Mana no hospital")
-@cooldown(3)
 async def hospital(interaction: discord.Interaction):
     await cmd_hospital(interaction)
 
 # ─── /girar ──────────────────────────────────────────────────────
 
 @bot.tree.command(name="girar", description="Use fichas de roleta para ganhar itens raros")
-@cooldown(2)
 async def girar(interaction: discord.Interaction):
     await cmd_girar(interaction)
 
@@ -926,7 +918,6 @@ async def girar(interaction: discord.Interaction):
     app_commands.Choice(name="Armaduras", value="armaduras"),
     app_commands.Choice(name="Pocoes",    value="pocoes"),
 ])
-@cooldown(2)
 async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
     await interaction.response.defer(ephemeral=True)
     p = await get_personagem(interaction.user.id)
@@ -969,7 +960,6 @@ async def loja(interaction: discord.Interaction, categoria: str = "pocoes"):
 # ─── /ferreiro ───────────────────────────────────────────────────
 
 @bot.tree.command(name="ferreiro", description="Forje itens com materiais de dungeon")
-@cooldown(2)
 async def ferreiro(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     p = await get_personagem(interaction.user.id)
@@ -1024,14 +1014,12 @@ async def ferreiro(interaction: discord.Interaction):
 # ─── /mercado ────────────────────────────────────────────────────
 
 @bot.tree.command(name="mercado", description="Venda itens do inventario por moedas")
-@cooldown(2)
 async def mercado(interaction: discord.Interaction):
     await cmd_mercado_vender(interaction)
 
 # ─── /mercador ───────────────────────────────────────────────────
 
 @bot.tree.command(name="mercador", description="Troque materiais por itens exclusivos")
-@cooldown(3)
 async def mercador(interaction: discord.Interaction):
     await cmd_mercador(interaction)
 
