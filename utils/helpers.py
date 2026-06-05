@@ -1,6 +1,7 @@
 # utils/helpers.py — Funções auxiliares e utilitárias
 
 import discord
+import random
 from data.ranks import get_rank
 from data.constantes import EMOJI_CLASSE, COR_RAR
 from database.db import get_pool
