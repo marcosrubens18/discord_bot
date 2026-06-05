@@ -1,9 +1,6 @@
 # config.py — Configurações centralizadas do bot
 
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # ==================================================
 # DISCORD
@@ -23,7 +20,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localho
 # IMAGENS (URLs)
 # ==================================================
 
-# Geral
 IMG_PERFIL = ""
 IMG_SETUP = ""
 IMG_INVENTARIO = ""
@@ -43,10 +39,10 @@ IMG_VITORIA = ""
 IMG_DERROTA = ""
 IMG_LEVEL_UP = ""
 
-# Dungeons
 IMG_DUNGEON = {
     "F": "", "E": "", "D": "", "C": "", "B": "", "A": "", "S": "", "SS": ""
 }
+
 IMG_DUNGEON_MONSTRO = {
     "Goblin": "",
     "Lobo Selvagem": "",
@@ -59,7 +55,6 @@ IMG_DUNGEON_MONSTRO = {
     "default": "",
 }
 
-# Arenas
 IMG_ARENA = {
     "floresta": "https://i.imgur.com/NptFGtk.png",
     "vulcao": "https://i.imgur.com/XO8L8R1.png",
@@ -67,10 +62,6 @@ IMG_ARENA = {
     "ruinas": "https://i.imgur.com/HYnPxMN.png",
     "coloseu": "https://i.imgur.com/vcVWqyk.png",
 }
-
-# ==================================================
-# LIMITES DO SISTEMA
-# ==================================================
 
 MAX_PARTY_MEMBROS = 5
 MAX_PARTY_NIVEL = 10
@@ -81,10 +72,6 @@ COOLDOWN_DUNGEON = 10
 TEMPO_CONVITE_PARTY = 300
 TEMPO_LUTA_TORNEIO = 300
 DESAFIOS_POR_DIA = 10
-
-# ==================================================
-# CORES
-# ==================================================
 
 COR_PRIMARY = 0x7F77DD
 COR_SUCCESS = 0x1D9E75
