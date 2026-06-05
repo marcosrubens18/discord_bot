@@ -4,7 +4,7 @@ import discord
 from discord import app_commands
 
 from systems.dungeon import cmd_dungeon
-from systems.dungeon_evento import ( (
+from systems.dungeon_evento import (
     DungeonEventoCriarModal, AdicionarAndarModal,
     cmd_dungeon_evento_ativar, cmd_dungeon_evento_info,
     cmd_dungeon_evento_fechar
