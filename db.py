@@ -120,10 +120,12 @@ async def init_db():
                 PRIMARY KEY (user_id, data, missao_id)
             )
         """)
-    # Migration — adiciona raca_id se nao existir
+    
+    # Migration — adiciona raca_id se não existir
     async with pool.acquire() as conn:
         try:
             await conn.execute("ALTER TABLE personagens ADD COLUMN IF NOT EXISTS raca_id TEXT DEFAULT 'humano'")
         except Exception:
             pass
+    
     print("DB PostgreSQL OK")
