@@ -190,46 +190,40 @@ class Passiva:
 
 
 # ==================================================
-# PASSIVA RACIAL (importada do racas.py)
+# PASSIVA RACIAL
 # ==================================================
 
 class PassivaRacial:
     def __init__(self, raca_id: str):
         self.raca_id = raca_id
         self.turno = 0
-        self.ressuscitou = False  # anjo
-        self.escudo_anjo = 0      # anjo
-        self.bonus_demonio = 0.0  # demonio
-        self.transformado = False  # licantropo
+        self.ressuscitou = False
+        self.escudo_anjo = 0
+        self.bonus_demonio = 0.0
+        self.transformado = False
 
     def inicio_turno(self, hp_j: int, hp_jmx: int) -> Tuple[int, bool]:
-        """Retorna (cura_passiva, escudo_ativo)"""
         self.turno += 1
         cura = 0
         escudo = False
 
-        # Elfo da Floresta — regenera 4% HP/turno
         if self.raca_id == "elfo_floresta":
             cura = max(1, int(hp_jmx * 0.04))
 
-        # Demônio — acumula +5% dano por turno (cap 50%)
         if self.raca_id == "demonio":
             if self.turno <= 10:
                 self.bonus_demonio = min(0.50, self.bonus_demonio + 0.05)
 
-        # Anjo — escudo a cada 5 turnos
         if self.raca_id == "anjo":
             if self.turno % 5 == 0:
                 escudo = True
 
-        # Licantropo — transforma se HP < 60%
         if self.raca_id == "licantropo":
             self.transformado = (hp_j / max(1, hp_jmx)) < 0.60
 
         return cura, escudo
 
     def multiplicador_dano(self) -> float:
-        """Multiplicador adicional de dano racial"""
         if self.raca_id == "demonio":
             return 1.0 + self.bonus_demonio
         if self.raca_id == "licantropo" and self.transformado:
@@ -239,7 +233,6 @@ class PassivaRacial:
         return 1.0
 
     def reducao_dano(self) -> float:
-        """Redução de dano recebido"""
         if self.raca_id == "draconiano":
             return 0.12
         if self.raca_id == "anao":
@@ -247,39 +240,33 @@ class PassivaRacial:
         return 0.0
 
     def bonus_defesa_fixa(self) -> int:
-        """Bônus fixo de DEF"""
         if self.raca_id == "anao":
             return 5
         return 0
 
     def bonus_critico(self) -> float:
-        """Chance extra de crítico"""
         if self.raca_id == "elfo":
             return 0.15
         return 0.0
 
     def bonus_mana_max(self) -> int:
-        """Bônus de mana máxima"""
         if self.raca_id == "elfo":
             return 20
         return 0
 
     def bonus_xp(self) -> float:
-        """Multiplicador de XP ganho"""
         if self.raca_id == "humano":
             return 0.10
         return 0.0
 
     def bonus_moedas(self) -> float:
-        """Multiplicador de moedas ganhas"""
         if self.raca_id == "humano":
             return 0.05
         return 0.0
 
     def imune_status(self, status: str) -> bool:
-        """Verifica se é imune a um status"""
         imunidades = {
-            "demonio":    ["veneno", "queimadura", "congelar"],
+            "demonio": ["veneno", "queimadura", "congelar"],
             "draconiano": ["queimadura"],
             "morto_vivo": ["veneno", "congelar", "queimadura", "atordoar"],
             "licantropo": ["veneno"] if self.transformado else [],
@@ -287,47 +274,39 @@ class PassivaRacial:
         return status in imunidades.get(self.raca_id, [])
 
     def resist_atordoar(self) -> float:
-        """Chance de resistir a atordoamento (Anão)"""
         if self.raca_id == "anao":
             return 0.50
         return 0.0
 
     def apos_tomar_dano(self, dano: int, hp_j: int, hp_jmx: int, atk_inimigo: int) -> Tuple[int, int]:
-        """Retorna (contra_ataque_dano, dreno_hp)"""
         contra = 0
         dreno = 0
 
-        # Elfo Sombrio — 30% contra-ataque
         if self.raca_id == "elfo_sombrio" and random.random() < 0.30:
             contra = max(5, int(atk_inimigo * 0.40))
 
-        # Morto-Vivo — drena 6% do HP ao atacar
         if self.raca_id == "morto_vivo":
             dreno = max(1, int(hp_jmx * 0.06))
 
         return contra, dreno
 
     def congelar_ao_atacar(self) -> bool:
-        """Gigante do Gelo — 35% chance de congelar"""
         if self.raca_id == "gigante_gelo":
             return random.random() < 0.35
         return False
 
     def ignorar_defesa(self) -> float:
-        """Djinn — ignora 20% da defesa"""
         if self.raca_id == "djinn":
             return 0.20
         return 0.0
 
     def tentar_ressuscitar(self, hp_j: int) -> bool:
-        """Anjo — ressurreição única"""
         if self.raca_id == "anjo" and hp_j <= 0 and not self.ressuscitou:
             self.ressuscitou = True
             return True
         return False
 
     def modificar_dano_recebido(self, dano: int) -> Tuple[int, str]:
-        """Aplica redução de dano e retorna (dano_final, mensagem)"""
         reducao = self.reducao_dano()
         if reducao > 0:
             dano_final = max(1, int(dano * (1 - reducao)))
@@ -400,6 +379,56 @@ async def aplicar_efeito_pocao(item_id: str, hp: int, hp_max: int, mana: int, ma
         return hp, mana + ganho, f"{poc['emoji']} {poc['nome']} usada! +{ganho} Mana 💙"
     else:
         return hp_max, mana_max, f"{poc['emoji']} Elixir Supremo! HP e Mana restaurados! ✨"
+
+
+# ==================================================
+# VIEW PARA GERENCIAR SKILLS
+# ==================================================
+
+class GerenciarSkillsView(discord.ui.View):
+    def __init__(self, user_id, skills, skills_eq):
+        super().__init__(timeout=60)
+        self.user_id = user_id
+        self.skills = skills
+        opcoes = [
+            discord.SelectOption(
+                label=f"{s['emoji']} {s['nome']} (Nv{s['nivel']})",
+                value=s["id"],
+                description=s["desc"][:50],
+                default=s["id"] in skills_eq
+            ) for s in skills[:25]
+        ]
+        if opcoes:
+            sel = discord.ui.Select(
+                placeholder="Selecione ate 4 skills...",
+                min_values=1, max_values=min(4, len(opcoes)),
+                options=opcoes
+            )
+            sel.callback = self._sel
+            self.add_item(sel)
+
+    async def _sel(self, inter: discord.Interaction):
+        if inter.user.id != self.user_id:
+            await inter.response.send_message("Nao e seu personagem!", ephemeral=True)
+            return
+        selecionadas = inter.data["values"][:4]
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM skills_equipadas WHERE user_id=$1", self.user_id)
+            for slot, sid in enumerate(selecionadas):
+                await conn.execute(
+                    "INSERT INTO skills_equipadas(user_id, skill_id, slot) VALUES($1,$2,$3) ON CONFLICT(user_id,slot) DO UPDATE SET skill_id=EXCLUDED.skill_id",
+                    self.user_id, sid, slot
+                )
+        nomes = [s["nome"] for s in self.skills if s["id"] in selecionadas]
+        await inter.response.edit_message(
+            embed=discord.Embed(
+                title="Skills atualizadas!",
+                description="\n".join([f"• {n}" for n in nomes]),
+                color=0x1D9E75
+            ),
+            view=None
+        )
 
 
 # ==================================================
