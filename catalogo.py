@@ -31,14 +31,15 @@ def get_rank(nivel):
     return RANKS_NIVEL[0]
 
 # ─── MANA BASE POR CLASSE ────────────────────────────────────────
+# REBALANCEAMENTO TEMPORADA 2: Guerreiro base 105, Dracomante base 115
 
 MANA_CLASSE = {
-    "guerreiro":  {"base": 100, "mult_nivel": 10, "mult_poder": 0.3},
+    "guerreiro":  {"base": 105, "mult_nivel": 10, "mult_poder": 0.3},
     "arqueiro":   {"base": 105, "mult_nivel": 11, "mult_poder": 0.3},
     "mago":       {"base": 120, "mult_nivel": 15, "mult_poder": 0.6},
     "paladino":   {"base": 110, "mult_nivel": 12, "mult_poder": 0.4},
     "necromante": {"base": 115, "mult_nivel": 13, "mult_poder": 0.5},
-    "dracomante": {"base": 105, "mult_nivel": 11, "mult_poder": 0.4},
+    "dracomante": {"base": 115, "mult_nivel": 11, "mult_poder": 0.4},
     "arcano":     {"base": 125, "mult_nivel": 16, "mult_poder": 0.7},
 }
 
@@ -59,6 +60,7 @@ def calcular_mana_max(classe_id, nivel, poder_valor, destino_id):
     return max(100, int(base * mult))
 
 # ─── ARMAS POR CLASSE ─────────────────────────────────────────────
+# REBALANCEAMENTO TEMPORADA 2: Ajustes de ATK em armas lendárias e épicas
 
 ARMAS_POR_CLASSE = {
     "guerreiro": [
@@ -94,8 +96,8 @@ ARMAS_POR_CLASSE = {
         {"id":"tomo_arcano",     "nome":"Tomo Arcano",        "emoji":"📖","raridade":"Raro",    "atk_bonus":16, "preco":700,  "venda":350, "desc":"+15% dano magico."},
         {"id":"cajado_osso2",    "nome":"Cajado Osseo+",      "emoji":"💀","raridade":"Raro",    "atk_bonus":17, "preco":800,  "venda":400, "desc":"Amplifica magia negra."},
         {"id":"cajado_vazio",    "nome":"Cajado do Vazio",    "emoji":"🪄","raridade":"Epico",   "atk_bonus":26, "preco":1400, "venda":700, "desc":"Ignora resistencias."},
-        {"id":"orbe_arcano",     "nome":"Orbe Arcano",        "emoji":"🔮","raridade":"Epico",   "atk_bonus":30, "preco":1700, "venda":850, "desc":"Magia +25."},
-        {"id":"cajado_lendario", "nome":"Cajado do Arquimago","emoji":"🪄","raridade":"Lendario","atk_bonus":48, "preco":10000,"venda":5000,"desc":"Cajado lendario."},
+        {"id":"orbe_arcano",     "nome":"Orbe Arcano",        "emoji":"🔮","raridade":"Epico",   "atk_bonus":32, "preco":1700, "venda":850, "desc":"Magia +25."},
+        {"id":"cajado_lendario", "nome":"Cajado do Arquimago","emoji":"🪄","raridade":"Lendario","atk_bonus":50, "preco":10000,"venda":5000,"desc":"Cajado lendario."},
     ],
     "paladino": [
         {"id":"maca_sagrada",    "nome":"Maca Sagrada",      "emoji":"⚡","raridade":"Comum","atk_bonus":6,  "preco":50,  "venda":25,  "desc":"Maca abencada."},
@@ -122,18 +124,19 @@ ARMAS_POR_CLASSE = {
         {"id":"cajado_sombra_l", "nome":"Cajado das Trevas","emoji":"💀","raridade":"Lendario","atk_bonus":47, "preco":10000,"venda":5000,"desc":"Artefato das trevas."},
     ],
     "dracomante": [
-        {"id":"garra_dragao",    "nome":"Garra de Dragao",   "emoji":"🐉","raridade":"Lendario","atk_bonus":35, "preco":8000, "venda":4000, "desc":"Arma lendaria de dragao."},
+        {"id":"garra_dragao",    "nome":"Garra de Dragao",   "emoji":"🐉","raridade":"Lendario","atk_bonus":52, "preco":8000, "venda":4000, "desc":"Arma lendaria de dragao."},
         {"id":"espada_dragao",   "nome":"Espada do Dragao",  "emoji":"⚔️","raridade":"Lendario","atk_bonus":38, "preco":9000, "venda":4500, "desc":"Flamejante eternamente."},
         {"id":"cajado_dragao",   "nome":"Cajado do Dragao",  "emoji":"🪄","raridade":"Lendario","atk_bonus":42, "preco":9500, "venda":4750, "desc":"Poder draconico."},
     ],
     "arcano": [
-        {"id":"orbe_arcano",     "nome":"Orbe Arcano",       "emoji":"🔮","raridade":"Epico","atk_bonus":30, "preco":1700, "venda":850, "desc":"Magia +25."},
+        {"id":"orbe_arcano",     "nome":"Orbe Arcano",       "emoji":"🔮","raridade":"Epico","atk_bonus":32, "preco":1700, "venda":850, "desc":"Magia +25."},
         {"id":"cajado_vazio",    "nome":"Cajado do Vazio",   "emoji":"🪄","raridade":"Epico","atk_bonus":26, "preco":1400, "venda":700, "desc":"Ignora resistencias."},
         {"id":"cajado_lendario", "nome":"Cajado do Arquimago","emoji":"🪄","raridade":"Lendario","atk_bonus":48, "preco":10000,"venda":5000,"desc":"Cajado lendario."},
     ],
 }
 
 # ─── ARMADURAS POR CLASSE ─────────────────────────────────────────
+# REBALANCEAMENTO TEMPORADA 2: Ajustes de DEF para magos
 
 ARMADURAS_POR_CLASSE = {
     "guerreiro": [
@@ -154,9 +157,10 @@ ARMADURAS_POR_CLASSE = {
         {"id":"armadura_escamas","nome":"Armadura de Escamas","emoji":"🐉","raridade":"Raro","def_bonus":18, "preco":800, "venda":400, "desc":"Escamas leves."},
     ],
     "mago": [
-        {"id":"armadura_couro",  "nome":"Armadura de Couro","emoji":"🥋","raridade":"Comum","def_bonus":5,  "preco":50,  "venda":25,  "desc":"Armadura inicial."},
-        {"id":"manto_mago",      "nome":"Manto do Mago",    "emoji":"🧥","raridade":"Incomum","def_bonus":6,  "preco":200, "venda":100, "desc":"+10 mana."},
-        {"id":"tunica_arcana",   "nome":"Tunica Arcana",    "emoji":"👘","raridade":"Raro","def_bonus":10, "preco":600, "venda":300, "desc":"+20 mana."},
+        {"id":"robe_algodao",    "nome":"Robe de Algodao",   "emoji":"👘","raridade":"Comum","def_bonus":4,  "preco":50,  "venda":25,  "desc":"Robe simples."},
+        {"id":"manto_aprendiz",  "nome":"Manto do Aprendiz", "emoji":"🧥","raridade":"Incomum","def_bonus":5,  "preco":200, "venda":100, "desc":"+10 mana."},
+        {"id":"manto_arquimago", "nome":"Manto do Arquimago","emoji":"🧥","raridade":"Raro","def_bonus":22, "preco":600, "venda":300, "desc":"+20 mana."},
+        {"id":"robe_vazio",      "nome":"Robe do Vazio",     "emoji":"👘","raridade":"Epico","def_bonus":28, "preco":1400, "venda":700, "desc":"Magia +25."},
     ],
     "paladino": [
         {"id":"armadura_plena",  "nome":"Armadura Plena",   "emoji":"⚙️","raridade":"Raro","def_bonus":20, "preco":900, "venda":450, "desc":"Cobertura total."},
@@ -336,40 +340,85 @@ def get_itens_por_categoria(categoria: str):
     }
     return cat_map.get(categoria, todos)
 
-# ─── SKILLS_COMPLETAS (para compatibilidade com batalha.py) ───────
-# Nota: O sistema real de skills está em skills_sistema.py
-# Esta é uma versão simplificada para compatibilidade
+# ─── SKILLS_COMPLETAS (com rebalanceamento da Temporada 2) ───────
 
 SKILLS_COMPLETAS = {
-    "guerreiro": [],
-    "mago": [],
-    "arqueiro": [],
-    "paladino": [],
-    "necromante": [],
-    "dracomante": [],
-    "arcano": [],
+    "guerreiro": [
+        {"id":"golpe_basico",  "nome":"Golpe Basico",  "nivel":1,  "emoji":"⚔️","dano":1.3,"mana":0, "desc":"Ataque fisico direto.", "efeito":None},
+        {"id":"escudo",        "nome":"Postura de Escudo","nivel":3,"emoji":"🛡️","dano":0,  "mana":8, "desc":"Reduz 50% do dano recebido.", "efeito":"defesa"},
+        {"id":"golpe_brutal",  "nome":"Golpe Brutal",   "nivel":8, "emoji":"💥","dano":2.2,"mana":18,"desc":"Golpe devastador.", "efeito":None},
+        {"id":"investida",     "nome":"Investida",       "nivel":12,"emoji":"🏃","dano":1.4,"mana":15,"desc":"30% chance atordoar.", "efeito":"atordoar"},
+        {"id":"grito_guerra",  "nome":"Grito de Guerra", "nivel":16,"emoji":"😤","dano":0,  "mana":22,"desc":"+35% de ataque por 3 turnos.", "efeito":"buff_ataque"},
+        {"id":"lamina_girat",  "nome":"Lamina Giratoria","nivel":20,"emoji":"🌀","dano":1.8,"mana":28,"desc":"2 golpes consecutivos.", "efeito":"hits2"},
+        {"id":"escudo_aco",    "nome":"Escudo de Aco",   "nivel":28,"emoji":"🪨","dano":0,  "mana":35,"desc":"Escudo impenetravel por 2 turnos.", "efeito":"escudo_total"},
+        {"id":"furia",         "nome":"Furia Berserker", "nivel":35,"emoji":"🔥","dano":2.5,"mana":40,"desc":"+60% ATK, regenera vida.", "efeito":"berserker"},
+        {"id":"golpe_final",   "nome":"Golpe Final",     "nivel":45,"emoji":"💢","dano":3.5,"mana":50,"desc":"Ignora 50% defesa.", "efeito":None},
+        {"id":"lendario_atk",  "nome":"Golpe Lendario",  "nivel":70,"emoji":"⚡","dano":5.0,"mana":80,"desc":"Golpe lendario.", "efeito":None},
+    ],
+    "mago": [
+        {"id":"bola_fogo",     "nome":"Bola de Fogo",   "nivel":1, "emoji":"🔥","dano":1.3,"mana":12,"desc":"25% chance queimadura.", "efeito":"queimadura"},
+        {"id":"missil_arcano", "nome":"Missil Arcano",  "nivel":3, "emoji":"✨","dano":1.1,"mana":6, "desc":"3 misseis.", "efeito":"hits3"},
+        {"id":"escudo_arcano", "nome":"Escudo Arcano",  "nivel":6, "emoji":"💜","dano":0,  "mana":20,"desc":"Absorve proximo ataque.", "efeito":"escudo"},
+        {"id":"raio_congelante","nome":"Raio Congelante","nivel":10,"emoji":"❄️","dano":1.5,"mana":22,"desc":"40% chance congelar.", "efeito":"congelar"},
+        {"id":"tempestade",    "nome":"Tempestade",     "nivel":16,"emoji":"⚡","dano":1.7,"mana":35,"desc":"35% chance paralisar.", "efeito":"paralisia"},
+        {"id":"meteor",        "nome":"Meteoro",         "nivel":24,"emoji":"☄️","dano":2.8,"mana":45,"desc":"Dano massivo.", "efeito":None},
+        {"id":"campo_forca",   "nome":"Campo de Forca", "nivel":28,"emoji":"🔮","dano":0,  "mana":30,"desc":"Reflete 40% do dano.", "efeito":"reflexo"},
+        {"id":"sobrecarga",    "nome":"Sobrecarga",      "nivel":35,"emoji":"🌟","dano":3.5,"mana":60,"desc":"Dano devastador.", "efeito":None},
+        {"id":"chuva_meteoros","nome":"Chuva de Meteoros","nivel":50,"emoji":"💥","dano":4.0,"mana":70,"desc":"Multiplos meteoros.", "efeito":"hits3"},
+        {"id":"singularidade_m","nome":"Singularidade",  "nivel":70,"emoji":"🌌","dano":7.0,"mana":100,"desc":"Dano absoluto.", "efeito":None},
+    ],
+    "arqueiro": [
+        {"id":"tiro_preciso",  "nome":"Tiro Preciso",   "nivel":1, "emoji":"🎯","dano":1.3,"mana":0, "desc":"+40% critico.", "efeito":"critico_bonus"},
+        {"id":"tiro_rapido",   "nome":"Tiro Rapido",    "nivel":3, "emoji":"💨","dano":0.8,"mana":5, "desc":"2 tiros rapidos.", "efeito":"hits2"},
+        {"id":"esquiva",       "nome":"Esquiva",        "nivel":5, "emoji":"💨","dano":0,  "mana":15,"desc":"Evita proximo ataque.", "efeito":"esquiva"},
+        {"id":"flecha_veneno", "nome":"Flecha Venenosa","nivel":10,"emoji":"🟢","dano":1.1,"mana":18,"desc":"Veneno 3 turnos.", "efeito":"veneno"},
+        {"id":"tiro_multiplo", "nome":"Tiro Multiplo",  "nivel":14,"emoji":"🏹","dano":0.7,"mana":22,"desc":"3 flechas.", "efeito":"hits3"},
+        {"id":"flecha_perfurante","nome":"Flecha Perfurante","nivel":20,"emoji":"🔱","dano":2.0,"mana":30,"desc":"Ignora 60% defesa.", "efeito":"ignorar_defesa"},
+        {"id":"chuva_flechas", "nome":"Chuva de Flechas","nivel":28,"emoji":"☄️","dano":0.5,"mana":40,"desc":"5 flechas.", "efeito":"hits5"},
+        {"id":"tiro_fantasma", "nome":"Tiro Fantasma",  "nivel":35,"emoji":"👻","dano":2.5,"mana":50,"desc":"Ignora 100% defesa.", "efeito":"ignorar_defesa"},
+    ],
+    "paladino": [
+        {"id":"golpe_sagrado", "nome":"Golpe Sagrado",  "nivel":1, "emoji":"⚡","dano":1.2,"mana":10,"desc":"Ataque sagrado.", "efeito":None},
+        {"id":"cura",          "nome":"Cura",           "nivel":3, "emoji":"💚","dano":0,  "mana":25,"desc":"Cura 35% HP.", "efeito":"cura"},
+        {"id":"martelo_sagrado","nome":"Martelo Sagrado","nivel":8, "emoji":"🔨","dano":1.6,"mana":20,"desc":"40% atordoar.", "efeito":"atordoar"},
+        {"id":"aura_sagrada",  "nome":"Aura Sagrada",   "nivel":14,"emoji":"🌟","dano":0,  "mana":30,"desc":"+25% ATK/DEF, regen 5% HP.", "efeito":"buff_all"},
+        {"id":"escudo_divino", "nome":"Escudo Divino",  "nivel":20,"emoji":"🛡️","dano":0,  "mana":35,"desc":"Bloqueia 2 ataques.", "efeito":"escudo_total"},
+        {"id":"cura_area",     "nome":"Cura em Area",   "nivel":25,"emoji":"💗","dano":0,  "mana":45,"desc":"Cura 60% HP.", "efeito":"cura_grande"},
+        {"id":"ressureicao",   "nome":"Ressurreição",   "nivel":32,"emoji":"✝️","dano":0,  "mana":40,"desc":"Revive com 60% HP.", "efeito":"ressurreicao"},
+        {"id":"juizo_final",   "nome":"Juizo Final",    "nivel":35,"emoji":"☀️","dano":3.0,"mana":60,"desc":"Escala com HP perdido.", "efeito":"sagrado_bonus"},
+    ],
+    "necromante": [
+        {"id":"drenar_vida",   "nome":"Drenar Vida",    "nivel":1, "emoji":"🌑","dano":1.1,"mana":10,"desc":"Drena 50% do dano.", "efeito":"dreno"},
+        {"id":"maldicao",      "nome":"Maldicao",       "nivel":4, "emoji":"🩸","dano":0.8,"mana":8, "desc":"Veneno 4 turnos.", "efeito":"veneno"},
+        {"id":"invocar_morto", "nome":"Invocar Morto",  "nivel":8, "emoji":"💀","dano":0.9,"mana":20,"desc":"Invoca esqueleto.", "efeito":None},
+        {"id":"toque_necrotico","nome":"Toque Necrotico","nivel":12,"emoji":"☠️","dano":1.4,"mana":25,"desc":"-20% ATK inimigo.", "efeito":"enfraquecer"},
+        {"id":"onda_sombria",  "nome":"Onda Sombria",   "nivel":18,"emoji":"🌊","dano":1.8,"mana":35,"desc":"Drena 30 mana.", "efeito":"drenar_mana"},
+        {"id":"banshee",       "nome":"Grito da Banshee","nivel":24,"emoji":"👻","dano":1.5,"mana":40,"desc":"-30% ATK inimigo.", "efeito":"terror"},
+        {"id":"exercito_mortos","nome":"Exercito Mortos","nivel":30,"emoji":"💀","dano":2.2,"mana":55,"desc":"3 ataques.", "efeito":"hits3"},
+        {"id":"abraço_morte",  "nome":"Abraço da Morte","nivel":35,"emoji":"💀","dano":1.0,"mana":65,"desc":"20% instakill.", "efeito":"instakill_chance"},
+    ],
+    "dracomante": [
+        {"id":"baforada",      "nome":"Baforada",       "nivel":1, "emoji":"🔥","dano":1.6,"mana":12,"desc":"Queimadura 2 turnos.", "efeito":"queimadura"},
+        {"id":"garra_dragao",  "nome":"Garra do Dragão","nivel":4, "emoji":"🐾","dano":1.2,"mana":10,"desc":"Ataque fisico.", "efeito":None},
+        {"id":"escamas_dragao","nome":"Escamas do Dragão","nivel":8,"emoji":"🐉","dano":0,  "mana":20,"desc":"-35% dano 3 turnos.", "efeito":"armadura"},
+        {"id":"rugido_dragao", "nome":"Rugido do Dragão","nivel":14,"emoji":"😤","dano":0,  "mana":18,"desc":"-40% ATK inimigo.", "efeito":"terror"},
+        {"id":"cauda_dragao",  "nome":"Chicote de Cauda","nivel":18,"emoji":"🌪️","dano":1.6,"mana":25,"desc":"45% atordoar.", "efeito":"atordoar"},
+        {"id":"voo_dragao",    "nome":"Voo do Dragão",  "nivel":22,"emoji":"🦅","dano":0,  "mana":30,"desc":"Esquiva por 1 turno.", "efeito":"esquiva"},
+        {"id":"forma_menor",   "nome":"Forma Menor do Dragão","nivel":28,"emoji":"🌋","dano":0,"mana":45,"desc":"+40% ATK/DEF, regen.", "efeito":"buff_all"},
+        {"id":"dragao_eterno", "nome":"Dragão Eterno",  "nivel":35,"emoji":"💎","dano":4.0,"mana":70,"desc":"Forma completa.", "efeito":None},
+        {"id":"chamas_ancestrais","nome":"Chamas Ancestrais","nivel":45,"emoji":"🌋","dano":3.0,"mana":45,"desc":"Queimadura garantida 3 turnos.","efeito":"queimadura"},
+        {"id":"coracao_dragao","nome":"Coracao de Dragao","nivel":60,"emoji":"❤️‍🔥","dano":0,"mana":50,"desc":"+50% ATK/DEF, regen 8% HP 4 turnos.","efeito":"buff_all"},
+    ],
+    "arcano": [
+        {"id":"faisca_arcana", "nome":"Faisca Arcana", "nivel":1, "emoji":"✨","dano":1.2,"mana":8, "desc":"Energia arcana.", "efeito":None},
+        {"id":"distorcao",     "nome":"Distorcao",     "nivel":4, "emoji":"🌀","dano":1.1,"mana":12,"desc":"-50% precisao.", "efeito":"confusao"},
+        {"id":"campo_forca_arcano","nome":"Campo de Forca","nivel":6,"emoji":"🔮","dano":0,"mana":22,"desc":"Reflete 30% dano.", "efeito":"reflexo"},
+        {"id":"explosao_arcana","nome":"Explosao Arcana","nivel":10,"emoji":"💥","dano":2.0,"mana":28,"desc":"Dano massivo.", "efeito":None},
+        {"id":"teletransporte","nome":"Teletransporte","nivel":15,"emoji":"🌟","dano":1.5,"mana":25,"desc":"Ignora defesa.", "efeito":"ignorar_defesa"},
+        {"id":"drenar_magia",  "nome":"Drenar Magia",   "nivel":20,"emoji":"💜","dano":1.0,"mana":0, "desc":"Drena 40 mana.", "efeito":"drenar_mana"},
+        {"id":"tempestade_arcana","nome":"Tempestade Arcana","nivel":26,"emoji":"⭐","dano":2.5,"mana":55,"desc":"4 ataques.", "efeito":"hits4"},
+        {"id":"singularidade", "nome":"Singularidade",  "nivel":35,"emoji":"🕳️","dano":4.5,"mana":60,"desc":"Perde 30% da mana restante.", "efeito":"singularidade_v2"},
+    ],
 }
 
-# Preenche SKILLS_COMPLETAS a partir do skills_sistema.py
-def _carregar_skills_completas():
-    from skills_sistema import SKILLS
-    for sid, skill in SKILLS.items():
-        classe = skill.get("classe")
-        if classe and classe != "suporte":
-            if classe not in SKILLS_COMPLETAS:
-                SKILLS_COMPLETAS[classe] = []
-            SKILLS_COMPLETAS[classe].append({
-                "id": sid,
-                "nome": skill["nome"],
-                "nivel": skill["nivel"],
-                "emoji": skill["emoji"],
-                "mana": skill.get("mana", 0),
-                "dano": skill.get("dano_mult", 1.0),
-                "desc": skill.get("desc", ""),
-                "efeito": skill.get("efeito"),
-            })
-    # Ordena por nível
-    for classe in SKILLS_COMPLETAS:
-        SKILLS_COMPLETAS[classe] = sorted(SKILLS_COMPLETAS[classe], key=lambda x: x["nivel"])
-
-_carregar_skills_completas()
+# ─── CONTINUAÇÃO PARA OUTRAS CLASSES (skills já incluídas acima) ───
