@@ -53,7 +53,6 @@ async def init_db_sorteios():
 # ==================================================
 
 async def get_sorteios_ativos(guild_id: int) -> List[dict]:
-    """Retorna lista de sorteios ativos do servidor"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
@@ -64,21 +63,18 @@ async def get_sorteios_ativos(guild_id: int) -> List[dict]:
         return [dict(r) for r in rows]
 
 async def get_sorteio_by_id(sorteio_id: int) -> Optional[dict]:
-    """Retorna um sorteio pelo ID"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM sorteios WHERE id = $1", sorteio_id)
         return dict(row) if row else None
 
 async def get_participantes(sorteio_id: int) -> List[int]:
-    """Retorna lista de IDs dos participantes do sorteio"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch("SELECT usuario_id FROM sorteio_participantes WHERE sorteio_id = $1", sorteio_id)
         return [r["usuario_id"] for r in rows]
 
 async def usuario_ja_participou(sorteio_id: int, usuario_id: int) -> bool:
-    """Verifica se o usuário já participou do sorteio"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -88,7 +84,6 @@ async def usuario_ja_participou(sorteio_id: int, usuario_id: int) -> bool:
         return row is not None
 
 async def adicionar_participante(sorteio_id: int, usuario_id: int) -> bool:
-    """Adiciona um participante ao sorteio"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         try:
@@ -109,7 +104,6 @@ async def entregar_recompensa(conn, user_id: int, item_id: str, item_nome: str, 
     
     # Se for ficha de roleta
     if item_tipo == "ficha":
-        # Mapeamento de raridade para o sistema de giros
         raridade_map = {
             "Comum": "Comum",
             "Incomum": "Incomum", 
@@ -139,18 +133,12 @@ async def entregar_recompensa(conn, user_id: int, item_id: str, item_nome: str, 
             quantidade, ex["id"]
         )
     else:
-        from catalogo import get_catalogo_completo
-        itens = get_catalogo_completo()
-        item = next((i for i in itens if i["id"] == item_id), None)
-        emoji = item["emoji"] if item else "🎁"
-        
         await conn.execute("""
             INSERT INTO inventario (user_id, item_id, nome, tipo, raridade, emoji, descricao, quantidade)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        """, user_id, item_id, item_nome, "premio", item_raridade, emoji, f"Prêmio de sorteio", quantidade)
+            VALUES ($1, $2, $3, $4, $5, '🎁', $6, $7)
+        """, user_id, item_id, item_nome, "premio", item_raridade, f"Prêmio de sorteio", quantidade)
 
 async def finalizar_sorteio(sorteio_id: int, guild, canal_id: int, mensagem_id: int, manual: bool = False):
-    """Finaliza o sorteio, sorteia os vencedores e entrega os prêmios"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         sorteio = await conn.fetchrow("SELECT * FROM sorteios WHERE id = $1", sorteio_id)
@@ -162,7 +150,6 @@ async def finalizar_sorteio(sorteio_id: int, guild, canal_id: int, mensagem_id: 
         
         await conn.execute("UPDATE sorteios SET status = 'encerrado' WHERE id = $1", sorteio_id)
         
-        # Sorteia os vencedores
         vencedores = []
         qtd_ganhadores = sorteio["quantidade_ganhadores"]
         
@@ -174,7 +161,6 @@ async def finalizar_sorteio(sorteio_id: int, guild, canal_id: int, mensagem_id: 
             random.shuffle(temp_ids)
             vencedores = temp_ids[:qtd_ganhadores]
         
-        # Entrega as recompensas
         for vencedor_id in vencedores:
             await entregar_recompensa(
                 conn, vencedor_id,
@@ -186,7 +172,6 @@ async def finalizar_sorteio(sorteio_id: int, guild, canal_id: int, mensagem_id: 
         return vencedores, ids_participantes
 
 async def atualizar_embed_sorteio(guild, canal_id: int, mensagem_id: int):
-    """Atualiza a embed do sorteio com os participantes atuais"""
     canal = guild.get_channel(canal_id)
     if not canal:
         return
@@ -223,13 +208,112 @@ async def atualizar_embed_sorteio(guild, canal_id: int, mensagem_id: int):
         await msg.edit(embed=embed)
 
 # ==================================================
+# FUNÇÃO PARA LISTAR TODOS OS ITENS DO JOGO
+# ==================================================
+
+def get_todos_itens_para_sorteio():
+    """Retorna TODOS os itens disponíveis para sorteio (armas, armaduras, poções, materiais, fichas)"""
+    itens = []
+    
+    # 1. FICHAS DE ROLETA
+    raridades_fichas = ["Comum", "Incomum", "Raro", "Epico", "Lendario"]
+    for rar in raridades_fichas:
+        itens.append({
+            "id": f"ficha_{rar.lower()}",
+            "nome": f"Ficha {rar}",
+            "raridade": rar,
+            "tipo": "ficha",
+            "emoji": "🎰",
+            "categoria": "Fichas"
+        })
+    
+    # 2. ARMADURAS (de todas as classes)
+    try:
+        from catalogo import ARMADURAS_POR_CLASSE
+        for classe, armaduras in ARMADURAS_POR_CLASSE.items():
+            for armadura in armaduras:
+                itens.append({
+                    "id": armadura["id"],
+                    "nome": armadura["nome"],
+                    "raridade": armadura["raridade"],
+                    "tipo": "armadura",
+                    "emoji": armadura.get("emoji", "🛡️"),
+                    "categoria": f"Armadura ({classe})"
+                })
+    except:
+        pass
+    
+    # 3. ARMAS (de todas as classes)
+    try:
+        from catalogo import ARMAS_POR_CLASSE
+        for classe, armas in ARMAS_POR_CLASSE.items():
+            for arma in armas:
+                itens.append({
+                    "id": arma["id"],
+                    "nome": arma["nome"],
+                    "raridade": arma["raridade"],
+                    "tipo": "arma",
+                    "emoji": arma.get("emoji", "⚔️"),
+                    "categoria": f"Arma ({classe})"
+                })
+    except:
+        pass
+    
+    # 4. POÇÕES
+    try:
+        from catalogo import POCOES_CAT
+        for pocao in POCOES_CAT:
+            itens.append({
+                "id": pocao["id"],
+                "nome": pocao["nome"],
+                "raridade": pocao["raridade"],
+                "tipo": "pocao",
+                "emoji": pocao.get("emoji", "🧪"),
+                "categoria": "Poções"
+            })
+    except:
+        pass
+    
+    # 5. MATERIAIS
+    try:
+        from catalogo import MATERIAIS_CAT
+        for material in MATERIAIS_CAT:
+            itens.append({
+                "id": material["id"],
+                "nome": material["nome"],
+                "raridade": material["raridade"],
+                "tipo": "material",
+                "emoji": material.get("emoji", "📦"),
+                "categoria": "Materiais"
+            })
+    except:
+        pass
+    
+    # 6. ITENS DE FORJA (RECEITAS)
+    try:
+        from batalha import RECEITAS
+        for receita in RECEITAS:
+            itens.append({
+                "id": receita["id"],
+                "nome": receita["nome"],
+                "raridade": receita["raridade"],
+                "tipo": "forja",
+                "emoji": receita.get("emoji", "🔨"),
+                "categoria": "Itens de Forja"
+            })
+    except:
+        pass
+    
+    return itens
+
+# ==================================================
 # MODAL DE CRIAÇÃO DE SORTEIO
 # ==================================================
 
 class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
     titulo = discord.ui.TextInput(
         label="Título do Sorteio",
-        placeholder="Ex: Fichas Lendárias!",
+        placeholder="Ex: Mega Sorteio de Itens Raros!",
         max_length=100
     )
     descricao = discord.ui.TextInput(
@@ -297,17 +381,25 @@ class CriarSorteioModal(discord.ui.Modal, title="🎲 Criar Sorteio"):
                 self.item_id, self.item_nome, self.item_raridade, self.item_tipo,
                 self.quantidade_item, qtd_ganhadores, data_encerramento)
         
-        # Cria a embed do sorteio
         embed = discord.Embed(
             title=f"🎲 {self.titulo.value}",
             description=self.descricao.value or "Participe para concorrer!",
             color=COR_PRIMARY
         )
         
-        # Emoji por tipo de item
+        # Define emoji e texto da recompensa
         if self.item_tipo == "ficha":
-            emoji_recompensa = "🎰"
-            texto_recompensa = f"{emoji_recompensa} **{self.quantidade_item}x Ficha {self.item_raridade}**"
+            texto_recompensa = f"🎰 **{self.quantidade_item}x Ficha {self.item_raridade}**"
+        elif self.item_tipo == "arma":
+            texto_recompensa = f"⚔️ **{self.item_nome}** x{self.quantidade_item}"
+        elif self.item_tipo == "armadura":
+            texto_recompensa = f"🛡️ **{self.item_nome}** x{self.quantidade_item}"
+        elif self.item_tipo == "pocao":
+            texto_recompensa = f"🧪 **{self.item_nome}** x{self.quantidade_item}"
+        elif self.item_tipo == "material":
+            texto_recompensa = f"📦 **{self.item_nome}** x{self.quantidade_item}"
+        elif self.item_tipo == "forja":
+            texto_recompensa = f"🔨 **{self.item_nome}** x{self.quantidade_item}"
         else:
             raridade_emoji = {
                 "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
@@ -406,10 +498,17 @@ async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
         else:
             vencedores_mentions.append(f"<@{vid}>")
     
-    # Emoji por tipo de item
+    # Define texto da recompensa
     if sorteio["item_tipo"] == "ficha":
-        emoji_recompensa = "🎰"
-        texto_recompensa = f"{emoji_recompensa} **{sorteio['quantidade_item']}x Ficha {sorteio['item_raridade']}**"
+        texto_recompensa = f"🎰 **{sorteio['quantidade_item']}x Ficha {sorteio['item_raridade']}**"
+    elif sorteio["item_tipo"] == "arma":
+        texto_recompensa = f"⚔️ **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
+    elif sorteio["item_tipo"] == "armadura":
+        texto_recompensa = f"🛡️ **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
+    elif sorteio["item_tipo"] == "pocao":
+        texto_recompensa = f"🧪 **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
+    elif sorteio["item_tipo"] == "material":
+        texto_recompensa = f"📦 **{sorteio['item_nome']}** x{sorteio['quantidade_item']}"
     else:
         raridade_emoji = {
             "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
@@ -472,59 +571,27 @@ async def autocomplete_canal(interaction: discord.Interaction, current: str):
     ]
 
 async def autocomplete_item_sorteio(interaction: discord.Interaction, current: str):
-    """Autocomplete para itens do catálogo + FICHAS"""
-    from catalogo import get_catalogo_completo
-    itens = get_catalogo_completo()
+    """Autocomplete para TODOS os itens do jogo"""
     
-    # Adiciona opção de fichas de roleta
-    fichas_opcoes = []
-    raridades = ["Comum", "Incomum", "Raro", "Epico", "Lendario"]
-    for rar in raridades:
-        if not current or current.lower() in f"ficha {rar}".lower():
-            fichas_opcoes.append({
-                "id": f"ficha_{rar}",
-                "nome": f"Ficha {rar}",
-                "raridade": rar,
-                "tipo": "ficha",
-                "emoji": "🎰"
-            })
+    # Busca todos os itens disponíveis
+    todos_itens = get_todos_itens_para_sorteio()
     
-    # Filtra itens do catálogo
+    # Filtra pela busca
     if current:
-        itens_filtrados = [i for i in itens if current.lower() in i["nome"].lower()]
+        filtrado = [i for i in todos_itens if current.lower() in i["nome"].lower()]
     else:
-        itens_filtrados = itens[:20]
+        filtrado = todos_itens[:25]
     
-    # Organiza resultados: primeiros as fichas, depois os itens
-    resultados = []
-    
-    # Adiciona fichas que correspondem à busca
-    for f in fichas_opcoes:
-        if not current or current.lower() in f["nome"].lower():
-            resultados.append({
-                "id": f["id"],
-                "nome": f["nome"],
-                "raridade": f["raridade"],
-                "tipo": "ficha",
-                "emoji": "🎰"
-            })
-    
-    # Adiciona itens do catálogo
-    for i in itens_filtrados[:25 - len(resultados)]:
-        resultados.append({
-            "id": i["id"],
-            "nome": i["nome"],
-            "raridade": i["raridade"],
-            "tipo": i["tipo"],
-            "emoji": i.get("emoji", "📦")
-        })
+    # Ordena por categoria
+    ordem_categorias = {"Fichas": 1, "Armas": 2, "Armaduras": 3, "Poções": 4, "Materiais": 5, "Itens de Forja": 6}
+    filtrado.sort(key=lambda x: (ordem_categorias.get(x.get("categoria", "Outros"), 99), x["nome"]))
     
     return [
         app_commands.Choice(
-            name=f"[{r['tipo'].upper()}] {r['emoji']} {r['nome']} [{r['raridade']}]"[:100],
-            value=f"{r['id']}|{r['nome']}|{r['raridade']}|{r['tipo']}"
+            name=f"{i['emoji']} {i['nome']} [{i['raridade']}] - {i.get('categoria', i['tipo'].upper())}"[:100],
+            value=f"{i['id']}|{i['nome']}|{i['raridade']}|{i['tipo']}"
         )
-        for r in resultados[:25]
+        for i in filtrado[:25]
     ]
 
 async def autocomplete_sorteio_ativo(interaction: discord.Interaction, current: str):
@@ -642,9 +709,17 @@ async def cmd_sorteio_info(interaction: discord.Interaction, sorteio_id: int):
         "cancelado": "❌ CANCELADO"
     }.get(sorteio["status"], "❓ DESCONHECIDO")
     
+    # Define texto da recompensa
     if sorteio["item_tipo"] == "ficha":
-        emoji_recompensa = "🎰"
-        texto_recompensa = f"{emoji_recompensa} {sorteio['quantidade_item']}x Ficha {sorteio['item_raridade']}"
+        texto_recompensa = f"🎰 {sorteio['quantidade_item']}x Ficha {sorteio['item_raridade']}"
+    elif sorteio["item_tipo"] == "arma":
+        texto_recompensa = f"⚔️ {sorteio['item_nome']} x{sorteio['quantidade_item']}"
+    elif sorteio["item_tipo"] == "armadura":
+        texto_recompensa = f"🛡️ {sorteio['item_nome']} x{sorteio['quantidade_item']}"
+    elif sorteio["item_tipo"] == "pocao":
+        texto_recompensa = f"🧪 {sorteio['item_nome']} x{sorteio['quantidade_item']}"
+    elif sorteio["item_tipo"] == "material":
+        texto_recompensa = f"📦 {sorteio['item_nome']} x{sorteio['quantidade_item']}"
     else:
         raridade_emoji = {
             "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
@@ -685,8 +760,13 @@ async def cmd_sorteios_listar(interaction: discord.Interaction):
         participantes = await get_participantes(s["id"])
         
         if s["item_tipo"] == "ficha":
-            emoji_recompensa = "🎰"
-            texto_recompensa = f"{emoji_recompensa} {s['quantidade_item']}x Ficha {s['item_raridade']}"
+            texto_recompensa = f"🎰 {s['quantidade_item']}x Ficha {s['item_raridade']}"
+        elif s["item_tipo"] == "arma":
+            texto_recompensa = f"⚔️ {s['item_nome']} x{s['quantidade_item']}"
+        elif s["item_tipo"] == "armadura":
+            texto_recompensa = f"🛡️ {s['item_nome']} x{s['quantidade_item']}"
+        elif s["item_tipo"] == "pocao":
+            texto_recompensa = f"🧪 {s['item_nome']} x{s['quantidade_item']}"
         else:
             raridade_emoji = {
                 "Comum": "⬜", "Incomum": "🟩", "Raro": "🟦",
@@ -720,8 +800,8 @@ def register_sorteio_commands(bot):
     @bot.tree.command(name="sorteio_criar", description="[ADMIN] Cria um novo sorteio")
     @app_commands.describe(
         canal="Canal onde o sorteio será divulgado",
-        item="Item ou ficha que será sorteada",
-        quantidade="Quantidade do item/ficha"
+        item="Item que será sorteado (digite para buscar)",
+        quantidade="Quantidade do item"
     )
     @app_commands.autocomplete(canal=autocomplete_canal, item=autocomplete_item_sorteio)
     async def sorteio_criar(interaction: discord.Interaction, canal: str, item: str, quantidade: int = 1):
