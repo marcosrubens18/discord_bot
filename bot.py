@@ -12,15 +12,12 @@ from database.queries import get_personagem
 
 # Importar inicializadores de sistemas
 from systems.arena import init_db_arena
-try:
-    from systems.social.party import init_db_party
-except ImportError:
-    from social.party import init_db_party
+from systems.social.party import init_db_party
 from systems.social.guildas import init_db_guildas
 from systems.sorteio import init_db_sorteios, reagendar_sorteios_pendentes, finalizar_e_anunciar_sorteio
-from dungeon_evento import init_db_dungeon_evento
-from passe_temporada import init_db_passe
-from eventos import init_db_eventos
+from systems.dungeon_evento import init_db_dungeon_evento
+from systems.passe import init_db_passe
+from systems.eventos import init_db_eventos
 
 # Importar comandos
 from commands.admin import setup_admin_commands
