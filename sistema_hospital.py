@@ -164,3 +164,23 @@ async def cmd_hospital(interaction: discord.Interaction):
         embed.set_image(url=IMG_HOSPITAL)
     
     await interaction.followup.send(embed=embed, view=v)
+
+
+# ==================================================
+# INICIALIZAÇÃO DO BANCO DE DADOS DO HOSPITAL
+# ==================================================
+
+async def init_db_hospital():
+    """Inicializa as tabelas do sistema de hospital"""
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS descanso (
+                    user_id BIGINT PRIMARY KEY,
+                    proximo_descanso TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        print("✅ DB Hospital inicializado")
+    except Exception as e:
+        print(f"⚠️ Erro ao inicializar DB Hospital: {e}")
