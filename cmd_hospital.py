@@ -1,4 +1,4 @@
-# sistema_hospital.py — Sistema de Hospital e Cura
+# sistema_hospital.py — Sistema de Hospital e Cura (sem roleta)
 
 import discord
 from datetime import datetime, timedelta
@@ -6,15 +6,6 @@ from datetime import datetime, timedelta
 from db import get_pool
 from constants import PLANOS_HOSPITAL
 from imagens import IMG_HOSPITAL
-
-
-# ==================================================
-# INICIALIZAÇÃO (compatibilidade)
-# ==================================================
-
-async def init_db_hospital():
-    """Inicializa tabelas do hospital (compatibilidade)"""
-    pass
 
 
 # ==================================================
@@ -173,3 +164,24 @@ async def cmd_hospital(interaction: discord.Interaction):
         embed.set_image(url=IMG_HOSPITAL)
     
     await interaction.followup.send(embed=embed, view=v)
+
+
+# ==================================================
+# INICIALIZAÇÃO DO BANCO DE DADOS DO HOSPITAL
+# ==================================================
+
+async def init_db_hospital():
+    """Inicializa as tabelas do sistema de hospital"""
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            # Garantir que a tabela descanso existe
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS descanso (
+                    user_id BIGINT PRIMARY KEY,
+                    proximo_descanso TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        print("✅ DB Hospital inicializado")
+    except Exception as e:
+        print(f"⚠️ Erro ao inicializar DB Hospital: {e}")
