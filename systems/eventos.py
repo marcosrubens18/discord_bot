@@ -55,7 +55,7 @@ async def init_db_eventos():
 # FUNÇÕES DE PONTUAÇÃO AUTOMÁTICA
 # ==================================================
 
-async def registrar_pontos_evento(user_id: int, tipo: str, valor: int = 1):
+async def registrar_pontos_evento(user_id: int, tipo: str, valor: int = 1) -> tuple:
     """Registra pontos para eventos do tipo especificado"""
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -90,22 +90,22 @@ async def registrar_pontos_evento(user_id: int, tipo: str, valor: int = 1):
         return True, evento["id"]
 
 
-async def registrar_batalha_evento(user_id: int):
+async def registrar_batalha_evento(user_id: int) -> tuple:
     """Registra vitória em batalha para eventos"""
     return await registrar_pontos_evento(user_id, "batalha", 1)
 
 
-async def registrar_dungeon_evento(user_id: int):
+async def registrar_dungeon_evento(user_id: int) -> tuple:
     """Registra dungeon completa para eventos"""
     return await registrar_pontos_evento(user_id, "dungeon", 1)
 
 
-async def registrar_level_up_evento(user_id: int, niveis_subidos: int):
+async def registrar_level_up_evento(user_id: int, niveis_subidos: int) -> tuple:
     """Registra level up para eventos"""
     return await registrar_pontos_evento(user_id, "nivel", niveis_subidos)
 
 
-async def registrar_coleta_evento(user_id: int, quantidade: int = 1):
+async def registrar_coleta_evento(user_id: int, quantidade: int = 1) -> tuple:
     """Registra coleta para eventos"""
     return await registrar_pontos_evento(user_id, "coleta", quantidade)
 
@@ -280,10 +280,10 @@ async def _entregar_premio(guild, user_id, tipo, valor):
                 qtd = int(valor)
                 await conn.execute("""
                     INSERT INTO giros (user_id, roleta_id, raridade, quantidade)
-                    VALUES ($1, 'skill', $2, $3)
+                    VALUES ($1, 'skill', 'Lendario', $2)
                     ON CONFLICT (user_id, roleta_id, raridade)
-                    DO UPDATE SET quantidade = giros.quantidade + $3
-                """, user_id, "Lendario", qtd)
+                    DO UPDATE SET quantidade = giros.quantidade + $2
+                """, user_id, qtd)
                 return f"+{qtd} fichas 🎰"
 
             elif tipo == "item":
