@@ -432,7 +432,7 @@ class GerenciarSkillsView(discord.ui.View):
 
 
 # ==================================================
-# ENGINE DE TREINO (PVE)
+# ENGINE DE TREINO (PVE) - CORRIGIDA
 # ==================================================
 
 async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict, arena: dict):
@@ -744,6 +744,9 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
             if monstro["dificuldade"] in ("dificil", "lendario"):
                 await atualizar_progresso(uid, "treino_hard")
                 print(f"[DEBUG] Missão treino_hard atualizada")
+            
+            # Missão de skills usadas
+            await atualizar_progresso(uid, "skills_usadas", 1)
             
             # Missão de loot coletado (se o monstro dropou algo)
             if random.random() < 0.3:
