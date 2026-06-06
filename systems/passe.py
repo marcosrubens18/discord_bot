@@ -184,6 +184,37 @@ async def adicionar_pontos_passe(user_id: int, pontos: int, fonte: str = "batalh
     }
 
 
+async def adicionar_pontos_batalha(user_id: int, vitoria: bool, tipo: str = "treino") -> dict:
+    """
+    Função principal para adicionar pontos ao passe após batalhas.
+    Chamada por batalha.py, dungeon.py, arena.py, torneio.py
+    """
+    if not vitoria:
+        return None
+    
+    pontos_por_tipo = {
+        "treino": 10,
+        "arena": 15,
+        "dungeon": 20,
+        "torneio": 25,
+    }
+    
+    pontos = pontos_por_tipo.get(tipo, 10)
+    
+    # Bônus de party (se aplicável)
+    try:
+        from systems.social.party import get_party_do_jogador
+        party = await get_party_do_jogador(user_id)
+        if party:
+            pontos = int(pontos * 1.2)
+    except:
+        pass
+    
+    resultado = await adicionar_pontos_passe(user_id, pontos, tipo)
+    print(f"[PASSE] +{pontos} pontos para {user_id} ({tipo}) - Nível {resultado['nivel_novo']}")
+    return resultado
+
+
 async def resgatar_recompensa(user_id: int, nivel: int) -> tuple:
     progresso = await get_progresso(user_id)
     
@@ -258,31 +289,6 @@ async def entregar_recompensa(conn, user_id: int, recompensa: dict):
             VALUES ($1, $2, 1, 1)
             ON CONFLICT (user_id, conquista_id) DO UPDATE SET concluida = 1
         """, user_id, f"titulo_{valor.replace(' ', '_')}")
-
-
-async def adicionar_pontos_batalha(user_id: int, vitoria: bool, tipo: str = "treino"):
-    if not vitoria:
-        return None
-    
-    pontos_por_tipo = {
-        "treino": 10,
-        "arena": 15,
-        "dungeon": 20,
-        "torneio": 25,
-    }
-    
-    pontos = pontos_por_tipo.get(tipo, 10)
-    
-    try:
-        from systems.social.party import get_party_do_jogador
-        party = await get_party_do_jogador(user_id)
-        if party:
-            pontos = int(pontos * 1.2)
-    except:
-        pass
-    
-    resultado = await adicionar_pontos_passe(user_id, pontos, tipo)
-    return resultado
 
 
 # ==================================================
@@ -440,6 +446,45 @@ async def cmd_passe_recompensas(interaction: discord.Interaction):
 
 
 # ==================================================
+# AUTOCOMPLETE
+# ==================================================
+
+async def autocomplete_nivel(interaction: discord.Interaction, current: str):
+    progresso = await get_progresso(interaction.user.id)
+    nivel_atual = progresso["nivel"]
+    recompensas_recebidas = json.loads(progresso["recompensas_recebidas"])
+    
+    opcoes = []
+    for nivel in range(1, nivel_atual + 1):
+        if str(nivel) not in recompensas_recebidas and nivel in RECOMPENSAS_PASSE:
+            r = RECOMPENSAS_PASSE[nivel]
+            if current.lower() in str(nivel) or current.lower() in r["desc"].lower():
+                opcoes.append(app_commands.Choice(
+                    name=f"Nível {nivel} - {r['emoji']} {r['desc']}",
+                    value=str(nivel)
+                ))
+    return opcoes[:25]
+
+
+async def autocomplete_tipo_recompensa_admin(interaction: discord.Interaction, current: str):
+    tipos = [
+        ("🪙 Moedas", "moedas"),
+        ("⭐ XP", "xp"),
+        ("🎰 Ficha Comum", "ficha_Comum"),
+        ("🎰 Ficha Incomum", "ficha_Incomum"),
+        ("🎰 Ficha Raro", "ficha_Raro"),
+        ("🎰 Ficha Epico", "ficha_Epico"),
+        ("🎰 Ficha Lendario", "ficha_Lendario"),
+        ("📦 Item do Catálogo", "item"),
+        ("🏷️ Título", "titulo"),
+    ]
+    return [
+        app_commands.Choice(name=nome, value=valor)
+        for nome, valor in tipos if current.lower() in nome.lower() or not current
+    ][:10]
+
+
+# ==================================================
 # COMANDOS ADMIN
 # ==================================================
 
@@ -538,69 +583,3 @@ async def cmd_passe_admin_configurar(interaction: discord.Interaction):
             await inter.response.send_message("✅ Configuração da temporada atualizada!", ephemeral=True)
     
     await interaction.response.send_modal(ConfigurarPasseModal())
-
-
-# Adicione no final de systems/passe.py
-
-async def adicionar_pontos_batalha(user_id: int, vitoria: bool, tipo: str = "treino"):
-    """Função de compatibilidade - chamada de outros módulos"""
-    if not vitoria:
-        return None
-    
-    pontos_por_tipo = {
-        "treino": 10,
-        "arena": 15,
-        "dungeon": 20,
-        "torneio": 25,
-    }
-    
-    pontos = pontos_por_tipo.get(tipo, 10)
-    
-    try:
-        from systems.social.party import get_party_do_jogador
-        party = await get_party_do_jogador(user_id)
-        if party:
-            pontos = int(pontos * 1.2)
-    except:
-        pass
-    
-    resultado = await adicionar_pontos_passe(user_id, pontos, tipo)
-    return resultado
-
-# ==================================================
-# AUTOCOMPLETE
-# ==================================================
-
-async def autocomplete_nivel(interaction: discord.Interaction, current: str):
-    progresso = await get_progresso(interaction.user.id)
-    nivel_atual = progresso["nivel"]
-    recompensas_recebidas = json.loads(progresso["recompensas_recebidas"])
-    
-    opcoes = []
-    for nivel in range(1, nivel_atual + 1):
-        if str(nivel) not in recompensas_recebidas and nivel in RECOMPENSAS_PASSE:
-            r = RECOMPENSAS_PASSE[nivel]
-            if current.lower() in str(nivel) or current.lower() in r["desc"].lower():
-                opcoes.append(app_commands.Choice(
-                    name=f"Nível {nivel} - {r['emoji']} {r['desc']}",
-                    value=str(nivel)
-                ))
-    return opcoes[:25]
-
-
-async def autocomplete_tipo_recompensa_admin(interaction: discord.Interaction, current: str):
-    tipos = [
-        ("🪙 Moedas", "moedas"),
-        ("⭐ XP", "xp"),
-        ("🎰 Ficha Comum", "ficha_Comum"),
-        ("🎰 Ficha Incomum", "ficha_Incomum"),
-        ("🎰 Ficha Raro", "ficha_Raro"),
-        ("🎰 Ficha Epico", "ficha_Epico"),
-        ("🎰 Ficha Lendario", "ficha_Lendario"),
-        ("📦 Item do Catálogo", "item"),
-        ("🏷️ Título", "titulo"),
-    ]
-    return [
-        app_commands.Choice(name=nome, value=valor)
-        for nome, valor in tipos if current.lower() in nome.lower() or not current
-    ][:10]
