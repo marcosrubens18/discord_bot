@@ -521,6 +521,11 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
                 embed_exp = discord.Embed(title="💤 Expulso por inatividade!", color=0x888780)
                 await interaction.followup.send(embed=embed_exp)
                 BATALHAS_ATIVAS.discard(uid)
+                for m in msgs_batalha:
+                    try:
+                        await m.delete()
+                    except:
+                        pass
                 return
             else:
                 aviso = discord.Embed(title=f"⏰ Turno perdido! ({timeout_count}/3)", color=0xE4AF3C)
@@ -698,9 +703,75 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
 
     xp_base = monstro["xp"]
     moedas_base = monstro["moedas"]
+    
+    # Salva resultado (XP, level up, etc)
     lvlups, nivel_novo, rank_mudou, rank_obj = await salvar_resultado(
         uid, hp_j, xp_base, moedas_base, vitoria, p["classe_id"], p["nivel"], mana_j
     )
+
+    # ==================================================
+    # REGISTROS PARA EVENTOS, MISSÕES E PASSE
+    # ==================================================
+    
+    if vitoria:
+        print(f"[DEBUG] Vitória registrada para {uid}")
+        
+        # 1. Registrar para EVENTOS
+        try:
+            from systems.eventos import registrar_batalha_evento
+            await registrar_batalha_evento(uid)
+            print(f"[DEBUG] Evento registrado para {uid}")
+        except Exception as e:
+            print(f"[ERRO] Falha ao registrar evento: {e}")
+        
+        # 2. Registrar para PASSE
+        try:
+            from systems.passe import adicionar_pontos_batalha
+            resultado_passe = await adicionar_pontos_batalha(uid, True, "treino")
+            if resultado_passe:
+                print(f"[DEBUG] Passe atualizado: +{resultado_passe.get('pontos_ganhos', 0)} pontos")
+        except Exception as e:
+            print(f"[ERRO] Falha ao registrar passe: {e}")
+        
+        # 3. Registrar para MISSÕES
+        try:
+            from systems.missoes import atualizar_progresso
+            # Missão de vitórias em treino
+            recomps = await atualizar_progresso(uid, "vitorias_treino")
+            print(f"[DEBUG] Missão vitorias_treino atualizada: {len(recomps)} recompensas")
+            
+            # Missão de treino difícil/lendário
+            if monstro["dificuldade"] in ("dificil", "lendario"):
+                await atualizar_progresso(uid, "treino_hard")
+                print(f"[DEBUG] Missão treino_hard atualizada")
+            
+            # Missão de loot coletado (se o monstro dropou algo)
+            import random
+            if random.random() < 0.3:
+                await atualizar_progresso(uid, "loots_coletados")
+                print(f"[DEBUG] Missão loots_coletados atualizada")
+                
+        except Exception as e:
+            print(f"[ERRO] Falha ao registrar missão: {e}")
+        
+        # 4. Registrar para CONQUISTAS
+        try:
+            from systems.conquistas import verificar_conquistas
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                p_atual = await conn.fetchrow(
+                    "SELECT vitorias, moedas FROM personagens WHERE user_id = $1", uid
+                )
+            if p_atual:
+                await verificar_conquistas(uid, "vitorias", p_atual["vitorias"])
+                await verificar_conquistas(uid, "moedas", p_atual["moedas"])
+                print(f"[DEBUG] Conquistas verificadas: {p_atual['vitorias']} vitórias, {p_atual['moedas']} moedas")
+        except Exception as e:
+            print(f"[ERRO] Falha ao verificar conquistas: {e}")
+
+    # ==================================================
+    # MENSAGEM FINAL
+    # ==================================================
 
     titulo = "🏆 Vitória!" if vitoria else "💀 Você foi derrotado!"
     cor = 0x1D9E75 if vitoria else 0xE24B4A
@@ -975,6 +1046,28 @@ async def rodar_pvp(channel, p1, p2, m1, m2, arena, callback: Callable = None):
     mo_v = 60
     await salvar_resultado(vencedor["user_id"], hp_v, xp_v, mo_v, True, vencedor["classe_id"], vencedor["nivel"])
     await salvar_resultado(perdedor["user_id"], 10, 20, 0, False, perdedor["classe_id"], perdedor["nivel"])
+
+    # Registrar vitória PvP para eventos, missões e passe
+    try:
+        from systems.eventos import registrar_batalha_evento
+        await registrar_batalha_evento(vencedor["user_id"])
+        print(f"[DEBUG] Evento PvP registrado para {vencedor['user_id']}")
+    except Exception as e:
+        print(f"[ERRO] Falha ao registrar evento PvP: {e}")
+    
+    try:
+        from systems.passe import adicionar_pontos_batalha
+        await adicionar_pontos_batalha(vencedor["user_id"], True, "arena")
+        print(f"[DEBUG] Passe PvP registrado para {vencedor['user_id']}")
+    except Exception as e:
+        print(f"[ERRO] Falha ao registrar passe PvP: {e}")
+    
+    try:
+        from systems.missoes import atualizar_progresso
+        await atualizar_progresso(vencedor["user_id"], "pvp_vitorias")
+        print(f"[DEBUG] Missão pvp_vitorias atualizada para {vencedor['user_id']}")
+    except Exception as e:
+        print(f"[ERRO] Falha ao registrar missão PvP: {e}")
 
     fim = discord.Embed(
         title=f"🏆 {vencedor['nome']} vence o duelo!",
