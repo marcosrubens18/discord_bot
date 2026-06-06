@@ -267,3 +267,10 @@ async def cmd_setup(interaction: discord.Interaction):
     
     msg = await interaction.followup.send(embed=view._build_embed(), view=view, ephemeral=True, wait=True)
     view.msg = msg
+
+
+def setup_setup_command(bot):
+    """Registra o comando setup no bot"""
+    @bot.tree.command(name="setup", description="Configure suas skills e equipamentos")
+    async def setup(interaction: discord.Interaction):
+        await cmd_setup(interaction)
