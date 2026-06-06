@@ -55,6 +55,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"✅ Bot conectado como {bot.user}")
     print(f"📊 Comandos registrados: {len(bot.tree.get_commands()):,}")
+    from systems.missoes import iniciar_agendador_reset
+await iniciar_agendador_reset(bot)
     
     # Inicializar bancos de dados
     await init_db()
