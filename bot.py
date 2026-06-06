@@ -32,6 +32,7 @@ from commands.roleta import setup_roleta_commands
 from commands.sorteio import setup_sorteio_commands
 from commands.hospital import setup_hospital_commands
 from commands.tutorial import setup_tutorial_commands
+from commands.setup_cmd import setup_setup_command  # ou a função que registra o comando
 
 # Importar eventos
 from core.events import setup_events
