@@ -6,21 +6,55 @@ import asyncio
 
 from db import get_pool
 from data_racas import RACAS, RACAS_BASICAS, get_raca
-from data_classes import CLASSES, PODERES, PESOS_PODER, DESTINOS, MANA_CLASSE, MANA_DESTINO
-from data_skills import SKILLS_COMPLETAS, get_skill_by_id
-from constants import COR_RAR, EMOJI_CLASSE
+from data_classes import CLASSES, PODERES, PESOS_PODER, DESTINOS
+from data_skills import SKILLS_COMPLETAS
+from constants import COR_RAR, EMOJI_CLASSE, RANK_BONUS
 from imagens import IMG_PERFIL
 from utils import atualizar_todos_cargos
-from catalogo import get_rank, RANK_BONUS, calcular_mana_max
+from data_ranks import get_rank
 
+
+# ==================================================
+# CÁLCULO DE MANA
+# ==================================================
+
+MANA_CLASSE = {
+    "guerreiro": {"base": 105, "mult_nivel": 10, "mult_poder": 0.3},
+    "arqueiro": {"base": 105, "mult_nivel": 11, "mult_poder": 0.3},
+    "mago": {"base": 120, "mult_nivel": 15, "mult_poder": 0.6},
+    "paladino": {"base": 110, "mult_nivel": 12, "mult_poder": 0.4},
+    "necromante": {"base": 115, "mult_nivel": 13, "mult_poder": 0.5},
+    "dracomante": {"base": 115, "mult_nivel": 11, "mult_poder": 0.4},
+    "arcano": {"base": 125, "mult_nivel": 16, "mult_poder": 0.7},
+}
+
+MANA_DESTINO = {
+    "equilibrado": 1.00,
+    "prodigio": 0.85,
+    "maldito": 0.70,
+    "guardiao": 1.10,
+    "abencado": 1.15,
+    "amaldicoado": 1.00,
+    "filho_caos": 1.20,
+}
+
+
+def calcular_mana_max(classe_id, nivel, poder_valor, destino_id):
+    cfg = MANA_CLASSE.get(classe_id, {"base": 100, "mult_nivel": 10, "mult_poder": 0.4})
+    base = cfg["base"] + (nivel - 1) * cfg["mult_nivel"] + poder_valor * cfg["mult_poder"]
+    mult = MANA_DESTINO.get(destino_id, 1.0)
+    return max(100, int(base * mult))
+
+
+# ==================================================
+# FUNÇÕES AUXILIARES
+# ==================================================
 
 def sortear_peso(lista, pesos):
-    """Sorteia um item baseado em pesos"""
     return random.choices(lista, weights=pesos, k=1)[0]
 
 
 def calcular_stats(poder_valor, destino_id, nivel=1):
-    """Calcula HP, ATK e DEF base do personagem"""
     hp = 90 + poder_valor * 2 + nivel * 6
     atk = 9 + poder_valor // 5 + nivel * 2
     dfs = 6 + poder_valor // 7 + nivel * 1
@@ -46,7 +80,6 @@ def calcular_stats(poder_valor, destino_id, nivel=1):
 
 
 async def criar_canal_privado(guild, member, nome, classe):
-    """Cria canal privado para o jogador"""
     try:
         cat = (discord.utils.get(guild.categories, name="MEU PERFIL") or
                discord.utils.get(guild.categories, name="Meu Perfil") or
@@ -71,14 +104,33 @@ async def criar_canal_privado(guild, member, nome, classe):
 
 
 async def get_personagem(user_id):
-    """Retorna o personagem do usuário"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         return await conn.fetchrow("SELECT * FROM personagens WHERE user_id=$1", user_id)
 
 
+async def add_loot(user_id, loot):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        for it in loot:
+            iid, nome, tipo, rar, emoji, desc = it
+            ex = await conn.fetchrow(
+                "SELECT id, quantidade FROM inventario WHERE user_id=$1 AND item_id=$2",
+                user_id, iid
+            )
+            if ex:
+                await conn.execute(
+                    "UPDATE inventario SET quantidade = quantidade + 1 WHERE id = $1",
+                    ex["id"]
+                )
+            else:
+                await conn.execute(
+                    "INSERT INTO inventario(user_id, item_id, nome, tipo, raridade, emoji, descricao) VALUES($1,$2,$3,$4,$5,$6,$7)",
+                    user_id, iid, nome, tipo, rar, emoji, desc
+                )
+
+
 async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe_id, nivel_atual, mana_atual_batalha=None):
-    """Salva o resultado de uma batalha (XP, moedas, level up)"""
     pool = await get_pool()
     async with pool.acquire() as conn:
         p = await conn.fetchrow(
@@ -88,7 +140,6 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
         if not p:
             return 0, nivel_atual, False, None
 
-        # Bônus de XP por raça
         _raca = get_raca(p.get("raca_id", "humano"))
         _bonus_xp = _raca.get("bonus_xp", 0.0) if isinstance(_raca, dict) else 0.0
         _bonus_moedas = _raca.get("bonus_moedas", 0.0) if isinstance(_raca, dict) else 0.0
@@ -145,7 +196,6 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
             user_id
         )
 
-        # Desbloqueia skills pelo novo nível
         for s in SKILLS_COMPLETAS.get(classe_id, []):
             if s["nivel"] <= nv:
                 await conn.execute(
@@ -153,7 +203,6 @@ async def salvar_resultado(user_id, hp, xp_ganho, moedas_ganhas, vitoria, classe
                     user_id, s["id"]
                 )
 
-        # Registra level up no evento
         if levelups > 0:
             try:
                 from sistema_eventos import registrar_level_up_evento
