@@ -746,7 +746,6 @@ async def rodar_treino(interaction: discord.Interaction, p: dict, monstro: dict,
                 print(f"[DEBUG] Missão treino_hard atualizada")
             
             # Missão de loot coletado (se o monstro dropou algo)
-            import random
             if random.random() < 0.3:
                 await atualizar_progresso(uid, "loots_coletados")
                 print(f"[DEBUG] Missão loots_coletados atualizada")
