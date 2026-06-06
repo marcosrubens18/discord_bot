@@ -24,7 +24,7 @@ from sistema_sorteio import init_db_sorteios, reagendar_sorteios_pendentes, fina
 from sistema_dungeon_evento import init_db_dungeon_evento
 from sistema_passe import init_db_passe, register_passe_commands
 from sistema_eventos import init_db_eventos
-from sistema_roleta import init_db_hospital
+from sistema_hospital import init_db_hospital  # <-- CORRIGIDO: antes era from sistema_roleta
 from sistema_missoes import iniciar_agendador_reset
 from sistema_conquistas import init_conquistas
 from sistema_torneio import init_db_torneio
@@ -84,7 +84,7 @@ async def on_ready():
         await init_db_dungeon_evento()
         await init_db_passe()
         await init_db_eventos()
-        await init_db_hospital()
+        await init_db_hospital()  # <-- CORRIGIDO
         await init_conquistas()
         await init_db_torneio()
         print("✅ Bancos de dados inicializados")
