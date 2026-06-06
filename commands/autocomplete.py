@@ -10,30 +10,36 @@ from data.constantes import RARIDADES
 
 
 def get_catalogo_completo():
-    """Retorna todos os itens do catálogo (armas, armaduras, poções, materiais)"""
+    """Retorna todos os itens do catálogo (armas, armaduras, poções, materiais) SEM DUPLICAÇÃO"""
     todos = []
+    itens_ids_vistos = set()
     
-    # Armas
+    # Armas (apenas uma vez por item, não por classe)
     for cls, armas in ARMAS_POR_CLASSE.items():
         for a in armas:
-            todos.append({
-                "chave": f"arma:{cls}:{a['id']}",
-                "id": a["id"], "nome": a["nome"],
-                "emoji": a.get("emoji", "⚔️"), "tipo": "arma",
-                "raridade": a["raridade"], "classe": cls,
-                "desc": a.get("desc", ""), "preco": a.get("preco", 0), "venda": a.get("venda", 0)
-            })
+            if a["id"] not in itens_ids_vistos:
+                itens_ids_vistos.add(a["id"])
+                todos.append({
+                    "chave": f"arma:{cls}:{a['id']}",
+                    "id": a["id"], "nome": a["nome"],
+                    "emoji": a.get("emoji", "⚔️"), "tipo": "arma",
+                    "raridade": a["raridade"], "classe": cls,
+                    "desc": a.get("desc", ""), "preco": a.get("preco", 0), "venda": a.get("venda", 0)
+                })
     
-    # Armaduras
+    # Armaduras (apenas uma vez por item)
+    itens_ids_vistos = set()
     for cls, arms in ARMADURAS_POR_CLASSE.items():
         for a in arms:
-            todos.append({
-                "chave": f"armadura:{cls}:{a['id']}",
-                "id": a["id"], "nome": a["nome"],
-                "emoji": a.get("emoji", "🛡️"), "tipo": "armadura",
-                "raridade": a["raridade"], "classe": cls,
-                "desc": a.get("desc", ""), "preco": a.get("preco", 0), "venda": a.get("venda", 0)
-            })
+            if a["id"] not in itens_ids_vistos:
+                itens_ids_vistos.add(a["id"])
+                todos.append({
+                    "chave": f"armadura:{cls}:{a['id']}",
+                    "id": a["id"], "nome": a["nome"],
+                    "emoji": a.get("emoji", "🛡️"), "tipo": "armadura",
+                    "raridade": a["raridade"], "classe": cls,
+                    "desc": a.get("desc", ""), "preco": a.get("preco", 0), "venda": a.get("venda", 0)
+                })
     
     # Poções
     for p in POCOES_CAT:
@@ -84,11 +90,24 @@ def get_itens_por_categoria(categoria: str):
 
 async def autocomplete_item_categoria(interaction: discord.Interaction, current: str):
     try:
-        categoria = str(interaction.namespace.categoria or "")
+        categoria = getattr(interaction.namespace, 'categoria', '')
     except:
         categoria = ""
+    
     itens = get_itens_por_categoria(categoria) if categoria else get_catalogo_completo()
-    filtrado = [i for i in itens if current.lower() in i["nome"].lower() or current.lower() in i["raridade"].lower()]
+    
+    # Filtra e ordena por relevância
+    current_lower = current.lower()
+    filtrado = [
+        i for i in itens 
+        if current_lower in i["nome"].lower() or current_lower in i["raridade"].lower()
+    ]
+    # Ordena: primeiro os que começam com o termo, depois os que contêm
+    filtrado.sort(key=lambda x: (
+        0 if x["nome"].lower().startswith(current_lower) else 1,
+        x["nome"].lower()
+    ))
+    
     return [
         app_commands.Choice(
             name=f"{i['emoji']} {i['nome']} [{i['raridade']}]"[:100],
@@ -100,7 +119,16 @@ async def autocomplete_item_categoria(interaction: discord.Interaction, current:
 
 async def autocomplete_item_todos(interaction: discord.Interaction, current: str):
     itens = get_catalogo_completo()
-    filtrado = [i for i in itens if current.lower() in i["nome"].lower() or current.lower() in i["raridade"].lower() or current.lower() in i["tipo"].lower()]
+    current_lower = current.lower()
+    filtrado = [
+        i for i in itens 
+        if current_lower in i["nome"].lower() or current_lower in i["raridade"].lower() or current_lower in i["tipo"].lower()
+    ]
+    filtrado.sort(key=lambda x: (
+        0 if x["nome"].lower().startswith(current_lower) else 1,
+        x["nome"].lower()
+    ))
+    
     return [
         app_commands.Choice(
             name=f"{i['emoji']} {i['nome']} [{i['raridade']}] — {i['tipo']}{' ('+i['classe']+')' if i['classe'] else ''}"[:100],
@@ -112,7 +140,12 @@ async def autocomplete_item_todos(interaction: discord.Interaction, current: str
 
 async def autocomplete_materiais(interaction: discord.Interaction, current: str):
     itens = get_catalogo_completo()
-    filtrado = [i for i in itens if i["tipo"] in ("material", "pocao") and (current.lower() in i["nome"].lower() or not current)]
+    filtrado = [
+        i for i in itens 
+        if i["tipo"] in ("material", "pocao") and (current.lower() in i["nome"].lower() or not current)
+    ]
+    filtrado.sort(key=lambda x: x["nome"].lower())
+    
     return [
         app_commands.Choice(
             name=f"{i['emoji']} {i['nome']} [{i['raridade']}]"[:100],
@@ -124,17 +157,22 @@ async def autocomplete_materiais(interaction: discord.Interaction, current: str)
 
 async def autocomplete_item_premio(interaction: discord.Interaction, current: str):
     try:
-        premio_tipo = str(interaction.namespace.premio_tipo or "")
+        premio_tipo = getattr(interaction.namespace, 'premio_tipo', '')
     except:
         premio_tipo = ""
     
     if premio_tipo == "item":
         itens = get_catalogo_completo()
-        filtrado = [i for i in itens if current.lower() in i["nome"].lower() or not current]
+        filtrado = [
+            i for i in itens 
+            if current.lower() in i["nome"].lower() or not current
+        ]
+        filtrado.sort(key=lambda x: x["nome"].lower())
+        
         return [
             app_commands.Choice(
                 name=f"{i['emoji']} {i['nome']} [{i['raridade']}]"[:100],
-                value=f"{i['id']}|{i['nome']}|{i['tipo']}|{i['raridade']}|{i['emoji']}|{i.get('desc','')}"[:100]
+                value=f"{i['id']}|{i['nome']}|{i['tipo']}|{i['raridade']}|{i['emoji']}|{i.get('desc', '').replace('|', ' ')}"[:100]
             )
             for i in filtrado[:25]
         ]
