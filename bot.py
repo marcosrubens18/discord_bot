@@ -112,7 +112,7 @@ setup_roleta_commands(bot)
 setup_sorteio_commands(bot)
 setup_hospital_commands(bot)
 setup_tutorial_commands(bot)
-
+setup_setup_command(bot)
 setup_events(bot)
 
 
