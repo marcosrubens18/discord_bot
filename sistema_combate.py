@@ -11,12 +11,45 @@ from data_armaduras import get_bonus_armadura
 from data_monstros import MONSTROS
 from data_racas import PassivaRacial, get_raca
 from data_skills import SKILLS_COMPLETAS, get_skill_by_id
+from data_ranks import get_rank
 from constants import EMOJI_CLASSE, ARENAS, COOLDOWN_BATALHA, RANK_BONUS
 from imagens import IMG_VITORIA, IMG_DERROTA, IMG_MONSTRO
 from utils import atualizar_todos_cargos
 from cooldown import cooldown_manager
-from catalogo import get_rank, calcular_mana_max
 from sistema_personagem import salvar_resultado, get_personagem
+
+
+# ==================================================
+# CÁLCULO DE MANA
+# ==================================================
+
+MANA_CLASSE = {
+    "guerreiro": {"base": 105, "mult_nivel": 10, "mult_poder": 0.3},
+    "arqueiro": {"base": 105, "mult_nivel": 11, "mult_poder": 0.3},
+    "mago": {"base": 120, "mult_nivel": 15, "mult_poder": 0.6},
+    "paladino": {"base": 110, "mult_nivel": 12, "mult_poder": 0.4},
+    "necromante": {"base": 115, "mult_nivel": 13, "mult_poder": 0.5},
+    "dracomante": {"base": 115, "mult_nivel": 11, "mult_poder": 0.4},
+    "arcano": {"base": 125, "mult_nivel": 16, "mult_poder": 0.7},
+}
+
+MANA_DESTINO = {
+    "equilibrado": 1.00,
+    "prodigio": 0.85,
+    "maldito": 0.70,
+    "guardiao": 1.10,
+    "abencado": 1.15,
+    "amaldicoado": 1.00,
+    "filho_caos": 1.20,
+}
+
+
+def calcular_mana_max(classe_id, nivel, poder_valor, destino_id):
+    cfg = MANA_CLASSE.get(classe_id, {"base": 100, "mult_nivel": 10, "mult_poder": 0.4})
+    base = cfg["base"] + (nivel - 1) * cfg["mult_nivel"] + poder_valor * cfg["mult_poder"]
+    mult = MANA_DESTINO.get(destino_id, 1.0)
+    return max(100, int(base * mult))
+
 
 # ==================================================
 # CONSTANTES DE COMBATE
