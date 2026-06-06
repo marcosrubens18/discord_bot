@@ -9,6 +9,7 @@ from database.db import get_pool
 from database.queries import get_personagem
 from data.ranks import get_rank
 from data.constantes import EMOJI_FICHA, COR_PRIMARY, COR_SUCCESS, COR_DANGER, COR_WARNING, COR_INFO
+from utils.calculos import calcular_mana_max
 
 
 # ==================================================
@@ -100,7 +101,6 @@ async def resetar_missoes_diarias():
     hoje = date.today().isoformat()
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # Marca missões antigas como expiradas (opcional)
         await conn.execute("DELETE FROM missoes_diarias WHERE data < $1", hoje)
     print(f"[MISSOES] Reset diário executado para {hoje}")
 
@@ -153,7 +153,6 @@ async def atualizar_progresso(user_id: int, tipo: str, quantidade: int = 1) -> l
                     atk = p_atual["ataque"] + levelups * 2
                     dfs = p_atual["defesa"] + levelups * 1
                     
-                    from utils.calculos import calcular_mana_max
                     mana_max = calcular_mana_max(
                         p_atual["classe_id"], nv, 
                         p_atual["poder_valor"], p_atual["destino_id"]
@@ -165,6 +164,14 @@ async def atualizar_progresso(user_id: int, tipo: str, quantidade: int = 1) -> l
                             mana_max = $6, moedas = moedas + $7 
                         WHERE user_id = $8
                     """, novo_xp, nv, hp_max, atk, dfs, mana_max, m["moedas"], user_id)
+                    
+                    # Registrar level up no evento
+                    if levelups > 0:
+                        try:
+                            from systems.eventos import registrar_level_up_evento
+                            await registrar_level_up_evento(user_id, levelups)
+                        except:
+                            pass
                 else:
                     await conn.execute("""
                         UPDATE personagens SET xp = xp + $1, moedas = moedas + $2 
