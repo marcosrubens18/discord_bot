@@ -3,6 +3,7 @@
 import discord
 from discord import app_commands
 import asyncio
+import random
 from datetime import datetime, timedelta
 from typing import Optional, List
 
@@ -152,8 +153,8 @@ async def entregar_recompensa(conn, user_id: int, item_id: str, item_nome: str, 
 async def finalizar_sorteio(sorteio_id: int, guild, canal_id: int, mensagem_id: int, manual: bool = False):
     pool = await get_pool()
     async with pool.acquire() as conn:
-        sorteio = await conn.fetchrow("SELECT * FROM sorteios WHERE id = $1", sorteio_id)
-        if not sorteio or sorteio["status"] != "ativo":
+        sorteio = await conn.fetchrow("SELECT * FROM sorteios WHERE id = $1 AND status = 'ativo'", sorteio_id)
+        if not sorteio:
             return None, None
         
         participantes = await conn.fetch("SELECT usuario_id FROM sorteio_participantes WHERE sorteio_id = $1", sorteio_id)
@@ -381,26 +382,32 @@ async def finalizar_e_anunciar_sorteio(sorteio_id: int, guild):
     if sorteio["data_encerramento"] and datetime.now() < sorteio["data_encerramento"]:
         return
     
-    vencedores, participantes = await finalizar_sorteio(sorteio_id, guild, sorteio["canal_id"], sorteio["mensagem_id"], False)
+    # Pega mensagem_id com segurança (se não existir, usa 0)
+    mensagem_id = sorteio.get("mensagem_id", 0)
+    canal_id = sorteio.get("canal_id", 0)
+    
+    vencedores, participantes = await finalizar_sorteio(sorteio_id, guild, canal_id, mensagem_id, False)
     
     if vencedores is None:
         return
     
-    canal = guild.get_channel(sorteio["canal_id"])
+    canal = guild.get_channel(canal_id)
     if not canal:
         return
     
-    try:
-        msg_original = await canal.fetch_message(sorteio["mensagem_id"])
-        if msg_original and msg_original.embeds:
-            embed = msg_original.embeds[0]
-            for i, field in enumerate(embed.fields):
-                if field.name == "📌 Status":
-                    embed.set_field_at(i, name="📌 Status", value="🔴 ENCERRADO", inline=True)
-                    break
-            await msg_original.edit(embed=embed, view=None)
-    except:
-        pass
+    # Tenta editar a mensagem original se ela existir
+    if mensagem_id and mensagem_id > 0:
+        try:
+            msg_original = await canal.fetch_message(mensagem_id)
+            if msg_original and msg_original.embeds:
+                embed = msg_original.embeds[0]
+                for i, field in enumerate(embed.fields):
+                    if field.name == "📌 Status":
+                        embed.set_field_at(i, name="📌 Status", value="🔴 ENCERRADO", inline=True)
+                        break
+                await msg_original.edit(embed=embed, view=None)
+        except:
+            pass
     
     if not vencedores:
         embed_fim = discord.Embed(
@@ -469,7 +476,9 @@ async def cmd_sorteio_participar(interaction: discord.Interaction, sorteio_id: i
             return
         
         if await adicionar_participante(sorteio_id, interaction.user.id):
-            await atualizar_embed_sorteio(interaction.guild, canal_id, sorteio["mensagem_id"])
+            mensagem_id = sorteio.get("mensagem_id", 0)
+            if mensagem_id and mensagem_id > 0:
+                await atualizar_embed_sorteio(interaction.guild, canal_id, mensagem_id)
             await interaction.followup.send("✅ Você entrou no sorteio com sucesso! Boa sorte! 🍀", ephemeral=True)
         else:
             await interaction.followup.send("❌ Erro ao participar do sorteio. Tente novamente.", ephemeral=True)
@@ -675,14 +684,16 @@ async def cmd_sorteio_cancelar(interaction: discord.Interaction, sorteio_id: int
     canal = interaction.guild.get_channel(sorteio["canal_id"])
     if canal:
         try:
-            msg = await canal.fetch_message(sorteio["mensagem_id"])
-            if msg and msg.embeds:
-                embed = msg.embeds[0]
-                for i, field in enumerate(embed.fields):
-                    if field.name == "📌 Status":
-                        embed.set_field_at(i, name="📌 Status", value="❌ CANCELADO", inline=True)
-                        break
-                await msg.edit(embed=embed, view=None)
+            mensagem_id = sorteio.get("mensagem_id", 0)
+            if mensagem_id and mensagem_id > 0:
+                msg = await canal.fetch_message(mensagem_id)
+                if msg and msg.embeds:
+                    embed = msg.embeds[0]
+                    for i, field in enumerate(embed.fields):
+                        if field.name == "📌 Status":
+                            embed.set_field_at(i, name="📌 Status", value="❌ CANCELADO", inline=True)
+                            break
+                    await msg.edit(embed=embed, view=None)
         except:
             pass
     
