@@ -14,7 +14,7 @@ from sistema_combate import (
 )
 from data_skills import SKILLS_COMPLETAS
 from constants import EMOJI_CLASSE
-from catalogo import get_rank
+from data_ranks import get_rank  # <-- CORRIGIDO: antes era from catalogo import get_rank
 
 
 # ==================================================
@@ -372,7 +372,6 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
         if not p:
             await interaction.followup.send("Crie seu personagem primeiro!", ephemeral=True)
             return
-        from catalogo import get_rank
         ranks_order = ["F", "E", "D", "C", "B", "A", "S", "SS"]
         rank_p = get_rank(p["nivel"])["rank"]
         if ranks_order.index(rank_p) < ranks_order.index(dg["rank_minimo"]):
@@ -575,7 +574,6 @@ async def cmd_dungeon_evento_entrar(interaction: discord.Interaction, dungeon_id
                 await interaction.followup.send(embed=embed_kill)
                 break
 
-            # Ataque do monstro
             dano_m_base = calc_dano(andar["ataque"], p["defesa"], bonus_atk=bonus_dfs, nivel=p["nivel"])
             hp_j = max(0, hp_j - dano_m_base)
             mana_j = min(mana_jmx, mana_j + 8)
